@@ -1,0 +1,37 @@
+{
+  "name": "cursed-yahtzee",
+  "version": "1.0.0",
+  "description": "A fast-paced Yahtzee game with cursed mechanics - race against the soundtrack to fill your scorecard!",
+  "main": "src/main.ts",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/**/*.ts --no-warn-ignored",
+    "lint:fix": "eslint src/**/*.ts --no-warn-ignored --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,json,css,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,json,css,md}\""
+  },
+  "keywords": ["yahtzee", "dice", "game", "phaser", "typescript"],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@typescript-eslint/eslint-plugin": "^8.47.0",
+    "@typescript-eslint/parser": "^8.47.0",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.47.0",
+    "vite": "^7.2.4",
+    "vite-plugin-singlefile": "^2.3.0",
+    "vite-tsconfig-paths": "^5.1.4"
+  },
+  "dependencies": {
+    "phaser": "^3.90.0"
+  }
+}

@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# Local settings (not committed)
+.claude/settings.local.json
+
+# Backup folder
+_backup/
+
+# System files
+.DS_Store
+*.DS_Store
+
+# Editor files
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.local

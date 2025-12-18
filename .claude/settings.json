@@ -1,0 +1,4 @@
+{
+  "dangerouslySkipPermissions": true,
+  "customInstructions": "When performing web searches, always use the current date context (November 2025) to find the most recent information. Avoid searches that use 2024 as the date filter - use 2025 instead for up-to-date results.\n\nProject roadmap is maintained in README.md under the '🔮 Roadmap' section. Always check README.md for current phase status and roadmap structure. When discussing or planning phases, reference and update the README.md roadmap to keep it synchronized with actual progress."
+}
