@@ -301,18 +301,18 @@ export class SprintScene extends Phaser.Scene {
   }
 
   private createDebugControls(): void {
-    const { width, height } = this.cameras.main;
+    const { height } = this.cameras.main;
 
-    // Debug panel container in bottom right
-    const panelX = width - 100;
-    const panelY = height - 65;
+    // Debug panel container - left side, vertically centered
+    const panelX = 90;
+    const panelY = height / 2;
 
     // Debug panel background
-    const panelBg = this.add.rectangle(panelX, panelY, 180, 110, 0x1a1a2a, 0.9);
+    const panelBg = this.add.rectangle(panelX, panelY, 160, 100, 0x1a1a2a, 0.85);
     panelBg.setStrokeStyle(2, 0x4a3a6a);
 
     // Debug label
-    const debugLabel = this.createText(panelX, panelY - 42, '🔧 DEBUG', {
+    const debugLabel = this.createText(panelX, panelY - 38, 'DEBUG', {
       fontSize: '10px',
       fontFamily: FONTS.FAMILY,
       color: '#8866aa',
@@ -321,12 +321,12 @@ export class SprintScene extends Phaser.Scene {
     debugLabel.setOrigin(0.5, 0.5);
 
     // Skip 10 seconds button
-    const skipTimeBtn = this.add.rectangle(panelX, panelY - 18, 160, 30, 0x3a3a2a);
+    const skipTimeBtn = this.add.rectangle(panelX, panelY - 12, 140, 28, 0x3a3a2a);
     skipTimeBtn.setStrokeStyle(2, 0x8a7a4a);
     skipTimeBtn.setInteractive({ useHandCursor: true });
 
-    const skipTimeText = this.createText(panelX, panelY - 18, '⏩ Skip 10 sec [D]', {
-      fontSize: '12px',
+    const skipTimeText = this.createText(panelX, panelY - 12, '-10 sec [D]', {
+      fontSize: '11px',
       fontFamily: FONTS.FAMILY,
       color: '#ffcc66',
       fontStyle: 'bold',
@@ -338,12 +338,12 @@ export class SprintScene extends Phaser.Scene {
     skipTimeBtn.on('pointerdown', () => this.debugSkipTime());
 
     // Skip to next stage button
-    const skipStageBtn = this.add.rectangle(panelX, panelY + 18, 160, 30, 0x2a3a4a);
+    const skipStageBtn = this.add.rectangle(panelX, panelY + 20, 140, 28, 0x2a3a4a);
     skipStageBtn.setStrokeStyle(2, 0x4a8aaa);
     skipStageBtn.setInteractive({ useHandCursor: true });
 
-    const skipStageText = this.createText(panelX, panelY + 18, '⏭ Skip Stage [S]', {
-      fontSize: '12px',
+    const skipStageText = this.createText(panelX, panelY + 20, 'Skip Stage [S]', {
+      fontSize: '11px',
       fontFamily: FONTS.FAMILY,
       color: '#66ccff',
       fontStyle: 'bold',
