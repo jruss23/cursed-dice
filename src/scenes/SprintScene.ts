@@ -303,42 +303,165 @@ export class SprintScene extends Phaser.Scene {
   private createDebugControls(): void {
     const { width, height } = this.cameras.main;
 
-    // Debug panel in bottom right
-    const debugBg = this.add.rectangle(width - 80, height - 30, 120, 36, 0x2a2a3a, 0.8);
-    debugBg.setStrokeStyle(1, 0x4a4a5a);
+    // Debug panel container in bottom right
+    const panelX = width - 100;
+    const panelY = height - 65;
 
-    const skipBtn = this.add.rectangle(width - 80, height - 30, 110, 30, 0x4a3a2a);
-    skipBtn.setStrokeStyle(2, 0x8a6a4a);
-    skipBtn.setInteractive({ useHandCursor: true });
+    // Debug panel background
+    const panelBg = this.add.rectangle(panelX, panelY, 180, 110, 0x1a1a2a, 0.9);
+    panelBg.setStrokeStyle(2, 0x4a3a6a);
 
-    const skipText = this.createText(width - 80, height - 30, '⏩ -10 sec', {
+    // Debug label
+    const debugLabel = this.createText(panelX, panelY - 42, '🔧 DEBUG', {
+      fontSize: '10px',
+      fontFamily: FONTS.FAMILY,
+      color: '#8866aa',
+      fontStyle: 'bold',
+    });
+    debugLabel.setOrigin(0.5, 0.5);
+
+    // Skip 10 seconds button
+    const skipTimeBtn = this.add.rectangle(panelX, panelY - 18, 160, 30, 0x3a3a2a);
+    skipTimeBtn.setStrokeStyle(2, 0x8a7a4a);
+    skipTimeBtn.setInteractive({ useHandCursor: true });
+
+    const skipTimeText = this.createText(panelX, panelY - 18, '⏩ Skip 10 sec [D]', {
       fontSize: '12px',
       fontFamily: FONTS.FAMILY,
-      color: '#ffaa66',
+      color: '#ffcc66',
+      fontStyle: 'bold',
+    });
+    skipTimeText.setOrigin(0.5, 0.5);
+
+    skipTimeBtn.on('pointerover', () => skipTimeBtn.setFillStyle(0x5a5a3a));
+    skipTimeBtn.on('pointerout', () => skipTimeBtn.setFillStyle(0x3a3a2a));
+    skipTimeBtn.on('pointerdown', () => this.debugSkipTime());
+
+    // Skip to next stage button
+    const skipStageBtn = this.add.rectangle(panelX, panelY + 18, 160, 30, 0x2a3a4a);
+    skipStageBtn.setStrokeStyle(2, 0x4a8aaa);
+    skipStageBtn.setInteractive({ useHandCursor: true });
+
+    const skipStageText = this.createText(panelX, panelY + 18, '⏭ Skip Stage [S]', {
+      fontSize: '12px',
+      fontFamily: FONTS.FAMILY,
+      color: '#66ccff',
+      fontStyle: 'bold',
+    });
+    skipStageText.setOrigin(0.5, 0.5);
+
+    skipStageBtn.on('pointerover', () => skipStageBtn.setFillStyle(0x3a5a6a));
+    skipStageBtn.on('pointerout', () => skipStageBtn.setFillStyle(0x2a3a4a));
+    skipStageBtn.on('pointerdown', () => this.debugSkipStage());
+
+    // Keyboard shortcuts
+    this.input.keyboard?.on('keydown-D', () => this.debugSkipTime());
+    this.input.keyboard?.on('keydown-S', () => this.debugSkipStage());
+  }
+
+  /**
+   * DEBUG: Skip 10 seconds of time
+   */
+  private debugSkipTime(): void {
+    this.timeRemaining = Math.max(0, this.timeRemaining - 10000);
+    if (this.timerText) {
+      this.timerText.setText(this.formatTime(this.timeRemaining));
+    }
+    this.updateMusicSpeed();
+    console.log(`[DEBUG] Skipped 10s, time remaining: ${this.formatTime(this.timeRemaining)}`);
+
+    // Visual feedback
+    this.cameras.main.flash(100, 255, 200, 100);
+  }
+
+  /**
+   * DEBUG: Skip to next stage with perfect score
+   */
+  private debugSkipStage(): void {
+    console.log('[DEBUG] Skipping stage with perfect score');
+
+    // Fill all unfilled categories with high scores to guarantee pass
+    const available = this.scorecard.getAvailableCategories();
+
+    for (const cat of available) {
+      // Score each category with perfect dice for that category
+      const perfectDice = this.getPerfectDiceForCategory(cat.id);
+      this.scorecard.score(cat.id, perfectDice);
+    }
+
+    // Update display
+    this.scorecardPanel?.updateDisplay();
+
+    // Show feedback
+    const { width } = this.cameras.main;
+    const skipText = this.createText(width / 2, 200, '⚡ DEBUG: Stage Skipped!', {
+      fontSize: '24px',
+      fontFamily: FONTS.FAMILY,
+      color: '#66ffcc',
       fontStyle: 'bold',
     });
     skipText.setOrigin(0.5, 0.5);
+    skipText.setAlpha(0);
 
-    skipBtn.on('pointerover', () => skipBtn.setFillStyle(0x6a4a3a));
-    skipBtn.on('pointerout', () => skipBtn.setFillStyle(0x4a3a2a));
-    skipBtn.on('pointerdown', () => {
-      this.timeRemaining = Math.max(0, this.timeRemaining - 10000);
-      if (this.timerText) {
-        this.timerText.setText(this.formatTime(this.timeRemaining));
-      }
-      this.updateMusicSpeed();
-      console.log(`[DEBUG] Skipped 10s, time remaining: ${this.formatTime(this.timeRemaining)}`);
+    this.tweens.add({
+      targets: skipText,
+      alpha: 1,
+      y: 160,
+      duration: 300,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: skipText,
+          alpha: 0,
+          duration: 500,
+          delay: 500,
+          onComplete: () => skipText.destroy(),
+        });
+      },
     });
 
-    // Keyboard shortcut: press 'D' to skip
-    this.input.keyboard?.on('keydown-D', () => {
-      this.timeRemaining = Math.max(0, this.timeRemaining - 10000);
-      if (this.timerText) {
-        this.timerText.setText(this.formatTime(this.timeRemaining));
-      }
-      this.updateMusicSpeed();
-      console.log(`[DEBUG] Skipped 10s, time remaining: ${this.formatTime(this.timeRemaining)}`);
+    this.cameras.main.flash(200, 100, 255, 200);
+
+    // End game successfully
+    this.time.delayedCall(300, () => {
+      this.endGame(true);
     });
+  }
+
+  /**
+   * Get perfect dice values for a given category
+   */
+  private getPerfectDiceForCategory(categoryId: CategoryId): number[] {
+    switch (categoryId) {
+      case 'ones':
+        return [1, 1, 1, 1, 1];
+      case 'twos':
+        return [2, 2, 2, 2, 2];
+      case 'threes':
+        return [3, 3, 3, 3, 3];
+      case 'fours':
+        return [4, 4, 4, 4, 4];
+      case 'fives':
+        return [5, 5, 5, 5, 5];
+      case 'sixes':
+        return [6, 6, 6, 6, 6];
+      case 'threeOfAKind':
+        return [6, 6, 6, 5, 5]; // 29 points
+      case 'fourOfAKind':
+        return [6, 6, 6, 6, 5]; // 29 points
+      case 'fullHouse':
+        return [6, 6, 6, 5, 5]; // 25 points
+      case 'smallStraight':
+        return [1, 2, 3, 4, 6]; // 30 points
+      case 'largeStraight':
+        return [1, 2, 3, 4, 5]; // 40 points
+      case 'yahtzee':
+        return [6, 6, 6, 6, 6]; // 50 points
+      case 'chance':
+        return [6, 6, 6, 6, 6]; // 30 points
+      default:
+        return [6, 6, 6, 6, 6];
+    }
   }
 
   private createMenuButton(): void {

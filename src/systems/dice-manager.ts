@@ -21,10 +21,15 @@ export interface DiceState {
 
 interface DiceSprite {
   container: Phaser.GameObjects.Container;
+  shadow: Phaser.GameObjects.Ellipse;
   bg: Phaser.GameObjects.Rectangle;
+  innerBg: Phaser.GameObjects.Rectangle;
+  shine: Phaser.GameObjects.Graphics;
   pipsGraphics: Phaser.GameObjects.Graphics;
   floatingNum: Phaser.GameObjects.Text;
   lockIndicator: Phaser.GameObjects.Text;
+  glowGraphics: Phaser.GameObjects.Graphics;
+  originalY: number;
 }
 
 // Pip positions for each die value
@@ -215,30 +220,50 @@ export class DiceManager {
 
   private createDieSprite(x: number, y: number, index: number): DiceSprite {
     const container = this.scene.add.container(x, y);
+    const size = SIZES.DICE_SIZE;
+
+    // Shadow beneath die
+    const shadow = this.scene.add.ellipse(4, size / 2 + 8, size * 0.9, size * 0.3, 0x000000, 0.3);
+    container.add(shadow);
+
+    // Glow effect (behind die)
+    const glowGraphics = this.scene.add.graphics();
+    container.add(glowGraphics);
+
+    // Die outer background (border effect)
+    const bg = this.scene.add.rectangle(0, 0, size, size, 0x3a3a5a, 1);
+    bg.setStrokeStyle(3, 0x5a5a7a);
+    container.add(bg);
+
+    // Die inner background (face)
+    const innerBg = this.scene.add.rectangle(0, 0, size - 8, size - 8, 0x1a1a2e, 1);
+    container.add(innerBg);
+
+    // Shine/highlight effect
+    const shine = this.scene.add.graphics();
+    shine.fillStyle(0xffffff, 0.1);
+    shine.fillRoundedRect(-size / 2 + 6, -size / 2 + 6, size - 20, 12, 4);
+    container.add(shine);
+
+    // Pips graphics
+    const pipsGraphics = this.scene.add.graphics();
+    container.add(pipsGraphics);
 
     // Floating number above die
-    const floatingNum = this.scene.add.text(0, -SIZES.DICE_SIZE / 2 - 20, '1', {
-      fontSize: FONTS.SIZE_SUBHEADING,
+    const floatingNum = this.scene.add.text(0, -size / 2 - 25, '1', {
+      fontSize: '28px',
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
       fontStyle: 'bold',
     });
     floatingNum.setOrigin(0.5, 0.5);
     floatingNum.setResolution(window.devicePixelRatio * 2);
+    floatingNum.setShadow(2, 2, '#000000', 4, true, true);
     container.add(floatingNum);
 
-    // Die background
-    const bg = this.scene.add.rectangle(0, 0, SIZES.DICE_SIZE, SIZES.DICE_SIZE, COLORS.DICE_BG, 1);
-    bg.setStrokeStyle(SIZES.DICE_BORDER_WIDTH, COLORS.DICE_BORDER);
-    container.add(bg);
-
-    // Pips graphics
-    const pipsGraphics = this.scene.add.graphics();
-    container.add(pipsGraphics);
-
     // Lock indicator
-    const lockIndicator = this.scene.add.text(0, SIZES.DICE_SIZE / 2 + 12, '', {
-      fontSize: '11px',
+    const lockIndicator = this.scene.add.text(0, size / 2 + 15, '', {
+      fontSize: '12px',
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_LOCKED,
       fontStyle: 'bold',
@@ -251,16 +276,55 @@ export class DiceManager {
     bg.setInteractive({ useHandCursor: true });
     bg.on('pointerdown', () => this.toggleLock(index));
     bg.on('pointerover', () => {
-      if (!this.state.locked[index]) {
-        bg.setStrokeStyle(SIZES.DICE_BORDER_WIDTH, COLORS.DICE_BORDER_HOVER);
+      if (!this.state.locked[index] && this.enabled) {
+        // Hover lift effect
+        this.scene.tweens.add({
+          targets: container,
+          y: y - 5,
+          duration: 100,
+          ease: 'Quad.easeOut',
+        });
+        this.scene.tweens.add({
+          targets: shadow,
+          scaleX: 1.1,
+          scaleY: 1.2,
+          alpha: 0.2,
+          duration: 100,
+        });
+        bg.setStrokeStyle(3, 0x8888ff);
+        innerBg.setFillStyle(0x2a2a4e);
       }
     });
     bg.on('pointerout', () => {
-      const borderColor = this.state.locked[index] ? COLORS.DICE_LOCKED_BORDER : COLORS.DICE_BORDER;
-      bg.setStrokeStyle(SIZES.DICE_BORDER_WIDTH, borderColor);
+      // Return to original position
+      this.scene.tweens.add({
+        targets: container,
+        y: y,
+        duration: 100,
+        ease: 'Quad.easeOut',
+      });
+      this.scene.tweens.add({
+        targets: shadow,
+        scaleX: 1,
+        scaleY: 1,
+        alpha: 0.3,
+        duration: 100,
+      });
+      const isCursed = index === this.state.cursedIndex;
+      const locked = this.state.locked[index];
+      if (isCursed) {
+        bg.setStrokeStyle(3, 0xff4444);
+        innerBg.setFillStyle(0x3a1a1a);
+      } else if (locked) {
+        bg.setStrokeStyle(3, COLORS.DICE_LOCKED_BORDER);
+        innerBg.setFillStyle(0x2a1a1a);
+      } else {
+        bg.setStrokeStyle(3, 0x5a5a7a);
+        innerBg.setFillStyle(0x1a1a2e);
+      }
     });
 
-    return { container, bg, pipsGraphics, floatingNum, lockIndicator };
+    return { container, shadow, bg, innerBg, shine, pipsGraphics, floatingNum, lockIndicator, glowGraphics, originalY: y };
   }
 
   private createRollButton(x: number, y: number): Phaser.GameObjects.Container {
@@ -359,54 +423,234 @@ export class DiceManager {
   }
 
   private animateRoll(initial: boolean, finalValues: number[]): void {
+    const rollDuration = SIZES.ROLL_DURATION_MS;
+
     for (let i = 0; i < GAME_RULES.DICE_COUNT; i++) {
       if (!this.state.locked[i] || initial) {
         const sprite = this.sprites[i];
+        const delay = i * 50; // Stagger the dice
 
-        // Hide pips and show "?" during animation
+        // Hide pips during animation
         sprite.pipsGraphics.setVisible(false);
         sprite.floatingNum.setText('?');
+        sprite.floatingNum.setColor('#ffff00');
 
-        // Spin animation
+        // Add glow during roll
+        sprite.glowGraphics.clear();
+        sprite.glowGraphics.fillStyle(0x6666ff, 0.3);
+        sprite.glowGraphics.fillCircle(0, 0, SIZES.DICE_SIZE * 0.8);
+
+        // Animate glow pulse
         this.scene.tweens.add({
-          targets: sprite.bg,
-          angle: 720,
-          duration: SIZES.ROLL_DURATION_MS,
+          targets: sprite.glowGraphics,
+          alpha: 0,
+          duration: rollDuration,
+          ease: 'Quad.easeIn',
+        });
+
+        // Launch dice upward with random trajectory
+        const jumpHeight = Phaser.Math.Between(60, 100);
+        const horizontalOffset = Phaser.Math.Between(-20, 20);
+
+        // Phase 1: Launch up
+        this.scene.tweens.add({
+          targets: sprite.container,
+          y: sprite.originalY - jumpHeight,
+          x: sprite.container.x + horizontalOffset,
+          duration: rollDuration * 0.4,
+          ease: 'Quad.easeOut',
+          delay,
+        });
+
+        // Shadow shrinks as die goes up
+        this.scene.tweens.add({
+          targets: sprite.shadow,
+          scaleX: 0.5,
+          scaleY: 0.3,
+          alpha: 0.15,
+          duration: rollDuration * 0.4,
+          ease: 'Quad.easeOut',
+          delay,
+        });
+
+        // Tumble rotation
+        const rotations = Phaser.Math.Between(2, 4) * 360;
+        this.scene.tweens.add({
+          targets: [sprite.bg, sprite.innerBg, sprite.shine, sprite.pipsGraphics],
+          angle: rotations,
+          duration: rollDuration * 0.8,
           ease: 'Cubic.easeOut',
-          onComplete: () => sprite.bg.setAngle(0),
+          delay,
         });
 
-        // Scale bounce
-        this.scene.tweens.add({
-          targets: sprite.bg,
-          scaleX: 0.8,
-          scaleY: 0.8,
-          duration: SIZES.ROLL_DURATION_MS / 4,
-          yoyo: true,
-          repeat: 1,
-          ease: 'Sine.easeInOut',
-          onComplete: () => sprite.bg.setScale(1),
+        // Rapid number changes during tumble
+        let changeCount = 0;
+        this.scene.time.addEvent({
+          delay: 60,
+          callback: () => {
+            if (changeCount < 8) {
+              sprite.floatingNum.setText(Phaser.Math.Between(1, 6).toString());
+              changeCount++;
+            }
+          },
+          repeat: 7,
         });
+
+        // Phase 2: Fall down and land with bounce
+        this.scene.time.delayedCall(rollDuration * 0.4 + delay, () => {
+          // Fall
+          this.scene.tweens.add({
+            targets: sprite.container,
+            y: sprite.originalY,
+            x: sprite.container.x - horizontalOffset, // Return to center
+            duration: rollDuration * 0.35,
+            ease: 'Bounce.easeOut',
+          });
+
+          // Shadow returns
+          this.scene.tweens.add({
+            targets: sprite.shadow,
+            scaleX: 1.2,
+            scaleY: 1.3,
+            alpha: 0.4,
+            duration: rollDuration * 0.2,
+            ease: 'Quad.easeIn',
+            onComplete: () => {
+              // Normalize shadow after landing
+              this.scene.tweens.add({
+                targets: sprite.shadow,
+                scaleX: 1,
+                scaleY: 1,
+                alpha: 0.3,
+                duration: 150,
+              });
+            },
+          });
+        });
+
+        // Create trail particles during roll
+        this.createRollParticles(sprite.container.x, sprite.originalY, i, delay);
       }
     }
 
     // Set final values after animation
-    this.scene.time.delayedCall(SIZES.ROLL_DURATION_MS, () => {
+    this.scene.time.delayedCall(rollDuration + 100, () => {
       for (let i = 0; i < GAME_RULES.DICE_COUNT; i++) {
         if (!this.state.locked[i] || initial) {
+          const sprite = this.sprites[i];
           this.state.values[i] = finalValues[i];
-          this.sprites[i].pipsGraphics.setVisible(true);
+          sprite.pipsGraphics.setVisible(true);
+
+          // Reset rotation
+          sprite.bg.setAngle(0);
+          sprite.innerBg.setAngle(0);
+          sprite.shine.setAngle(0);
+          sprite.pipsGraphics.setAngle(0);
+
+          // Landing impact effect
+          this.createLandingImpact(sprite, finalValues[i]);
         }
       }
 
       if (initial) {
-        // Unlock all dice on initial roll
         this.state.locked = Array(GAME_RULES.DICE_COUNT).fill(false);
       }
 
       this.updateDisplay();
       this.events.emit('dice:rolled', { values: this.getValues(), isInitial: initial });
     });
+  }
+
+  private createRollParticles(x: number, y: number, _index: number, delay: number): void {
+    this.scene.time.delayedCall(delay, () => {
+      for (let p = 0; p < 5; p++) {
+        this.scene.time.delayedCall(p * 40, () => {
+          const particle = this.scene.add.circle(
+            x + Phaser.Math.Between(-15, 15),
+            y + Phaser.Math.Between(-30, -60),
+            Phaser.Math.Between(3, 6),
+            0x6666ff,
+            0.6
+          );
+
+          this.scene.tweens.add({
+            targets: particle,
+            y: particle.y + 40,
+            alpha: 0,
+            scaleX: 0.2,
+            scaleY: 0.2,
+            duration: 300,
+            ease: 'Quad.easeOut',
+            onComplete: () => particle.destroy(),
+          });
+        });
+      }
+    });
+  }
+
+  private createLandingImpact(sprite: DiceSprite, value: number): void {
+    // Scale pop
+    this.scene.tweens.add({
+      targets: [sprite.bg, sprite.innerBg],
+      scaleX: 1.15,
+      scaleY: 0.9,
+      duration: 80,
+      yoyo: true,
+      ease: 'Quad.easeOut',
+    });
+
+    // Flash the number
+    sprite.floatingNum.setColor('#ffffff');
+    this.scene.tweens.add({
+      targets: sprite.floatingNum,
+      scaleX: 1.3,
+      scaleY: 1.3,
+      duration: 100,
+      yoyo: true,
+      onComplete: () => {
+        sprite.floatingNum.setScale(1);
+        sprite.floatingNum.setColor(COLORS.TEXT_PRIMARY);
+      },
+    });
+
+    // Impact ring
+    const ring = this.scene.add.circle(sprite.container.x, sprite.originalY, 20, 0xffffff, 0);
+    ring.setStrokeStyle(2, 0x8888ff, 0.8);
+
+    this.scene.tweens.add({
+      targets: ring,
+      scaleX: 2.5,
+      scaleY: 2.5,
+      alpha: 0,
+      duration: 300,
+      ease: 'Quad.easeOut',
+      onComplete: () => ring.destroy(),
+    });
+
+    // Extra effects for high values
+    if (value === 6) {
+      // Golden sparkle for 6
+      for (let s = 0; s < 6; s++) {
+        const angle = (s / 6) * Math.PI * 2;
+        const sparkle = this.scene.add.circle(
+          sprite.container.x + Math.cos(angle) * 30,
+          sprite.originalY + Math.sin(angle) * 30,
+          4,
+          0xffdd00,
+          1
+        );
+
+        this.scene.tweens.add({
+          targets: sparkle,
+          x: sparkle.x + Math.cos(angle) * 25,
+          y: sparkle.y + Math.sin(angle) * 25,
+          alpha: 0,
+          duration: 400,
+          ease: 'Quad.easeOut',
+          onComplete: () => sparkle.destroy(),
+        });
+      }
+    }
   }
 
   // ===========================================================================
