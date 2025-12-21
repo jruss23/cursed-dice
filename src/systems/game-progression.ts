@@ -3,6 +3,10 @@
  * Tracks progress through the 4 game modes and cumulative score
  */
 
+import { createLogger } from '@/systems/logger';
+
+const log = createLogger('GameProgression');
+
 export type GameMode = 1 | 2 | 3 | 4;
 
 export interface ModeConfig {
@@ -10,42 +14,46 @@ export interface ModeConfig {
   name: string;
   description: string;
   cursedDice: boolean; // Mode 2: 1 die locked per hand
-  lockedCategories: number; // Mode 3: 3 locked, Mode 4: 12 locked (only 1 available)
+  lockedCategories: number; // Mode 3: 3 locked, Mode 4: 10 locked (only 3 available)
 }
 
 export const MODE_CONFIGS: Record<GameMode, ModeConfig> = {
   1: {
     mode: 1,
-    name: 'CLASSIC SPRINT',
-    description: 'Standard Yahtzee - fill all categories',
+    name: 'THE AWAKENING',
+    description: 'Standard dice game - fill all categories',
     cursedDice: false,
     lockedCategories: 0,
   },
   2: {
     mode: 2,
-    name: 'CURSED DICE',
-    description: 'One die is locked each hand - position changes after scoring',
+    name: 'SHACKLED DIE',
+    description: 'Your highest die becomes cursed after each score',
     cursedDice: true,
     lockedCategories: 0,
   },
   3: {
     mode: 3,
-    name: 'CURSED CATEGORIES',
+    name: 'SEALED PATHS',
     description: '3 random categories locked - new locks after each score',
     cursedDice: false,
     lockedCategories: 3,
   },
   4: {
     mode: 4,
-    name: 'FINAL CHALLENGE',
-    description: 'Only 1 category available at a time',
+    name: 'THE GAUNTLET',
+    description: 'Only 3 categories available at a time',
     cursedDice: false,
-    lockedCategories: 12, // 12 locked = only 1 available
+    lockedCategories: 10, // 10 locked = only 3 available
   },
 };
 
 export const PASS_THRESHOLD = 250;
 export const TOTAL_MODES = 4;
+
+// Gauntlet mode configuration
+export const GAUNTLET_AVAILABLE_CATEGORIES = 3; // Number of categories available in Gauntlet mode
+export const GAUNTLET_LOCKED_THRESHOLD = 10; // lockedCategories >= this means Gauntlet mode
 
 export interface ProgressionState {
   currentMode: GameMode;
@@ -81,7 +89,7 @@ class GameProgressionManager {
    */
   reset(): void {
     this.state = this.createInitialState();
-    console.log('[GameProgression] Reset to Mode 1');
+    log.log('Reset to Mode 1');
   }
 
   /**
@@ -121,10 +129,11 @@ class GameProgressionManager {
 
   /**
    * Complete current mode with a score
-   * Returns whether the player passed
+   * Returns whether the player passed and the next mode (if any)
    */
-  completeMode(score: number): { passed: boolean; nextMode: GameMode | null } {
-    const modeIndex = this.state.currentMode - 1;
+  completeMode(score: number): { passed: boolean; nextMode: GameMode | null; showBlessingChoice: boolean } {
+    const completedMode = this.state.currentMode;
+    const modeIndex = completedMode - 1;
     this.state.modeScores[modeIndex] = score;
     this.state.totalScore += score;
 
@@ -132,25 +141,28 @@ class GameProgressionManager {
 
     if (!passed) {
       this.state.failed = true;
-      console.log(`[GameProgression] Mode ${this.state.currentMode} FAILED with ${score} (< ${PASS_THRESHOLD})`);
-      return { passed: false, nextMode: null };
+      log.log(`Mode ${completedMode} FAILED with ${score} (< ${PASS_THRESHOLD})`);
+      return { passed: false, nextMode: null, showBlessingChoice: false };
     }
 
-    console.log(`[GameProgression] Mode ${this.state.currentMode} PASSED with ${score}`);
+    log.log(`Mode ${completedMode} PASSED with ${score}`);
 
     // Check if all modes complete
-    if (this.state.currentMode === TOTAL_MODES) {
+    if (completedMode === TOTAL_MODES) {
       this.state.isRunComplete = true;
-      console.log(`[GameProgression] RUN COMPLETE! Total: ${this.state.totalScore}`);
-      return { passed: true, nextMode: null };
+      log.log(`RUN COMPLETE! Total: ${this.state.totalScore}`);
+      return { passed: true, nextMode: null, showBlessingChoice: false };
     }
 
     // Advance to next mode
-    const nextMode = (this.state.currentMode + 1) as GameMode;
+    const nextMode = (completedMode + 1) as GameMode;
     this.state.currentMode = nextMode;
-    console.log(`[GameProgression] Advancing to Mode ${nextMode}`);
+    log.log(`Advancing to Mode ${nextMode}`);
 
-    return { passed: true, nextMode };
+    // Show blessing choice after Mode 1
+    const showBlessingChoice = completedMode === 1;
+
+    return { passed: true, nextMode, showBlessingChoice };
   }
 
   /**

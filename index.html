@@ -2,13 +2,21 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cursed Yahtzee</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cursed Dice</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+        }
+
+        html, body {
+            overflow: hidden;
+            overscroll-behavior: none;
+            -webkit-user-select: none;
+            user-select: none;
+            background: #0a0a1a;
         }
 
         body {
@@ -17,25 +25,36 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            min-height: 100dvh;
             font-family: Arial, sans-serif;
         }
 
         #game-container {
-            border: 3px solid #4a2a6a;
-            border-radius: 8px;
-            box-shadow: 0 0 40px rgba(100, 50, 150, 0.4),
-                        0 0 80px rgba(100, 50, 150, 0.2),
-                        inset 0 0 20px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transition: opacity 0.15s ease-out;
+        }
+
+        #game-container.ready {
+            opacity: 1;
         }
 
         #game-container canvas {
             display: block;
-            border-radius: 5px;
+            border: 3px solid #4a2a6a;
+            border-radius: 8px;
+            box-shadow: 0 0 40px rgba(100, 50, 150, 0.4),
+                        0 0 80px rgba(100, 50, 150, 0.2);
         }
     </style>
 </head>
 <body>
     <div id="game-container"></div>
     <script type="module" src="/src/main.ts"></script>
+    <script>
+        // Prevent Safari zoom on double-tap and pinch
+        document.addEventListener('gesturestart', e => e.preventDefault());
+        document.addEventListener('gesturechange', e => e.preventDefault());
+        document.addEventListener('gestureend', e => e.preventDefault());
+    </script>
 </body>
 </html>

@@ -5,6 +5,7 @@
 
 import Phaser from 'phaser';
 import type { CategoryId } from './scorecard';
+import type { BlessingId } from './blessings/types';
 
 // =============================================================================
 // EVENT TYPES
@@ -35,6 +36,21 @@ export interface GameEvents {
   // UI events
   'ui:categoryHover': { categoryId: CategoryId | null };
   'ui:menuRequested': void;
+
+  // Blessing events
+  'blessing:chosen': { blessingId: BlessingId };
+  'blessing:expansion:enable': void;
+  'blessing:sacrifice:preview': { values: number[]; chargesRemaining: number };
+  'blessing:sacrifice:consumed': void;
+  'blessing:sacrifice:activated': { chargesRemaining: number };
+  'blessing:insurance:banked': { dice: number[] };
+  'blessing:insurance:restored': { dice: number[] };
+  'blessing:insurance:reset': void;
+  'blessing:sacrifice:reset': { charges: number };
+
+  // Mode mechanics events
+  'mode:gauntlet': boolean;
+  'mode:lockedCategories': Set<CategoryId>;
 }
 
 // =============================================================================

@@ -1,9 +1,13 @@
 /**
- * Yahtzee Scorecard System
- * Handles all 13 categories and scoring logic
+ * Dice Scorecard System
+ * Handles all 16 categories (13 base + 3 special) and scoring logic
+ * Special section unlocked via "Blessing of Expansion" after Mode 1
  */
 
 import { GAME_RULES } from '@/config';
+import { createLogger } from '@/systems/logger';
+
+const log = createLogger('Scorecard');
 
 export type CategoryId =
   // Upper section
@@ -19,14 +23,18 @@ export type CategoryId =
   | 'fullHouse'
   | 'smallStraight'
   | 'largeStraight'
-  | 'yahtzee'
-  | 'chance';
+  | 'fiveDice'
+  | 'chance'
+  // Special section (Blessing of Expansion)
+  | 'twoPair'
+  | 'allOdd'
+  | 'allEven';
 
 export interface Category {
   id: CategoryId;
   name: string;
   description: string;
-  section: 'upper' | 'lower';
+  section: 'upper' | 'lower' | 'special';
   score: number | null; // null = not filled yet
   calculate: (dice: number[]) => number;
 }
@@ -34,7 +42,11 @@ export interface Category {
 export interface ScorecardState {
   categories: Map<CategoryId, Category>;
   upperBonus: number; // +35 if upper section >= 63
+  specialSectionEnabled: boolean; // Blessing of Expansion unlocked
 }
+
+// Number of categories required to complete the game
+export const CATEGORIES_TO_COMPLETE = 13;
 
 /**
  * Calculate sum of specific die value
@@ -91,6 +103,35 @@ function hasFullHouse(dice: number[]): boolean {
  */
 function sumAll(dice: number[]): number {
   return dice.reduce((sum, d) => sum + d, 0);
+}
+
+// =============================================================================
+// SPECIAL SECTION DETECTION (Blessing of Expansion)
+// =============================================================================
+
+/**
+ * Check for two pair (two different pairs, NOT full house or 4-of-a-kind)
+ * Examples: [3,3,5,5,2] = true, [3,3,3,5,5] = false (full house takes precedence)
+ */
+function hasTwoPair(dice: number[]): boolean {
+  const counts = Array.from(getCounts(dice).values()).sort((a, b) => b - a);
+  // Need at least 2 pairs, but NOT a full house or 4-of-a-kind
+  const pairCount = counts.filter((c) => c >= 2).length;
+  return pairCount >= 2 && !hasFullHouse(dice) && !hasNOfAKind(dice, 4);
+}
+
+/**
+ * Check if all dice show odd numbers (1, 3, 5)
+ */
+function isAllOdd(dice: number[]): boolean {
+  return dice.every((d) => d % 2 === 1);
+}
+
+/**
+ * Check if all dice show even numbers (2, 4, 6)
+ */
+function isAllEven(dice: number[]): boolean {
+  return dice.every((d) => d % 2 === 0);
 }
 
 /**
@@ -200,9 +241,9 @@ function createCategories(): Map<CategoryId, Category> {
     calculate: (dice) => (hasLargeStraight(dice) ? 40 : 0),
   });
 
-  categories.set('yahtzee', {
-    id: 'yahtzee',
-    name: 'Yahtzee',
+  categories.set('fiveDice', {
+    id: 'fiveDice',
+    name: 'Five Dice',
     description: '5 of a kind = 50',
     section: 'lower',
     score: null,
@@ -218,6 +259,34 @@ function createCategories(): Map<CategoryId, Category> {
     calculate: (dice) => sumAll(dice),
   });
 
+  // Special section (Blessing of Expansion - unlocked after Mode 1)
+  categories.set('twoPair', {
+    id: 'twoPair',
+    name: 'Two Pair',
+    description: '2 different pairs = sum',
+    section: 'special',
+    score: null,
+    calculate: (dice) => (hasTwoPair(dice) ? sumAll(dice) : 0),
+  });
+
+  categories.set('allOdd', {
+    id: 'allOdd',
+    name: 'All Odd',
+    description: 'All 1s, 3s, 5s = sum',
+    section: 'special',
+    score: null,
+    calculate: (dice) => (isAllOdd(dice) ? sumAll(dice) : 0),
+  });
+
+  categories.set('allEven', {
+    id: 'allEven',
+    name: 'All Even',
+    description: 'All 2s, 4s, 6s = sum',
+    section: 'special',
+    score: null,
+    calculate: (dice) => (isAllEven(dice) ? sumAll(dice) : 0),
+  });
+
   return categories;
 }
 
@@ -228,6 +297,7 @@ export class Scorecard {
     this.state = {
       categories: createCategories(),
       upperBonus: 0,
+      specialSectionEnabled: false,
     };
   }
 
@@ -235,31 +305,57 @@ export class Scorecard {
    * Reset scorecard for a new game
    */
   reset(): void {
+    const wasEnabled = this.state.specialSectionEnabled;
     this.state = {
       categories: createCategories(),
       upperBonus: 0,
+      specialSectionEnabled: wasEnabled, // Preserve blessing unlock across resets
     };
   }
 
   /**
-   * Get all categories
+   * Enable the special section (Blessing of Expansion)
+   */
+  enableSpecialSection(): void {
+    log.log('Special section (Blessing of Expansion) enabled');
+    this.state.specialSectionEnabled = true;
+  }
+
+  /**
+   * Check if special section is enabled
+   */
+  isSpecialSectionEnabled(): boolean {
+    return this.state.specialSectionEnabled;
+  }
+
+  /**
+   * Get all categories (respects special section enabled state)
    */
   getCategories(): Category[] {
-    return Array.from(this.state.categories.values());
+    return Array.from(this.state.categories.values()).filter(
+      (c) => c.section !== 'special' || this.state.specialSectionEnabled
+    );
   }
 
   /**
    * Get upper section categories
    */
   getUpperSection(): Category[] {
-    return this.getCategories().filter((c) => c.section === 'upper');
+    return Array.from(this.state.categories.values()).filter((c) => c.section === 'upper');
   }
 
   /**
    * Get lower section categories
    */
   getLowerSection(): Category[] {
-    return this.getCategories().filter((c) => c.section === 'lower');
+    return Array.from(this.state.categories.values()).filter((c) => c.section === 'lower');
+  }
+
+  /**
+   * Get special section categories (Blessing of Expansion)
+   */
+  getSpecialSection(): Category[] {
+    return Array.from(this.state.categories.values()).filter((c) => c.section === 'special');
   }
 
   /**
@@ -270,15 +366,27 @@ export class Scorecard {
   }
 
   /**
-   * Check if a category is available (not filled)
+   * Check if a category is available (not filled and section enabled)
    */
   isAvailable(id: CategoryId): boolean {
     const cat = this.state.categories.get(id);
-    return cat ? cat.score === null : false;
+    if (!cat) {
+      log.warn(`isAvailable: unknown category "${id}"`);
+      return false;
+    }
+    if (cat.score !== null) {
+      return false; // Already scored - this is normal, not worth logging
+    }
+    // Special section categories only available if blessing is unlocked
+    if (cat.section === 'special' && !this.state.specialSectionEnabled) {
+      log.debug(`isAvailable: "${id}" unavailable (special section locked)`);
+      return false;
+    }
+    return true;
   }
 
   /**
-   * Get available (unfilled) categories
+   * Get available (unfilled) categories (respects special section)
    */
   getAvailableCategories(): Category[] {
     return this.getCategories().filter((c) => c.score === null);
@@ -298,12 +406,18 @@ export class Scorecard {
    */
   score(id: CategoryId, dice: number[]): number {
     const cat = this.state.categories.get(id);
-    if (!cat || cat.score !== null) {
-      return -1; // Already filled
+    if (!cat) {
+      log.error(`score: unknown category "${id}"`);
+      return -1;
+    }
+    if (cat.score !== null) {
+      log.warn(`score: category "${id}" already filled with ${cat.score}`);
+      return -1;
     }
 
     const points = cat.calculate(dice);
     cat.score = points;
+    log.log(`Scored ${points} in "${id}" with dice [${dice.join(', ')}]`);
 
     // Check upper bonus
     this.checkUpperBonus();
@@ -328,6 +442,7 @@ export class Scorecard {
 
     if (upperSum >= GAME_RULES.UPPER_BONUS_THRESHOLD && this.state.upperBonus === 0) {
       this.state.upperBonus = GAME_RULES.UPPER_BONUS_AMOUNT;
+      log.log(`Upper bonus awarded! (+${GAME_RULES.UPPER_BONUS_AMOUNT} for reaching ${upperSum}/${GAME_RULES.UPPER_BONUS_THRESHOLD})`);
     }
   }
 
@@ -357,33 +472,53 @@ export class Scorecard {
   }
 
   /**
-   * Get grand total
+   * Get special section total (Blessing of Expansion)
+   */
+  getSpecialTotal(): number {
+    return this.getSpecialSection()
+      .filter((c) => c.score !== null)
+      .reduce((sum, c) => sum + (c.score || 0), 0);
+  }
+
+  /**
+   * Get grand total (includes special section if enabled)
    */
   getTotal(): number {
-    return this.getUpperSubtotal() + this.state.upperBonus + this.getLowerTotal();
+    let total = this.getUpperSubtotal() + this.state.upperBonus + this.getLowerTotal();
+    if (this.state.specialSectionEnabled) {
+      total += this.getSpecialTotal();
+    }
+    return total;
   }
 
   /**
-   * Check if scorecard is complete
+   * Check if scorecard is complete (13 categories filled)
+   * With Blessing of Expansion, can fill any 13 of 16 total
    */
   isComplete(): boolean {
-    return this.getAvailableCategories().length === 0;
+    return this.getFilledCount() >= CATEGORIES_TO_COMPLETE;
   }
 
   /**
-   * Get completion percentage
+   * Get completion percentage (based on 13 required categories)
    */
   getCompletionPercent(): number {
-    const total = this.getCategories().length;
-    const filled = total - this.getAvailableCategories().length;
-    return Math.round((filled / total) * 100);
+    const filled = this.getFilledCount();
+    return Math.round((filled / CATEGORIES_TO_COMPLETE) * 100);
   }
 
   /**
    * Get number of filled categories
    */
   getFilledCount(): number {
-    return this.getCategories().length - this.getAvailableCategories().length;
+    return this.getCategories().filter((c) => c.score !== null).length;
+  }
+
+  /**
+   * Get remaining categories to fill
+   */
+  getRemainingCount(): number {
+    return Math.max(0, CATEGORIES_TO_COMPLETE - this.getFilledCount());
   }
 }
 

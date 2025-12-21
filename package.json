@@ -1,7 +1,7 @@
 {
-  "name": "cursed-yahtzee",
+  "name": "cursed-dice",
   "version": "1.0.0",
-  "description": "A fast-paced Yahtzee game with cursed mechanics - race against the soundtrack to fill your scorecard!",
+  "description": "A fast-paced dice game with cursed mechanics - race against the soundtrack to fill your scorecard!",
   "main": "src/main.ts",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,13 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,js,json,css,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,json,css,md}\""
   },
-  "keywords": ["yahtzee", "dice", "game", "phaser", "typescript"],
+  "keywords": [
+    "cursed-dice",
+    "dice",
+    "game",
+    "phaser",
+    "typescript"
+  ],
   "author": "",
   "license": "ISC",
   "type": "module",
@@ -32,6 +38,7 @@
     "vite-tsconfig-paths": "^5.1.4"
   },
   "dependencies": {
-    "phaser": "^3.90.0"
+    "phaser": "^3.90.0",
+    "tone": "^15.1.22"
   }
 }

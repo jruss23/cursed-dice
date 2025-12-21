@@ -1,12 +1,15 @@
 /**
  * Dice Manager
  * Handles dice state, rolling logic, and UI rendering
- * Extracted from SprintScene for better separation of concerns
+ * Extracted from GameplayScene for better separation of concerns
  */
 
 import Phaser from 'phaser';
-import { COLORS, SIZES, FONTS, GAME_RULES } from '@/config';
+import { COLORS, SIZES, FONTS, GAME_RULES, PALETTE } from '@/config';
 import { GameEventEmitter } from './game-events';
+import { createLogger } from './logger';
+
+const log = createLogger('DiceManager');
 
 // =============================================================================
 // TYPES
@@ -26,9 +29,11 @@ interface DiceSprite {
   innerBg: Phaser.GameObjects.Rectangle;
   shine: Phaser.GameObjects.Graphics;
   pipsGraphics: Phaser.GameObjects.Graphics;
-  floatingNum: Phaser.GameObjects.Text;
   lockIndicator: Phaser.GameObjects.Text;
+  lockIcon: Phaser.GameObjects.Graphics;
+  cursedIcon: Phaser.GameObjects.Graphics;
   glowGraphics: Phaser.GameObjects.Graphics;
+  originalX: number;
   originalY: number;
 }
 
@@ -101,12 +106,10 @@ export class DiceManager {
 
   /**
    * Reset dice state for a new turn
-   * Preserves cursed die if set
+   * Clears cursed die - will be set again by GameplayScene after roll
    */
   reset(): void {
-    const cursedIndex = this.state.cursedIndex; // Preserve cursed die
     this.state = this.createInitialState();
-    this.state.cursedIndex = cursedIndex;
     this.updateDisplay();
     this.events.emit('dice:unlockAll');
   }
@@ -134,16 +137,19 @@ export class DiceManager {
       if (sprite) {
         this.scene.tweens.add({
           targets: sprite.container,
-          x: sprite.container.x + 5,
+          x: sprite.originalX + 5,
           duration: 50,
           yoyo: true,
           repeat: 3,
           ease: 'Sine.easeInOut',
+          onComplete: () => {
+            sprite.container.x = sprite.originalX; // Ensure exact position
+          },
         });
       }
     }
 
-    console.log(`[DiceManager] Cursed die set to index: ${index}`);
+    log.log(`Cursed die set to index: ${index}`);
   }
 
   /**
@@ -172,6 +178,25 @@ export class DiceManager {
    */
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
+
+    // Actually disable/enable the interactive elements
+    for (const sprite of this.sprites) {
+      if (enabled) {
+        sprite.bg.setInteractive({ useHandCursor: true });
+      } else {
+        sprite.bg.disableInteractive();
+      }
+    }
+
+    // Also disable roll button
+    const rollBtn = this.rollButton?.getData('bg') as Phaser.GameObjects.Rectangle | null;
+    if (rollBtn) {
+      if (enabled) {
+        rollBtn.setInteractive({ useHandCursor: true });
+      } else {
+        rollBtn.disableInteractive();
+      }
+    }
   }
 
   // ===========================================================================
@@ -185,14 +210,24 @@ export class DiceManager {
     const diceAreaWidth = (GAME_RULES.DICE_COUNT - 1) * SIZES.DICE_SPACING;
     const startX = centerX - diceAreaWidth / 2;
 
-    // Helper text above dice
-    const helperText = this.scene.add.text(centerX, centerY - 85, 'Click dice to lock/unlock', {
+    // Pulsing tip text above dice (like scorecard helper)
+    const tipText = this.scene.add.text(centerX, centerY - 70, 'Click dice to lock', {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_MUTED,
+      color: COLORS.TEXT_SUCCESS,
     });
-    helperText.setOrigin(0.5, 0.5);
-    helperText.setResolution(window.devicePixelRatio * 2);
+    tipText.setOrigin(0.5, 0.5);
+    tipText.setResolution(window.devicePixelRatio * 2);
+
+    // Pulsing animation
+    this.scene.tweens.add({
+      targets: tipText,
+      alpha: 0.3,
+      duration: SIZES.ANIM_PULSE,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
 
     // Create dice sprites
     for (let i = 0; i < GAME_RULES.DICE_COUNT; i++) {
@@ -200,77 +235,215 @@ export class DiceManager {
       this.sprites.push(this.createDieSprite(x, centerY, i));
     }
 
-    // Rerolls remaining text
-    this.rerollText = this.scene.add.text(
-      centerX,
-      centerY + 80,
-      `Rerolls: ${this.state.rerollsLeft}`,
-      {
-        fontSize: FONTS.SIZE_BODY,
-        fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_PRIMARY,
-      }
-    );
-    this.rerollText.setOrigin(0.5, 0);
-    this.rerollText.setResolution(window.devicePixelRatio * 2);
+    // Create controls panel below dice (more spacing)
+    this.createControlsPanel(centerX, centerY + 140);
+  }
 
-    // Roll button
-    this.rollButton = this.createRollButton(centerX, centerY + 140);
+  /**
+   * Create the controls panel with rerolls and roll button
+   */
+  private createControlsPanel(centerX: number, centerY: number): void {
+    const panelWidth = 260;
+    const panelHeight = 70;
+    const panelX = centerX - panelWidth / 2;
+    const panelY = centerY - panelHeight / 2;
+
+    // Panel container
+    const panel = this.scene.add.container(panelX, panelY);
+
+    // Panel background with glow
+    const outerGlow = this.scene.add.rectangle(
+      panelWidth / 2, panelHeight / 2,
+      panelWidth + SIZES.PANEL_GLOW_SIZE, panelHeight + SIZES.PANEL_GLOW_SIZE,
+      PALETTE.purple[500], 0.06
+    );
+    panel.add(outerGlow);
+
+    const panelBg = this.scene.add.rectangle(
+      panelWidth / 2, panelHeight / 2,
+      panelWidth, panelHeight,
+      PALETTE.purple[900], 0.88
+    );
+    panelBg.setStrokeStyle(SIZES.PANEL_BORDER_WIDTH, PALETTE.purple[500], 0.5);
+    panel.add(panelBg);
+
+    // Corner accents
+    const cornerSize = SIZES.PANEL_CORNER_SIZE;
+    const cornerInset = SIZES.PANEL_CORNER_INSET;
+    const corners = [
+      { x: cornerInset, y: cornerInset, ax: 1, ay: 1 },
+      { x: panelWidth - cornerInset, y: cornerInset, ax: -1, ay: 1 },
+      { x: panelWidth - cornerInset, y: panelHeight - cornerInset, ax: -1, ay: -1 },
+      { x: cornerInset, y: panelHeight - cornerInset, ax: 1, ay: -1 },
+    ];
+
+    corners.forEach(corner => {
+      const accent = this.scene.add.graphics();
+      accent.lineStyle(2, PALETTE.purple[400], 0.4);
+      accent.beginPath();
+      accent.moveTo(corner.x, corner.y + cornerSize * corner.ay);
+      accent.lineTo(corner.x, corner.y);
+      accent.lineTo(corner.x + cornerSize * corner.ax, corner.y);
+      accent.strokePath();
+      panel.add(accent);
+    });
+
+    // Two-column layout: Rerolls (left) | Roll button (right)
+    const leftColX = 65;
+    const rightColX = panelWidth - 75;
+    const rowY = panelHeight / 2;
+
+    // Rerolls display (left column)
+    const rerollsLabel = this.scene.add.text(leftColX, rowY - 12, 'REROLLS', {
+      fontSize: FONTS.SIZE_TINY,
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TEXT_SECONDARY,
+    });
+    rerollsLabel.setOrigin(0.5, 0.5);
+    rerollsLabel.setResolution(window.devicePixelRatio * 2);
+    panel.add(rerollsLabel);
+
+    this.rerollText = this.scene.add.text(leftColX, rowY + 12, `${this.state.rerollsLeft}`, {
+      fontSize: FONTS.SIZE_HEADING,
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TEXT_SUCCESS,
+      fontStyle: 'bold',
+    });
+    this.rerollText.setOrigin(0.5, 0.5);
+    this.rerollText.setResolution(window.devicePixelRatio * 2);
+    panel.add(this.rerollText);
+
+    // Vertical divider
+    const divider = this.scene.add.rectangle(panelWidth / 2, rowY, 1, panelHeight - 24, PALETTE.purple[500], 0.3);
+    panel.add(divider);
+
+    // Roll button (right column)
+    const btnGlow = this.scene.add.rectangle(
+      rightColX, rowY,
+      120, 52,
+      PALETTE.green[500], 0.12
+    );
+    panel.add(btnGlow);
+
+    const rollBtn = this.scene.add.rectangle(
+      rightColX, rowY,
+      110, 44,
+      PALETTE.green[700], 0.95
+    );
+    rollBtn.setStrokeStyle(2, PALETTE.green[500]);
+    rollBtn.setInteractive({ useHandCursor: true });
+    panel.add(rollBtn);
+
+    const rollText = this.scene.add.text(rightColX, rowY, 'ROLL', {
+      fontSize: FONTS.SIZE_BODY,
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TEXT_SUCCESS,
+      fontStyle: 'bold',
+    });
+    rollText.setOrigin(0.5, 0.5);
+    rollText.setResolution(window.devicePixelRatio * 2);
+    panel.add(rollText);
+
+    // Roll button interactions
+    rollBtn.on('pointerover', () => {
+      rollBtn.setFillStyle(PALETTE.green[600], 1);
+      rollBtn.setStrokeStyle(2, PALETTE.green[400]);
+      btnGlow.setAlpha(0.25);
+    });
+    rollBtn.on('pointerout', () => {
+      rollBtn.setFillStyle(PALETTE.green[700], 0.95);
+      rollBtn.setStrokeStyle(2, PALETTE.green[500]);
+      btnGlow.setAlpha(0.12);
+    });
+    rollBtn.on('pointerdown', () => this.roll(false));
+
+    // Note: Keyboard shortcut (SPACE) is handled by InputManager in GameplayScene
+
+    // Store roll button reference for state updates
+    this.rollButton = panel;
+    this.rollButton.setData('bg', rollBtn);
+    this.rollButton.setData('glow', btnGlow);
+
+    // Subtle glow pulse
+    this.scene.tweens.add({
+      targets: outerGlow,
+      alpha: 0.12,
+      duration: 2500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
   }
 
   private createDieSprite(x: number, y: number, index: number): DiceSprite {
     const container = this.scene.add.container(x, y);
     const size = SIZES.DICE_SIZE;
 
-    // Shadow beneath die
-    const shadow = this.scene.add.ellipse(4, size / 2 + 8, size * 0.9, size * 0.3, 0x000000, 0.3);
+    // Shadow beneath die (centered)
+    const shadow = this.scene.add.ellipse(0, size / 2 + 6, size * 0.85, size * 0.25, 0x000000, 0.4);
     container.add(shadow);
 
     // Glow effect (behind die)
     const glowGraphics = this.scene.add.graphics();
     container.add(glowGraphics);
 
-    // Die outer background (border effect)
-    const bg = this.scene.add.rectangle(0, 0, size, size, 0x3a3a5a, 1);
-    bg.setStrokeStyle(3, 0x5a5a7a);
+    // Die outer background (border effect) - darker, more refined
+    const bg = this.scene.add.rectangle(0, 0, size, size, PALETTE.neutral[700], 1);
+    bg.setStrokeStyle(2, PALETTE.neutral[500]);
     container.add(bg);
 
-    // Die inner background (face)
-    const innerBg = this.scene.add.rectangle(0, 0, size - 8, size - 8, 0x1a1a2e, 1);
+    // Die inner background (face) - slightly lighter for contrast
+    const innerBg = this.scene.add.rectangle(0, 0, size - 6, size - 6, PALETTE.neutral[700], 1);
     container.add(innerBg);
 
-    // Shine/highlight effect
+    // Shine/highlight effect - more subtle
     const shine = this.scene.add.graphics();
-    shine.fillStyle(0xffffff, 0.1);
-    shine.fillRoundedRect(-size / 2 + 6, -size / 2 + 6, size - 20, 12, 4);
+    shine.fillStyle(0xffffff, 0.06);
+    shine.fillRoundedRect(-size / 2 + 5, -size / 2 + 5, size - 16, 10, 3);
     container.add(shine);
 
     // Pips graphics
     const pipsGraphics = this.scene.add.graphics();
     container.add(pipsGraphics);
 
-    // Floating number above die
-    const floatingNum = this.scene.add.text(0, -size / 2 - 25, '1', {
-      fontSize: '28px',
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_PRIMARY,
-      fontStyle: 'bold',
-    });
-    floatingNum.setOrigin(0.5, 0.5);
-    floatingNum.setResolution(window.devicePixelRatio * 2);
-    floatingNum.setShadow(2, 2, '#000000', 4, true, true);
-    container.add(floatingNum);
-
-    // Lock indicator
-    const lockIndicator = this.scene.add.text(0, size / 2 + 15, '', {
+    // Lock indicator text (for cursed dice)
+    const lockIndicator = this.scene.add.text(0, size / 2 + 22, '', {
       fontSize: '12px',
       fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_LOCKED,
+      color: COLORS.TEXT_MUTED,
       fontStyle: 'bold',
     });
-    lockIndicator.setOrigin(0.5, 0);
+    lockIndicator.setOrigin(0.5, 0.5);
     lockIndicator.setResolution(window.devicePixelRatio * 2);
     container.add(lockIndicator);
+
+    // Hold icon graphic (for user-held dice) - green checkmark
+    const lockIcon = this.scene.add.graphics();
+    const iconY = size / 2 + 22;
+    const checkColor = PALETTE.green[400];
+    lockIcon.lineStyle(3, checkColor, 1);
+    lockIcon.beginPath();
+    lockIcon.moveTo(-6, iconY - 1);
+    lockIcon.lineTo(-2, iconY + 4);
+    lockIcon.lineTo(7, iconY - 5);
+    lockIcon.strokePath();
+    lockIcon.setVisible(false);
+    container.add(lockIcon);
+
+    // Cursed icon graphic (for cursed dice) - purple skull
+    const cursedIcon = this.scene.add.graphics();
+    const cursedColor = PALETTE.purple[400];
+    // Skull head (circle)
+    cursedIcon.fillStyle(cursedColor, 1);
+    cursedIcon.fillCircle(0, iconY - 2, 6);
+    // Jaw (smaller arc)
+    cursedIcon.fillRoundedRect(-4, iconY + 2, 8, 4, 2);
+    // Eyes (dark circles)
+    cursedIcon.fillStyle(0x000000, 1);
+    cursedIcon.fillCircle(-2, iconY - 3, 1.5);
+    cursedIcon.fillCircle(2, iconY - 3, 1.5);
+    cursedIcon.setVisible(false);
+    container.add(cursedIcon);
 
     // Make interactive
     bg.setInteractive({ useHandCursor: true });
@@ -291,8 +464,8 @@ export class DiceManager {
           alpha: 0.2,
           duration: 100,
         });
-        bg.setStrokeStyle(3, 0x8888ff);
-        innerBg.setFillStyle(0x2a2a4e);
+        bg.setStrokeStyle(3, PALETTE.green[400]);
+        innerBg.setFillStyle(PALETTE.green[700]);
       }
     });
     bg.on('pointerout', () => {
@@ -313,50 +486,18 @@ export class DiceManager {
       const isCursed = index === this.state.cursedIndex;
       const locked = this.state.locked[index];
       if (isCursed) {
-        bg.setStrokeStyle(3, 0xff4444);
-        innerBg.setFillStyle(0x3a1a1a);
+        bg.setStrokeStyle(3, PALETTE.purple[400]);
+        innerBg.setFillStyle(PALETTE.purple[600]);
       } else if (locked) {
-        bg.setStrokeStyle(3, COLORS.DICE_LOCKED_BORDER);
-        innerBg.setFillStyle(0x2a1a1a);
+        bg.setStrokeStyle(3, PALETTE.green[500]);
+        innerBg.setFillStyle(PALETTE.green[700]);
       } else {
-        bg.setStrokeStyle(3, 0x5a5a7a);
-        innerBg.setFillStyle(0x1a1a2e);
+        bg.setStrokeStyle(3, PALETTE.neutral[500]);
+        innerBg.setFillStyle(PALETTE.neutral[700]);
       }
     });
 
-    return { container, shadow, bg, innerBg, shine, pipsGraphics, floatingNum, lockIndicator, glowGraphics, originalY: y };
-  }
-
-  private createRollButton(x: number, y: number): Phaser.GameObjects.Container {
-    const container = this.scene.add.container(x, y);
-
-    const bg = this.scene.add.rectangle(
-      0,
-      0,
-      SIZES.BTN_ROLL_WIDTH,
-      SIZES.BTN_ROLL_HEIGHT,
-      COLORS.BTN_PRIMARY_BG
-    );
-    bg.setStrokeStyle(SIZES.DICE_BORDER_WIDTH, COLORS.BTN_PRIMARY_BORDER);
-    container.add(bg);
-
-    const text = this.scene.add.text(0, 0, 'ROLL', {
-      fontSize: '24px',
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_PRIMARY,
-      fontStyle: 'bold',
-    });
-    text.setOrigin(0.5, 0.5);
-    text.setResolution(window.devicePixelRatio * 2);
-    container.add(text);
-
-    bg.setInteractive({ useHandCursor: true });
-    bg.on('pointerdown', () => this.roll(false));
-    bg.on('pointerover', () => bg.setFillStyle(COLORS.BTN_PRIMARY_HOVER));
-    bg.on('pointerout', () => bg.setFillStyle(COLORS.BTN_PRIMARY_BG));
-
-    container.setData('bg', bg);
-    return container;
+    return { container, shadow, bg, innerBg, shine, pipsGraphics, lockIndicator, lockIcon, cursedIcon, glowGraphics, originalX: x, originalY: y };
   }
 
   // ===========================================================================
@@ -367,10 +508,14 @@ export class DiceManager {
    * Toggle lock state for a die
    */
   private toggleLock(index: number): void {
-    if (!this.enabled) return;
+    if (!this.enabled) {
+      log.debug('toggleLock rejected: dice disabled');
+      return;
+    }
 
     // Can't unlock a cursed die
     if (index === this.state.cursedIndex) {
+      log.debug(`toggleLock rejected: die ${index} is cursed`);
       // Visual feedback - flash red
       const sprite = this.sprites[index];
       if (sprite) {
@@ -387,6 +532,7 @@ export class DiceManager {
 
     this.state.locked[index] = !this.state.locked[index];
     this.updateDieDisplay(index);
+    this.updateRollButton(); // Update button state based on holdable dice
     this.events.emit('dice:locked', { index, locked: this.state.locked[index] });
   }
 
@@ -394,16 +540,29 @@ export class DiceManager {
    * Roll the dice
    */
   roll(initial: boolean): void {
-    if (!this.enabled) return;
+    if (!this.enabled) {
+      log.debug('roll rejected: dice disabled');
+      return;
+    }
 
     if (!initial && this.state.rerollsLeft <= 0) {
+      log.debug('roll rejected: no rerolls remaining');
       this.flashRerollText();
       return;
     }
 
+    // Check if any dice can actually be rerolled (not locked by user, not cursed)
     if (!initial) {
+      const canReroll = this.state.locked.some((locked, i) => !locked && i !== this.state.cursedIndex);
+      if (!canReroll) {
+        log.debug('roll rejected: all dice are held or cursed');
+        // All dice are held or cursed - don't waste the reroll
+        return;
+      }
       this.state.rerollsLeft--;
     }
+
+    log.log(`Rolling dice (initial: ${initial}, rerolls left: ${this.state.rerollsLeft})`);
 
     // Update rerolls text immediately
     this.updateRerollText();
@@ -432,12 +591,10 @@ export class DiceManager {
 
         // Hide pips during animation
         sprite.pipsGraphics.setVisible(false);
-        sprite.floatingNum.setText('?');
-        sprite.floatingNum.setColor('#ffff00');
 
         // Add glow during roll
         sprite.glowGraphics.clear();
-        sprite.glowGraphics.fillStyle(0x6666ff, 0.3);
+        sprite.glowGraphics.fillStyle(PALETTE.purple[400], 0.3);
         sprite.glowGraphics.fillCircle(0, 0, SIZES.DICE_SIZE * 0.8);
 
         // Animate glow pulse
@@ -456,7 +613,7 @@ export class DiceManager {
         this.scene.tweens.add({
           targets: sprite.container,
           y: sprite.originalY - jumpHeight,
-          x: sprite.container.x + horizontalOffset,
+          x: sprite.originalX + horizontalOffset,
           duration: rollDuration * 0.4,
           ease: 'Quad.easeOut',
           delay,
@@ -483,26 +640,13 @@ export class DiceManager {
           delay,
         });
 
-        // Rapid number changes during tumble
-        let changeCount = 0;
-        this.scene.time.addEvent({
-          delay: 60,
-          callback: () => {
-            if (changeCount < 8) {
-              sprite.floatingNum.setText(Phaser.Math.Between(1, 6).toString());
-              changeCount++;
-            }
-          },
-          repeat: 7,
-        });
-
         // Phase 2: Fall down and land with bounce
         this.scene.time.delayedCall(rollDuration * 0.4 + delay, () => {
           // Fall
           this.scene.tweens.add({
             targets: sprite.container,
             y: sprite.originalY,
-            x: sprite.container.x - horizontalOffset, // Return to center
+            x: sprite.originalX, // Return to exact original position
             duration: rollDuration * 0.35,
             ease: 'Bounce.easeOut',
           });
@@ -569,7 +713,7 @@ export class DiceManager {
             x + Phaser.Math.Between(-15, 15),
             y + Phaser.Math.Between(-30, -60),
             Phaser.Math.Between(3, 6),
-            0x6666ff,
+            PALETTE.purple[400],
             0.6
           );
 
@@ -599,23 +743,9 @@ export class DiceManager {
       ease: 'Quad.easeOut',
     });
 
-    // Flash the number
-    sprite.floatingNum.setColor('#ffffff');
-    this.scene.tweens.add({
-      targets: sprite.floatingNum,
-      scaleX: 1.3,
-      scaleY: 1.3,
-      duration: 100,
-      yoyo: true,
-      onComplete: () => {
-        sprite.floatingNum.setScale(1);
-        sprite.floatingNum.setColor(COLORS.TEXT_PRIMARY);
-      },
-    });
-
     // Impact ring
     const ring = this.scene.add.circle(sprite.container.x, sprite.originalY, 20, 0xffffff, 0);
-    ring.setStrokeStyle(2, 0x8888ff, 0.8);
+    ring.setStrokeStyle(2, PALETTE.purple[400], 0.8);
 
     this.scene.tweens.add({
       targets: ring,
@@ -636,7 +766,7 @@ export class DiceManager {
           sprite.container.x + Math.cos(angle) * 30,
           sprite.originalY + Math.sin(angle) * 30,
           4,
-          0xffdd00,
+          PALETTE.gold[400],
           1
         );
 
@@ -673,35 +803,38 @@ export class DiceManager {
     const locked = this.state.locked[index];
     const isCursed = index === this.state.cursedIndex;
 
-    // Update floating number
-    sprite.floatingNum.setText(value.toString());
-    sprite.floatingNum.setColor(isCursed ? '#ff4444' : locked ? COLORS.TEXT_LOCKED : COLORS.TEXT_PRIMARY);
-
-    // Update background - cursed dice have distinct appearance
+    // Update background - cursed = purple, held = green, normal = neutral
     if (isCursed) {
-      sprite.bg.setFillStyle(0x3a1a1a); // Darker red
-      sprite.bg.setStrokeStyle(SIZES.DICE_BORDER_WIDTH, 0xff4444);
+      sprite.bg.setFillStyle(COLORS.DICE_CURSED_BG);
+      sprite.bg.setStrokeStyle(SIZES.DICE_BORDER_WIDTH, COLORS.DICE_CURSED_BORDER);
+      sprite.innerBg.setFillStyle(PALETTE.purple[600]);
     } else if (locked) {
-      sprite.bg.setFillStyle(COLORS.DICE_LOCKED_BG);
-      sprite.bg.setStrokeStyle(SIZES.DICE_BORDER_WIDTH, COLORS.DICE_LOCKED_BORDER);
+      sprite.bg.setFillStyle(PALETTE.green[700]);
+      sprite.bg.setStrokeStyle(SIZES.DICE_BORDER_WIDTH, PALETTE.green[500]);
+      sprite.innerBg.setFillStyle(PALETTE.green[700]);
     } else {
       sprite.bg.setFillStyle(COLORS.DICE_BG);
       sprite.bg.setStrokeStyle(SIZES.DICE_BORDER_WIDTH, COLORS.DICE_BORDER);
+      sprite.innerBg.setFillStyle(PALETTE.neutral[700]);
     }
 
-    // Update pips
-    const pipColor = isCursed ? 0xff6666 : locked ? COLORS.DICE_PIP_LOCKED : COLORS.DICE_PIP;
+    // Update pips - cursed = purple, held/normal = white
+    const pipColor = isCursed ? COLORS.DICE_PIP_CURSED : COLORS.DICE_PIP;
     this.drawPips(sprite.pipsGraphics, value, pipColor);
 
-    // Update lock indicator - show CURSED for cursed dice
+    // Update icons - cursed shows purple X, held shows green checkmark
     if (isCursed) {
-      sprite.lockIndicator.setText('☠ CURSED');
-      sprite.lockIndicator.setColor('#ff4444');
+      sprite.lockIndicator.setText('');
+      sprite.lockIcon.setVisible(false);
+      sprite.cursedIcon.setVisible(true);
     } else if (locked) {
-      sprite.lockIndicator.setText('LOCKED');
-      sprite.lockIndicator.setColor(COLORS.TEXT_LOCKED);
+      sprite.lockIndicator.setText('');
+      sprite.lockIcon.setVisible(true);
+      sprite.cursedIcon.setVisible(false);
     } else {
       sprite.lockIndicator.setText('');
+      sprite.lockIcon.setVisible(false);
+      sprite.cursedIcon.setVisible(false);
     }
   }
 
@@ -716,18 +849,29 @@ export class DiceManager {
 
   private updateRerollText(): void {
     if (!this.rerollText) return;
-    this.rerollText.setText(`Rerolls: ${this.state.rerollsLeft}`);
-    this.rerollText.setColor(this.state.rerollsLeft > 0 ? COLORS.TEXT_PRIMARY : COLORS.TEXT_DISABLED);
+    this.rerollText.setText(`${this.state.rerollsLeft}`);
+    this.rerollText.setColor(this.state.rerollsLeft > 0 ? COLORS.TEXT_SUCCESS : COLORS.TEXT_DANGER);
   }
 
   private updateRollButton(): void {
     if (!this.rollButton) return;
-    const bg = this.rollButton.getData('bg') as Phaser.GameObjects.Rectangle;
-    if (this.state.rerollsLeft > 0) {
-      bg.setFillStyle(COLORS.BTN_PRIMARY_BG);
+    const bg = this.rollButton.getData('bg') as Phaser.GameObjects.Rectangle | null;
+    const glow = this.rollButton.getData('glow') as Phaser.GameObjects.Rectangle | null;
+    if (!bg) return;
+
+    // Check if any dice can be rerolled (not held, not cursed)
+    const canReroll = this.state.locked.some((locked, i) => !locked && i !== this.state.cursedIndex);
+
+    if (this.state.rerollsLeft > 0 && canReroll) {
+      bg.setFillStyle(PALETTE.green[700], 0.95);
+      bg.setStrokeStyle(2, PALETTE.green[500]);
       bg.setInteractive({ useHandCursor: true });
+      glow?.setAlpha(0.12);
     } else {
-      bg.setFillStyle(COLORS.BTN_DISABLED_BG);
+      bg.setFillStyle(PALETTE.neutral[700], 0.8);
+      bg.setStrokeStyle(2, PALETTE.neutral[500]);
+      bg.removeInteractive();
+      glow?.setAlpha(0.05);
     }
   }
 
@@ -750,6 +894,10 @@ export class DiceManager {
    * Destroy all UI elements
    */
   destroy(): void {
+    log.log(`Destroying DiceManager (${this.sprites.length} sprites, rollButton: ${!!this.rollButton})`);
+
+    // Note: Keyboard listener (SPACE) cleanup is handled by InputManager
+
     for (const sprite of this.sprites) {
       sprite.container.destroy();
     }

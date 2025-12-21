@@ -1,22 +1,66 @@
 /**
  * Main Entry Point
- * Yahtzee Sprint Game
+ * Cursed Dice Game
  */
 
 import Phaser from 'phaser';
-import { CANVAS, COLORS } from '@/config';
+import { DEV, CANVAS, COLORS } from '@/config';
+import { createLogger } from '@/systems/logger';
 import { MenuScene } from '@/scenes/MenuScene';
-import { SprintScene } from '@/scenes/SprintScene';
+import { GameplayScene } from '@/scenes/GameplayScene';
+
+const log = createLogger('Main');
+
+// =============================================================================
+// GLOBAL ERROR HANDLING
+// =============================================================================
+
+/**
+ * Global error handler for uncaught exceptions.
+ * In development: logs full error details to console.
+ * In production: silently captures errors (could send to error tracking service).
+ */
+window.addEventListener('error', (event: ErrorEvent) => {
+  log.error('Uncaught error:', event.message);
+  if (DEV.IS_DEVELOPMENT) {
+    log.error('Stack trace:', event.error?.stack);
+    log.error('Location:', `${event.filename}:${event.lineno}:${event.colno}`);
+  }
+  // Prevent default browser error handling in production
+  if (!DEV.IS_DEVELOPMENT) {
+    event.preventDefault();
+  }
+});
+
+/**
+ * Global handler for unhandled promise rejections.
+ */
+window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+  log.error('Unhandled promise rejection:', event.reason);
+  if (DEV.IS_DEVELOPMENT && event.reason?.stack) {
+    log.error('Stack trace:', event.reason.stack);
+  }
+  // Prevent default browser handling in production
+  if (!DEV.IS_DEVELOPMENT) {
+    event.preventDefault();
+  }
+});
 
 /**
  * Phaser Game Configuration
+ * Uses Scale Manager for responsive layout
  */
 const phaserConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.WEBGL,
   parent: 'game-container',
   backgroundColor: COLORS.BG_DARK,
-  width: CANVAS.WIDTH,
-  height: CANVAS.HEIGHT,
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: CANVAS.WIDTH,
+    height: CANVAS.HEIGHT,
+    expandParent: false, // Don't modify parent container
+  },
   render: {
     antialias: true,
   },
@@ -27,9 +71,19 @@ const phaserConfig: Phaser.Types.Core.GameConfig = {
     mouse: {
       preventDefaultWheel: false,
     },
+    touch: {
+      capture: true, // Better touch support for mobile
+    },
   },
-  scene: [MenuScene, SprintScene],
+  scene: [MenuScene, GameplayScene],
 };
 
 // Initialize Phaser game
-new Phaser.Game(phaserConfig);
+const game = new Phaser.Game(phaserConfig);
+
+// Show game container after Phaser finishes initializing (hides resize flicker)
+game.events.once('ready', () => {
+  requestAnimationFrame(() => {
+    document.getElementById('game-container')?.classList.add('ready');
+  });
+});

@@ -1,13 +1,13 @@
-# Cursed Yahtzee
+# Cursed Dice
 
-A fast-paced, music-driven Yahtzee game with progressive cursed mechanics. Race against the soundtrack to fill your scorecard before time runs out!
+A fast-paced, music-driven dice game with progressive cursed mechanics. Race against the soundtrack to fill your scorecard before time runs out!
 
 ## Game Modes
 
 Complete all 4 modes to win. Score 250+ in each mode to advance. Fail any mode and you start over from the beginning!
 
 ### Mode 1: Classic Sprint
-Standard Yahtzee - fill all 13 categories in any order before time runs out.
+Standard dice game - fill all 13 categories in any order before time runs out.
 
 ### Mode 2: Cursed Dice
 One die is cursed each turn - it's locked and you can't reroll it. The cursed die changes position after each score.
@@ -45,7 +45,7 @@ Only 1 category is available at a time. Score what you can with what you get!
 - Full House: 25 points (3 of one + 2 of another)
 - Small Straight: 30 points (4 in sequence)
 - Large Straight: 40 points (5 in sequence)
-- Yahtzee: 50 points (5 of a kind)
+- Five Dice: 50 points (5 of a kind)
 - Chance: Sum of all dice
 
 ## Development

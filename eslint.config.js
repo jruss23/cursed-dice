@@ -56,56 +56,6 @@ export default [
     },
   },
 
-  // Legacy game source files (for reference only)
-  {
-    files: [
-      'logger.js',
-      'config.js',
-      'spatial-hash.js',
-      'grid.js',
-      'enemy.js',
-      'projectile.js',
-      'tower.js',
-      'wave.js',
-      'ui.js',
-      'game.js',
-      'main.js',
-    ],
-    languageOptions: {
-      ecmaVersion: 2022,
-      sourceType: 'script',
-      globals: {
-        console: 'readonly',
-        document: 'readonly',
-        window: 'readonly',
-        setTimeout: 'readonly',
-        Phaser: 'readonly',
-        logger: 'readonly',
-        CONFIG: 'writable',
-        TOWER_DEFINITIONS: 'writable',
-        ENEMY_TYPES: 'writable',
-        WAVE_CONFIG: 'writable',
-        PATH_COORDS: 'writable',
-        getDifficultyTiming: 'writable',
-        getDifficultySpeed: 'writable',
-        calculateEnemyStats: 'writable',
-        gameState: 'writable',
-        GridSystem: 'writable',
-        SpatialHashGrid: 'writable',
-        Enemy: 'writable',
-        Projectile: 'writable',
-        Tower: 'writable',
-        WaveManager: 'writable',
-        UIManager: 'writable',
-        GameState: 'writable',
-      },
-    },
-    rules: {
-      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      'no-undef': 'error',
-    },
-  },
-
   // Disable conflicting Prettier rules (must be last)
   eslintConfigPrettier,
 ];
