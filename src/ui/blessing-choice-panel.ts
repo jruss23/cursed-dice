@@ -5,6 +5,7 @@
 
 import Phaser from 'phaser';
 import { FONTS, PALETTE, COLORS, SIZES, getViewportMetrics } from '@/config';
+import { createText } from '@/ui/ui-utils';
 import { BLESSING_CONFIGS, type BlessingId } from '@/systems/blessings/types';
 import { MODE_CONFIGS } from '@/systems/game-progression';
 
@@ -44,7 +45,7 @@ export class BlessingChoicePanel {
     const overlay = this.scene.add.rectangle(
       width / 2, height / 2,
       width, height,
-      0x000000, 0.9
+      COLORS.OVERLAY, 0.9
     );
     overlay.setInteractive(); // Block clicks behind
     this.container.add(overlay);
@@ -72,8 +73,8 @@ export class BlessingChoicePanel {
     // Title area - more compact on mobile
     const titleY = height / 2 - panelHeight / 2 + (isMobile ? 22 : 30);
 
-    const title = this.createText(width / 2, titleY, 'Choose Your Blessing', {
-      fontSize: isMobile ? '22px' : FONTS.SIZE_HEADING,
+    const title = createText(this.scene,width / 2, titleY, 'Choose Your Blessing', {
+      fontSize: isMobile ? FONTS.SIZE_LARGE : FONTS.SIZE_HEADING,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
       fontStyle: 'bold',
@@ -82,8 +83,8 @@ export class BlessingChoicePanel {
     this.container.add(title);
 
     // Subtitle
-    const subtitle = this.createText(width / 2, titleY + (isMobile ? 22 : 28), isMobile ? 'Aids you for the rest of your run' : 'This blessing will aid you for the rest of your run', {
-      fontSize: isMobile ? '14px' : FONTS.SIZE_SMALL,
+    const subtitle = createText(this.scene,width / 2, titleY + (isMobile ? 22 : 28), isMobile ? 'Aids you for the rest of your run' : 'This blessing will aid you for the rest of your run', {
+      fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SECONDARY,
     });
@@ -110,22 +111,22 @@ export class BlessingChoicePanel {
     const row1Y = curseBoxY - (isMobile ? 12 : 10);
     const iconOffset = isMobile ? 25 : 35;
 
-    const curseIconLeft = this.createText(width / 2 - curseBoxWidth / 2 + iconOffset, row1Y, '⚠️', {
-      fontSize: isMobile ? '18px' : '24px',
+    const curseIconLeft = createText(this.scene,width / 2 - curseBoxWidth / 2 + iconOffset, row1Y, '⚠️', {
+      fontSize: isMobile ? FONTS.SIZE_BODY : FONTS.SIZE_LARGE,
       fontFamily: FONTS.FAMILY,
     });
     curseIconLeft.setOrigin(0.5, 0.5);
     this.container.add(curseIconLeft);
 
-    const curseIconRight = this.createText(width / 2 + curseBoxWidth / 2 - iconOffset, row1Y, '⚠️', {
-      fontSize: isMobile ? '18px' : '24px',
+    const curseIconRight = createText(this.scene,width / 2 + curseBoxWidth / 2 - iconOffset, row1Y, '⚠️', {
+      fontSize: isMobile ? FONTS.SIZE_BODY : FONTS.SIZE_LARGE,
       fontFamily: FONTS.FAMILY,
     });
     curseIconRight.setOrigin(0.5, 0.5);
     this.container.add(curseIconRight);
 
-    const curseTitle = this.createText(width / 2, row1Y, `NEXT: ${nextCurse.name}`, {
-      fontSize: isMobile ? '15px' : FONTS.SIZE_SMALL,
+    const curseTitle = createText(this.scene,width / 2, row1Y, `NEXT: ${nextCurse.name}`, {
+      fontSize: isMobile ? FONTS.SIZE_LABEL : FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_DANGER,
       fontStyle: 'bold',
@@ -135,8 +136,8 @@ export class BlessingChoicePanel {
 
     // Row 2: Description (with extra spacing - "double return")
     const row2Y = curseBoxY + (isMobile ? 14 : 12);
-    const curseDesc = this.createText(width / 2, row2Y, nextCurse.description, {
-      fontSize: isMobile ? '13px' : FONTS.SIZE_TINY,
+    const curseDesc = createText(this.scene,width / 2, row2Y, nextCurse.description, {
+      fontSize: isMobile ? FONTS.SIZE_MICRO : FONTS.SIZE_TINY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_WARNING,
     });
@@ -183,7 +184,7 @@ export class BlessingChoicePanel {
     this.scene.tweens.add({
       targets: outerGlow,
       alpha: 0.2,
-      duration: 2000,
+      duration: SIZES.ANIM_PULSE,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
@@ -194,7 +195,7 @@ export class BlessingChoicePanel {
     this.scene.tweens.add({
       targets: this.container,
       alpha: 1,
-      duration: 300,
+      duration: SIZES.ANIM_ENTRANCE,
       ease: 'Quad.easeOut',
     });
   }
@@ -233,8 +234,8 @@ export class BlessingChoicePanel {
     let yPos = 28;
 
     // Icon (large, centered) - dimmer if not implemented
-    const icon = this.createText(cardWidth / 2, yPos, config.icon, {
-      fontSize: '42px',
+    const icon = createText(this.scene,cardWidth / 2, yPos, config.icon, {
+      fontSize: FONTS.SIZE_BLESSING,
       fontFamily: FONTS.FAMILY,
     });
     icon.setOrigin(0.5, 0.5);
@@ -243,7 +244,7 @@ export class BlessingChoicePanel {
     yPos += 40;
 
     // Name
-    const name = this.createText(cardWidth / 2, yPos, config.name, {
+    const name = createText(this.scene,cardWidth / 2, yPos, config.name, {
       fontSize: FONTS.SIZE_BODY,
       fontFamily: FONTS.FAMILY,
       color: isImplemented ? COLORS.TEXT_PRIMARY : COLORS.TEXT_MUTED,
@@ -254,7 +255,7 @@ export class BlessingChoicePanel {
     yPos += 20;
 
     // Subtitle
-    const subtitle = this.createText(cardWidth / 2, yPos, config.subtitle, {
+    const subtitle = createText(this.scene,cardWidth / 2, yPos, config.subtitle, {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: isImplemented ? COLORS.TEXT_ACCENT : COLORS.TEXT_DISABLED,
@@ -274,7 +275,7 @@ export class BlessingChoicePanel {
     yPos += 18;
 
     // Description
-    const desc = this.createText(cardWidth / 2, yPos, config.description, {
+    const desc = createText(this.scene,cardWidth / 2, yPos, config.description, {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: isImplemented ? COLORS.TEXT_SECONDARY : COLORS.TEXT_DISABLED,
@@ -287,7 +288,7 @@ export class BlessingChoicePanel {
 
     // Benefits list
     config.benefits.forEach((benefit) => {
-      const bulletText = this.createText(20, yPos, `+ ${benefit}`, {
+      const bulletText = createText(this.scene,20, yPos, `+ ${benefit}`, {
         fontSize: FONTS.SIZE_SMALL,
         fontFamily: FONTS.FAMILY,
         color: isImplemented ? COLORS.TEXT_SUCCESS : COLORS.TEXT_DISABLED,
@@ -313,7 +314,7 @@ export class BlessingChoicePanel {
           this.scene.tweens.add({
             targets: card,
             y: y - 5,
-            duration: 150,
+            duration: SIZES.ANIM_QUICK,
             ease: 'Quad.easeOut',
           });
         }
@@ -326,7 +327,7 @@ export class BlessingChoicePanel {
           this.scene.tweens.add({
             targets: card,
             y: y,
-            duration: 150,
+            duration: SIZES.ANIM_QUICK,
             ease: 'Quad.easeOut',
           });
         }
@@ -346,8 +347,8 @@ export class BlessingChoicePanel {
       comingSoonBg.setStrokeStyle(1, PALETTE.neutral[500], 0.5);
       card.add(comingSoonBg);
 
-      const comingSoon = this.createText(cardWidth / 2, bottomY, 'COMING SOON', {
-        fontSize: '10px',
+      const comingSoon = createText(this.scene,cardWidth / 2, bottomY, 'COMING SOON', {
+        fontSize: FONTS.SIZE_NANO,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_MUTED,
         fontStyle: 'bold',
@@ -418,8 +419,8 @@ export class BlessingChoicePanel {
     let currentY = startY;
 
     // Icon (centered vertically in card)
-    const icon = this.createText(iconX, cardHeight / 2, config.icon, {
-      fontSize: '36px',
+    const icon = createText(this.scene,iconX, cardHeight / 2, config.icon, {
+      fontSize: FONTS.SIZE_BLESSING_SM,
       fontFamily: FONTS.FAMILY,
     });
     icon.setOrigin(0.5, 0.5);
@@ -427,8 +428,8 @@ export class BlessingChoicePanel {
     card.add(icon);
 
     // Name
-    const name = this.createText(textStartX, currentY + lineHeights.name / 2, config.name, {
-      fontSize: '20px',
+    const name = createText(this.scene,textStartX, currentY + lineHeights.name / 2, config.name, {
+      fontSize: FONTS.SIZE_SUBHEADING,
       fontFamily: FONTS.FAMILY,
       color: isImplemented ? COLORS.TEXT_PRIMARY : COLORS.TEXT_MUTED,
       fontStyle: 'bold',
@@ -438,8 +439,8 @@ export class BlessingChoicePanel {
     currentY += lineHeights.name + lineHeights.spacing;
 
     // Subtitle
-    const subtitle = this.createText(textStartX, currentY + lineHeights.subtitle / 2, config.subtitle, {
-      fontSize: '14px',
+    const subtitle = createText(this.scene,textStartX, currentY + lineHeights.subtitle / 2, config.subtitle, {
+      fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: isImplemented ? COLORS.TEXT_ACCENT : COLORS.TEXT_DISABLED,
     });
@@ -448,8 +449,8 @@ export class BlessingChoicePanel {
     currentY += lineHeights.subtitle + lineHeights.spacing;
 
     // Description
-    const desc = this.createText(textStartX, currentY + lineHeights.description / 2, config.description, {
-      fontSize: '13px',
+    const desc = createText(this.scene,textStartX, currentY + lineHeights.description / 2, config.description, {
+      fontSize: FONTS.SIZE_MICRO,
       fontFamily: FONTS.FAMILY,
       color: isImplemented ? COLORS.TEXT_SECONDARY : COLORS.TEXT_DISABLED,
       wordWrap: { width: cardWidth - textStartX - 25 },
@@ -460,8 +461,8 @@ export class BlessingChoicePanel {
 
     // Benefits
     for (let i = 0; i < maxBenefits; i++) {
-      const benefit = this.createText(textStartX, currentY + lineHeights.benefit / 2, `+ ${config.benefits[i]}`, {
-        fontSize: '13px',
+      const benefit = createText(this.scene,textStartX, currentY + lineHeights.benefit / 2, `+ ${config.benefits[i]}`, {
+        fontSize: FONTS.SIZE_MICRO,
         fontFamily: FONTS.FAMILY,
         color: isImplemented ? COLORS.TEXT_SUCCESS : COLORS.TEXT_DISABLED,
       });
@@ -482,8 +483,8 @@ export class BlessingChoicePanel {
       comingSoonBg.setStrokeStyle(1, PALETTE.neutral[500], 0.5);
       card.add(comingSoonBg);
 
-      const comingSoon = this.createText(cardWidth / 2, badgeY, 'COMING SOON', {
-        fontSize: '11px',
+      const comingSoon = createText(this.scene,cardWidth / 2, badgeY, 'COMING SOON', {
+        fontSize: FONTS.SIZE_MICRO,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_MUTED,
         fontStyle: 'bold',
@@ -541,7 +542,7 @@ export class BlessingChoicePanel {
         this.scene.tweens.add({
           targets: prevData.glow,
           alpha: 0,
-          duration: 150,
+          duration: SIZES.ANIM_QUICK,
         });
       }
     }
@@ -557,7 +558,7 @@ export class BlessingChoicePanel {
     this.scene.tweens.add({
       targets: cardGlow,
       alpha: 0.15,
-      duration: 200,
+      duration: SIZES.ANIM_NORMAL,
     });
 
     // Enable the Continue button
@@ -578,7 +579,7 @@ export class BlessingChoicePanel {
       this.scene.tweens.add({
         targets: prevData.glow,
         alpha: 0,
-        duration: 150,
+        duration: SIZES.ANIM_QUICK,
       });
     }
 
@@ -602,7 +603,7 @@ export class BlessingChoicePanel {
     this.scene.tweens.add({
       targets: this.continueButtonGlow,
       alpha: 0,
-      duration: 200,
+      duration: SIZES.ANIM_NORMAL,
     });
   }
 
@@ -620,7 +621,7 @@ export class BlessingChoicePanel {
     this.container.add(this.continueButton);
 
     // Button text
-    this.continueButtonText = this.createText(x, y, 'CONTINUE', {
+    this.continueButtonText = createText(this.scene,x, y, 'CONTINUE', {
       fontSize: FONTS.SIZE_BODY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_DISABLED,
@@ -642,7 +643,7 @@ export class BlessingChoicePanel {
     this.scene.tweens.add({
       targets: this.continueButtonGlow,
       alpha: 0.15,
-      duration: 200,
+      duration: SIZES.ANIM_NORMAL,
     });
 
     // Make interactive
@@ -683,7 +684,7 @@ export class BlessingChoicePanel {
     this.scene.tweens.add({
       targets: this.container,
       alpha: 0.3,
-      duration: 200,
+      duration: SIZES.ANIM_NORMAL,
       ease: 'Quad.easeIn',
       onComplete: () => {
         // Fade camera to black before loading next scene
@@ -694,17 +695,6 @@ export class BlessingChoicePanel {
         });
       },
     });
-  }
-
-  private createText(
-    x: number,
-    y: number,
-    content: string,
-    style: Phaser.Types.GameObjects.Text.TextStyle
-  ): Phaser.GameObjects.Text {
-    const text = this.scene.add.text(x, y, content, style);
-    text.setResolution(window.devicePixelRatio * 2);
-    return text;
   }
 
   public destroy(): void {

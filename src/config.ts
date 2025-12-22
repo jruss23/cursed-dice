@@ -151,6 +151,30 @@ export const PALETTE = {
     100: 0xccccdd,
     50: 0xeeeef4,
   },
+
+  // === ABSOLUTE COLORS ===
+  black: 0x000000,
+  white: 0xffffff,
+
+  // === DEBUG COLORS (bright for visibility, not in PALETTE shades) ===
+  debug: {
+    cyan: 0x00ccff,
+    cyanLight: 0x66eeff,
+    cyanDark: 0x002233,
+    cyanDarkHover: 0x003355,
+    redDark: 0x331111,
+    redDarkHover: 0x552222,
+    greenDark: 0x112233,
+    greenDarkHover: 0x223344,
+    greenBorder: 0x44aa66,
+    greenBorderHover: 0x66cc88,
+    currentModeBg: 0x112211,
+    currentModeBorder: 0x44aa44,
+    currentModeHover: 0x224422,
+    closeBg: 0x442222,
+    closeBgHover: 0x663333,
+    closeBorder: 0xcc4444,
+  },
 } as const;
 
 // === SEMANTIC COLORS (use these in components) ===
@@ -212,6 +236,32 @@ export const COLORS = {
   TIMER_WARNING: '#ffdd88',    // gold.300
   TIMER_DANGER: '#ee6666',     // red.400
   TIMER_CRITICAL: '#ff8888',   // red.300
+
+  // Timer glow backgrounds (darker versions)
+  TIMER_GLOW_SAFE: '#226622',
+  TIMER_GLOW_WARNING: '#665522',
+  TIMER_GLOW_DANGER: '#662222',
+
+  // Menu text colors
+  MENU_SUBTITLE: '#aa88bb',
+  MENU_HEADER: '#aa66cc',
+  MENU_HEADER_GLOW: '#440066',
+  MENU_INFO: '#bb88dd',
+  MENU_INFO_GLOW: '#6622aa',
+  MENU_VERSION: '#555566',
+
+  // Debug panel colors (intentionally bright for visibility)
+  DEBUG_CYAN: '#44ddff',
+  DEBUG_RED: '#ff6666',
+  DEBUG_GREEN: '#66cc88',
+  DEBUG_GREEN_BRIGHT: '#66ee66',
+  DEBUG_PURPLE: '#aa88ff',
+
+  // Overlays and shadows (hex values for rectangle fills)
+  OVERLAY: PALETTE.black,
+  SHADOW: PALETTE.black,
+  HIGHLIGHT: PALETTE.white,
+  PANEL_BG_DEEP: 0x0a0a15,  // Very dark blue-purple for main panels
 } as const;
 
 // =============================================================================
@@ -277,11 +327,18 @@ export const SIZES = {
   // Animation durations
   ROLL_DURATION_MS: 500,
   FADE_DURATION_MS: 300,
-  ANIM_INSTANT: 50,
-  ANIM_FAST: 100,
-  ANIM_NORMAL: 200,
-  ANIM_SLOW: 400,
-  ANIM_PULSE: 2000,
+  // Animation durations (in ms)
+  ANIM_FLASH: 80,           // Very quick flash/blink
+  ANIM_INSTANT: 50,         // Near-instant
+  ANIM_FAST: 100,           // Fast feedback
+  ANIM_QUICK: 150,          // Quick UI transitions
+  ANIM_NORMAL: 200,         // Standard transitions
+  ANIM_ENTRANCE: 300,       // Panel entrance/exit
+  ANIM_SLOW: 400,           // Slower, noticeable
+  ANIM_MEDIUM_SLOW: 600,    // Medium-slow effects
+  ANIM_PULSE: 2000,         // Standard pulse/glow
+  ANIM_PULSE_SLOW: 2500,    // Slower ambient pulse
+  ANIM_AMBIENT: 5000,       // Slow ambient animations
 } as const;
 
 // =============================================================================
@@ -290,15 +347,23 @@ export const SIZES = {
 
 export const FONTS = {
   FAMILY: 'Arial',
-  SIZE_TIMER: '56px',
-  SIZE_TITLE: '48px',
-  SIZE_MODE_TITLE: '32px',
-  SIZE_HEADING: '28px',
-  SIZE_SUBHEADING: '20px',
-  SIZE_BODY: '18px',
-  SIZE_BUTTON: '16px',
-  SIZE_SMALL: '14px',
-  SIZE_TINY: '12px',
+  SIZE_TIMER: '56px',       // 56px - countdown timer
+  SIZE_MENU_TITLE: '52px',  // 52px - menu title
+  SIZE_TITLE: '48px',       // 48px - large headings
+  SIZE_BLESSING: '42px',    // 42px - blessing icons
+  SIZE_BLESSING_SM: '36px', // 36px - smaller blessing icons
+  SIZE_MODE_TITLE: '32px',  // 32px - mode titles
+  SIZE_HEADING: '28px',     // 28px - section headings
+  SIZE_LARGE: '24px',       // 24px - large body text
+  SIZE_SUBHEADING: '20px',  // 20px - subheadings
+  SIZE_BODY: '18px',        // 18px - body text
+  SIZE_BODY_SM: '17px',     // 17px - slightly smaller body
+  SIZE_BUTTON: '16px',      // 16px - button text
+  SIZE_LABEL: '15px',       // 15px - labels
+  SIZE_SMALL: '14px',       // 14px - small text
+  SIZE_TINY: '12px',        // 12px - tiny text
+  SIZE_MICRO: '11px',       // 11px - micro text
+  SIZE_NANO: '10px',        // 10px - smallest text
 } as const;
 
 // =============================================================================

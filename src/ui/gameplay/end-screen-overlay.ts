@@ -5,6 +5,7 @@
 
 import Phaser from 'phaser';
 import { FONTS, PALETTE, COLORS, SIZES, getViewportMetrics } from '@/config';
+import { createText } from '@/ui/ui-utils';
 
 export interface EndScreenConfig {
   passed: boolean;
@@ -95,7 +96,7 @@ export class EndScreenOverlay {
 
     // Title with glow
     const titleY = 45;
-    const titleGlow = this.createText(panelWidth / 2, titleY, titleText, {
+    const titleGlow = createText(this.scene, panelWidth / 2, titleY, titleText, {
       fontSize: FONTS.SIZE_HEADING,
       fontFamily: FONTS.FAMILY,
       color: titleColor,
@@ -106,7 +107,7 @@ export class EndScreenOverlay {
     titleGlow.setBlendMode(Phaser.BlendModes.ADD);
     this.panel.add(titleGlow);
 
-    const title = this.createText(panelWidth / 2, titleY, titleText, {
+    const title = createText(this.scene, panelWidth / 2, titleY, titleText, {
       fontSize: FONTS.SIZE_HEADING,
       fontFamily: FONTS.FAMILY,
       color: titleColor,
@@ -116,7 +117,7 @@ export class EndScreenOverlay {
     this.panel.add(title);
 
     // Subtitle
-    const subtitle = this.createText(panelWidth / 2, titleY + 30, subtitleText, {
+    const subtitle = createText(this.scene, panelWidth / 2, titleY + 30, subtitleText, {
       fontSize: FONTS.SIZE_BODY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SECONDARY,
@@ -142,7 +143,7 @@ export class EndScreenOverlay {
     const glowTween = this.scene.tweens.add({
       targets: outerGlow,
       alpha: 0.2,
-      duration: 2000,
+      duration: SIZES.ANIM_PULSE,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
@@ -217,7 +218,7 @@ export class EndScreenOverlay {
     const rightX = (panelWidth * 2) / 3;
 
     // Round score (left)
-    const roundLabel = this.createText(leftX, scoresY - 25, 'ROUND SCORE', {
+    const roundLabel = createText(this.scene, leftX, scoresY - 25, 'ROUND SCORE', {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SECONDARY,
@@ -225,7 +226,7 @@ export class EndScreenOverlay {
     roundLabel.setOrigin(0.5, 0.5);
     this.panel.add(roundLabel);
 
-    const roundScore = this.createText(leftX, scoresY + 10, `${modeScore}`, {
+    const roundScore = createText(this.scene, leftX, scoresY + 10, `${modeScore}`, {
       fontSize: FONTS.SIZE_TITLE,
       fontFamily: FONTS.FAMILY,
       color: passed ? COLORS.TEXT_SUCCESS : COLORS.TEXT_DANGER,
@@ -239,7 +240,7 @@ export class EndScreenOverlay {
     this.panel.add(scoreDivider);
 
     // Total score (right)
-    const totalLabel = this.createText(rightX, scoresY - 25, 'RUN TOTAL', {
+    const totalLabel = createText(this.scene, rightX, scoresY - 25, 'RUN TOTAL', {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SECONDARY,
@@ -247,7 +248,7 @@ export class EndScreenOverlay {
     totalLabel.setOrigin(0.5, 0.5);
     this.panel.add(totalLabel);
 
-    const totalScoreText = this.createText(rightX, scoresY + 10, `${totalScore}`, {
+    const totalScoreText = createText(this.scene, rightX, scoresY + 10, `${totalScore}`, {
       fontSize: FONTS.SIZE_TITLE,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_ACCENT,
@@ -349,7 +350,7 @@ export class EndScreenOverlay {
     this.panel.add(btnBg);
 
     // Button text
-    const btnText = this.createText(x, y, label, {
+    const btnText = createText(this.scene, x, y, label, {
       fontSize: FONTS.SIZE_BUTTON,
       fontFamily: FONTS.FAMILY,
       color: s.text,
@@ -380,7 +381,7 @@ export class EndScreenOverlay {
       targets: this.panel,
       scale: 1,
       alpha: 1,
-      duration: 300,
+      duration: SIZES.ANIM_ENTRANCE,
       ease: 'Back.easeOut',
     });
     this.tweens.push(entranceTween);
@@ -391,7 +392,7 @@ export class EndScreenOverlay {
       targets: this.panel,
       alpha: 0,
       scale: 0.9,
-      duration: 250,
+      duration: SIZES.ANIM_NORMAL,
       ease: 'Quad.easeIn',
       onComplete: () => {
         this.panel.setVisible(false);
@@ -399,17 +400,6 @@ export class EndScreenOverlay {
       },
     });
     this.tweens.push(fadeTween);
-  }
-
-  private createText(
-    x: number,
-    y: number,
-    content: string,
-    style: Phaser.Types.GameObjects.Text.TextStyle
-  ): Phaser.GameObjects.Text {
-    const text = this.scene.add.text(x, y, content, style);
-    text.setResolution(window.devicePixelRatio * 2);
-    return text;
   }
 
   destroy(): void {

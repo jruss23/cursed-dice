@@ -161,6 +161,16 @@ export class BlessingManager {
     this.state = { hasChosen: false, chosenBlessingId: null };
     this.activeBlessing = null;
   }
+
+  /**
+   * Clean up all resources
+   */
+  destroy(): void {
+    this.activeBlessing?.destroy?.();
+    this.activeBlessing = null;
+    this.state = { hasChosen: false, chosenBlessingId: null };
+    log.log('Destroyed');
+  }
 }
 
 // Singleton instance (persists across scenes like GameProgression)

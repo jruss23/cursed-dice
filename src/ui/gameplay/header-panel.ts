@@ -5,6 +5,7 @@
 
 import Phaser from 'phaser';
 import { FONTS, PALETTE, COLORS, SIZES, type ViewportMetrics } from '@/config';
+import { createText } from '@/ui/ui-utils';
 
 export interface HeaderPanelConfig {
   currentMode: number;
@@ -104,7 +105,7 @@ export class HeaderPanel {
     const valueOffset = isMobile ? 10 : 12;
 
     // Left: Curse number
-    const curseLabel = this.createText(sideInset, sideCenterY + labelOffset, 'CURSE', {
+    const curseLabel = createText(this.scene, sideInset, sideCenterY + labelOffset, 'CURSE', {
       fontSize: smallLabelSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SECONDARY,
@@ -113,7 +114,7 @@ export class HeaderPanel {
     curseLabel.setOrigin(0.5, 0.5);
     this.container.add(curseLabel);
 
-    const curseNum = this.createText(sideInset, sideCenterY + valueOffset, `${currentMode}/4`, {
+    const curseNum = createText(this.scene, sideInset, sideCenterY + valueOffset, `${currentMode}/4`, {
       fontSize: valueSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
@@ -125,7 +126,7 @@ export class HeaderPanel {
     // Center: Mode title (top on mobile)
     const topY = isMobile ? 16 : 25;
     const titleFontSize = isMobile ? `${Math.round(14 * fontScale)}px` : FONTS.SIZE_SUBHEADING;
-    const title = this.createText(panelWidth / 2, topY, modeName, {
+    const title = createText(this.scene, panelWidth / 2, topY, modeName, {
       fontSize: titleFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
@@ -135,7 +136,7 @@ export class HeaderPanel {
     this.container.add(title);
 
     // Right: Run total
-    const totalLabel = this.createText(panelWidth - sideInset, sideCenterY + labelOffset, 'TOTAL', {
+    const totalLabel = createText(this.scene, panelWidth - sideInset, sideCenterY + labelOffset, 'TOTAL', {
       fontSize: smallLabelSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SECONDARY,
@@ -144,7 +145,7 @@ export class HeaderPanel {
     totalLabel.setOrigin(0.5, 0.5);
     this.container.add(totalLabel);
 
-    this.totalScoreText = this.createText(panelWidth - sideInset, sideCenterY + valueOffset, `${totalScore}`, {
+    this.totalScoreText = createText(this.scene, panelWidth - sideInset, sideCenterY + valueOffset, `${totalScore}`, {
       fontSize: valueSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
@@ -155,10 +156,10 @@ export class HeaderPanel {
 
     // === MIDDLE: Timer ===
     const timerY = isMobile ? 38 : 70;
-    this.timerGlow = this.createText(panelWidth / 2, timerY, this.formatTime(timeRemaining), {
+    this.timerGlow = createText(this.scene, panelWidth / 2, timerY, this.formatTime(timeRemaining), {
       fontSize: timerSize,
       fontFamily: FONTS.FAMILY,
-      color: '#226622',
+      color: COLORS.TIMER_GLOW_SAFE,
       fontStyle: 'bold',
     });
     this.timerGlow.setOrigin(0.5, 0.5);
@@ -166,7 +167,7 @@ export class HeaderPanel {
     this.timerGlow.setBlendMode(Phaser.BlendModes.ADD);
     this.container.add(this.timerGlow);
 
-    this.timerText = this.createText(panelWidth / 2, timerY, this.formatTime(timeRemaining), {
+    this.timerText = createText(this.scene, panelWidth / 2, timerY, this.formatTime(timeRemaining), {
       fontSize: timerSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TIMER_SAFE,
@@ -178,7 +179,7 @@ export class HeaderPanel {
     // === BOTTOM ROW: Threshold (centered) ===
     const bottomY = isMobile ? panelHeight - 12 : 115;
 
-    const thresholdText = this.createText(panelWidth / 2, bottomY, `Need ${passThreshold}+ to advance`, {
+    const thresholdText = createText(this.scene, panelWidth / 2, bottomY, `Need ${passThreshold}+ to advance`, {
       fontSize: thresholdSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_WARNING,
@@ -190,7 +191,7 @@ export class HeaderPanel {
     this.glowTween = this.scene.tweens.add({
       targets: outerGlow,
       alpha: 0.15,
-      duration: 2500,
+      duration: SIZES.ANIM_PULSE_SLOW,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
@@ -209,10 +210,10 @@ export class HeaderPanel {
       this.timerGlow.setText(formatted);
       if (color) {
         // Set glow to darker version of the color
-        const glowColor = color === COLORS.TIMER_SAFE ? '#226622' :
-                         color === COLORS.TIMER_WARNING ? '#665522' :
-                         color === COLORS.TIMER_DANGER ? '#662222' :
-                         color === COLORS.TIMER_CRITICAL ? '#662222' : '#226622';
+        const glowColor = color === COLORS.TIMER_SAFE ? COLORS.TIMER_GLOW_SAFE :
+                         color === COLORS.TIMER_WARNING ? COLORS.TIMER_GLOW_WARNING :
+                         color === COLORS.TIMER_DANGER ? COLORS.TIMER_GLOW_DANGER :
+                         color === COLORS.TIMER_CRITICAL ? COLORS.TIMER_GLOW_DANGER : COLORS.TIMER_GLOW_SAFE;
         this.timerGlow.setColor(glowColor);
       }
     }
@@ -236,17 +237,6 @@ export class HeaderPanel {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  }
-
-  private createText(
-    x: number,
-    y: number,
-    content: string,
-    style: Phaser.Types.GameObjects.Text.TextStyle
-  ): Phaser.GameObjects.Text {
-    const text = this.scene.add.text(x, y, content, style);
-    text.setResolution(window.devicePixelRatio * 2);
-    return text;
   }
 
   destroy(): void {

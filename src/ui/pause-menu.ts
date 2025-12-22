@@ -5,6 +5,7 @@
 
 import Phaser from 'phaser';
 import { FONTS, PALETTE, COLORS, SIZES } from '@/config';
+import { createText } from '@/ui/ui-utils';
 
 export interface PauseMenuCallbacks {
   onResume: () => void;
@@ -33,7 +34,7 @@ export class PauseMenu {
     const overlay = this.scene.add.rectangle(
       width / 2, height / 2,
       width, height,
-      0x000000, 0.85
+      COLORS.OVERLAY, 0.85
     );
     overlay.setInteractive(); // Block clicks behind
     this.container.add(overlay);
@@ -46,7 +47,7 @@ export class PauseMenu {
     const outerGlow = this.scene.add.rectangle(
       width / 2, height / 2,
       panelWidth + 20, panelHeight + 20,
-      0x000000, 0
+      COLORS.OVERLAY, 0
     );
     outerGlow.setStrokeStyle(SIZES.GLOW_STROKE_LARGE, PALETTE.purple[500], 0.1);
     this.container.add(outerGlow);
@@ -85,7 +86,7 @@ export class PauseMenu {
     });
 
     // Title
-    const title = this.createText(width / 2, height / 2 - 70, 'PAUSED', {
+    const title = createText(this.scene, width / 2, height / 2 - 70, 'PAUSED', {
       fontSize: FONTS.SIZE_HEADING,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
@@ -116,7 +117,7 @@ export class PauseMenu {
     this.scene.tweens.add({
       targets: outerGlow,
       alpha: 0.15,
-      duration: 2000,
+      duration: SIZES.ANIM_PULSE,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
@@ -157,7 +158,7 @@ export class PauseMenu {
     btnBg.setInteractive({ useHandCursor: true });
     this.container.add(btnBg);
 
-    const btnText = this.createText(x, y, label, {
+    const btnText = createText(this.scene, x, y, label, {
       fontSize: FONTS.SIZE_BUTTON,
       fontFamily: FONTS.FAMILY,
       color: s.text,
@@ -178,24 +179,13 @@ export class PauseMenu {
     btnBg.on('pointerdown', onClick);
   }
 
-  private createText(
-    x: number,
-    y: number,
-    content: string,
-    style: Phaser.Types.GameObjects.Text.TextStyle
-  ): Phaser.GameObjects.Text {
-    const text = this.scene.add.text(x, y, content, style);
-    text.setResolution(window.devicePixelRatio * 2);
-    return text;
-  }
-
   show(): void {
     this.container.setVisible(true);
     this.container.setAlpha(0);
     this.scene.tweens.add({
       targets: this.container,
       alpha: 1,
-      duration: 150,
+      duration: SIZES.ANIM_QUICK,
       ease: 'Quad.easeOut',
     });
   }
@@ -204,7 +194,7 @@ export class PauseMenu {
     this.scene.tweens.add({
       targets: this.container,
       alpha: 0,
-      duration: 150,
+      duration: SIZES.ANIM_QUICK,
       ease: 'Quad.easeIn',
       onComplete: () => {
         this.container.setVisible(false);

@@ -538,6 +538,13 @@ export class Scorecard {
   getRemainingCount(): number {
     return Math.max(0, CATEGORIES_TO_COMPLETE - this.getFilledCount());
   }
+
+  /**
+   * Clean up all resources
+   */
+  destroy(): void {
+    this.state.categories.clear();
+  }
 }
 
 /**

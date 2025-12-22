@@ -57,9 +57,9 @@ export class DifficultyButton {
     const buttonHeight = isMobile ? 58 : 75; // Still 44px+ for touch
 
     // Font sizes - keep readable on mobile
-    const labelSize = isMobile ? '22px' : '26px';
-    const subSize = isMobile ? '14px' : '14px';
-    const iconSize = isMobile ? '24px' : '28px';
+    const labelSize = isMobile ? FONTS.SIZE_LARGE : FONTS.SIZE_HEADING;
+    const subSize = FONTS.SIZE_SMALL;
+    const iconSize = isMobile ? FONTS.SIZE_LARGE : FONTS.SIZE_HEADING;
 
     const config = this.config;
 
@@ -135,14 +135,14 @@ export class DifficultyButton {
 
     if (!isMobile) {
       leftSkull = createText(this.scene, -buttonWidth / 2 - 25, 0, '', {
-        fontSize: '20px',
+        fontSize: FONTS.SIZE_SUBHEADING,
       });
       leftSkull.setOrigin(0.5, 0.5);
       leftSkull.setAlpha(0.3);
       this.container.add(leftSkull);
 
       rightSkull = createText(this.scene, buttonWidth / 2 + 25, 0, '', {
-        fontSize: '20px',
+        fontSize: FONTS.SIZE_SUBHEADING,
       });
       rightSkull.setOrigin(0.5, 0.5);
       rightSkull.setAlpha(0.3);
@@ -162,7 +162,7 @@ export class DifficultyButton {
         targets: this.container,
         scaleX: 1.03,
         scaleY: 1.03,
-        duration: 150,
+        duration: SIZES.ANIM_QUICK,
         ease: 'Quad.easeOut',
       });
 
@@ -171,7 +171,7 @@ export class DifficultyButton {
         this.scene.tweens.add({
           targets: [leftSkull, rightSkull],
           alpha: 0.7,
-          duration: 150,
+          duration: SIZES.ANIM_QUICK,
         });
       }
 
@@ -187,7 +187,7 @@ export class DifficultyButton {
         targets: this.container,
         scaleX: 1,
         scaleY: 1,
-        duration: 150,
+        duration: SIZES.ANIM_QUICK,
         ease: 'Quad.easeOut',
       });
 
@@ -196,7 +196,7 @@ export class DifficultyButton {
         this.scene.tweens.add({
           targets: [leftSkull, rightSkull],
           alpha: 0.3,
-          duration: 150,
+          duration: SIZES.ANIM_QUICK,
         });
       }
 
@@ -212,7 +212,7 @@ export class DifficultyButton {
         targets: this.container,
         scaleX: 0.97,
         scaleY: 0.97,
-        duration: 100,
+        duration: SIZES.ANIM_FAST,
         yoyo: true,
         ease: 'Quad.easeOut',
       });
@@ -228,7 +228,7 @@ export class DifficultyButton {
       alpha: 1,
       scaleX: 1,
       scaleY: 1,
-      duration: 400,
+      duration: SIZES.ANIM_SLOW,
       delay: index * 100 + 200,
       ease: 'Back.easeOut',
     });

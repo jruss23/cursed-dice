@@ -50,6 +50,11 @@ export class BlessingOfExpansion implements Blessing<ExpansionModeState> {
   isEnabled(): boolean {
     return this.state.enabled;
   }
+
+  destroy(): void {
+    // Clear reference to events emitter
+    this.events = null as unknown as GameEventEmitter;
+  }
 }
 
 // Register this blessing with the manager

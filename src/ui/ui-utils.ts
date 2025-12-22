@@ -4,7 +4,7 @@
  */
 
 import Phaser from 'phaser';
-import { PALETTE, FONTS } from '@/config';
+import { PALETTE, FONTS, COLORS } from '@/config';
 
 // =============================================================================
 // TEXT CREATION
@@ -171,7 +171,7 @@ const BUTTON_STYLES: Record<ButtonStyle, ButtonColors> = {
     border: PALETTE.green[500],
     borderHover: PALETTE.green[400],
     glow: PALETTE.green[500],
-    text: '#44ff44',
+    text: COLORS.TEXT_SUCCESS,
   },
   secondary: {
     bg: PALETTE.purple[700],
@@ -179,7 +179,7 @@ const BUTTON_STYLES: Record<ButtonStyle, ButtonColors> = {
     border: PALETTE.purple[500],
     borderHover: PALETTE.purple[400],
     glow: PALETTE.purple[500],
-    text: '#aaaacc',
+    text: COLORS.TEXT_SECONDARY,
   },
   warning: {
     bg: PALETTE.gold[700],
@@ -187,7 +187,7 @@ const BUTTON_STYLES: Record<ButtonStyle, ButtonColors> = {
     border: PALETTE.gold[500],
     borderHover: PALETTE.gold[400],
     glow: PALETTE.gold[500],
-    text: '#ffcc44',
+    text: COLORS.TEXT_WARNING,
   },
   danger: {
     bg: PALETTE.red[800],
@@ -195,7 +195,7 @@ const BUTTON_STYLES: Record<ButtonStyle, ButtonColors> = {
     border: PALETTE.red[500],
     borderHover: PALETTE.red[400],
     glow: PALETTE.red[500],
-    text: '#ff6666',
+    text: COLORS.TEXT_DANGER,
   },
 };
 

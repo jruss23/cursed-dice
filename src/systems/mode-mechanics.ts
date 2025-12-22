@@ -127,6 +127,13 @@ export class ModeMechanicsManager {
     this.events = null;
   }
 
+  /**
+   * Clean up all resources
+   */
+  destroy(): void {
+    this.reset();
+  }
+
   // ===========================================================================
   // PRIVATE METHODS
   // ===========================================================================

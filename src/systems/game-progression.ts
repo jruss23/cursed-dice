@@ -206,6 +206,13 @@ class GameProgressionManager {
   getProgressString(): string {
     return `Mode ${this.state.currentMode}/${TOTAL_MODES}`;
   }
+
+  /**
+   * Clean up all resources
+   */
+  destroy(): void {
+    this.reset();
+  }
 }
 
 // Singleton instance

@@ -4,7 +4,8 @@
  */
 
 import Phaser from 'phaser';
-import { FONTS } from '@/config';
+import { FONTS, SIZES } from '@/config';
+import { createText } from '@/ui/ui-utils';
 
 export class SpookyBackground {
   private scene: Phaser.Scene;
@@ -81,8 +82,9 @@ export class SpookyBackground {
       const glow = this.scene.add.circle(pos.x, pos.y, pos.size * 0.6, 0x6633aa, 0.08);
       this.gameObjects.push(glow);
 
-      const skull = this.createText(pos.x, pos.y, '💀', {
+      const skull = createText(this.scene, pos.x, pos.y, '💀', {
         fontSize: `${pos.size}px`,
+        fontFamily: FONTS.FAMILY,
       });
       skull.setOrigin(0.5, 0.5);
       skull.setAlpha(0.2);
@@ -127,7 +129,7 @@ export class SpookyBackground {
       this.tweens.push(this.scene.tweens.add({
         targets: skull,
         alpha: 0.35,
-        duration: 2500,
+        duration: SIZES.ANIM_PULSE_SLOW,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut',
@@ -238,7 +240,7 @@ export class SpookyBackground {
         this.tweens.push(this.scene.tweens.add({
           targets: fog,
           alpha: 0.6,
-          duration: 5000,
+          duration: SIZES.ANIM_AMBIENT,
           yoyo: true,
           repeat: -1,
           ease: 'Sine.easeInOut',
@@ -285,7 +287,7 @@ export class SpookyBackground {
         this.tweens.push(this.scene.tweens.add({
           targets: [leftOuterGlow, rightOuterGlow],
           alpha: 0.2,
-          duration: 400,
+          duration: SIZES.ANIM_SLOW,
         }));
         this.tweens.push(this.scene.tweens.add({
           targets: [leftGlow, rightGlow],
@@ -296,13 +298,13 @@ export class SpookyBackground {
         this.tweens.push(this.scene.tweens.add({
           targets: [leftEye, rightEye],
           alpha: 1,
-          duration: 300,
+          duration: SIZES.ANIM_ENTRANCE,
           delay: 100,
         }));
         this.tweens.push(this.scene.tweens.add({
           targets: [leftPupil, rightPupil],
           alpha: 1,
-          duration: 200,
+          duration: SIZES.ANIM_NORMAL,
           delay: 150,
         }));
       };
@@ -312,14 +314,14 @@ export class SpookyBackground {
         this.tweens.push(this.scene.tweens.add({
           targets: allParts,
           alpha: 0,
-          duration: 80,
+          duration: SIZES.ANIM_FLASH,
           yoyo: true,
           repeat: Phaser.Math.Between(1, 3), // Blink
           onComplete: () => {
             this.tweens.push(this.scene.tweens.add({
               targets: allParts,
               alpha: 0,
-              duration: 300,
+              duration: SIZES.ANIM_ENTRANCE,
               onComplete: () => {
                 // Schedule next appearance
                 const timer = this.scene.time.delayedCall(Phaser.Math.Between(3000, 8000), () => {
@@ -417,7 +419,7 @@ export class SpookyBackground {
           this.tweens.push(this.scene.tweens.add({
             targets: allFlame,
             alpha: 0.05,
-            duration: 80,
+            duration: SIZES.ANIM_FLASH,
             yoyo: true,
             repeat: Phaser.Math.Between(1, 3),
           }));
@@ -450,8 +452,9 @@ export class SpookyBackground {
       ghost.add(outerGlow);
 
       // Ghost emoji with ethereal effect
-      const ghostEmoji = this.createText(0, 0, '👻', {
+      const ghostEmoji = createText(this.scene, 0, 0, '👻', {
         fontSize: `${size}px`,
+        fontFamily: FONTS.FAMILY,
       });
       ghostEmoji.setOrigin(0.5, 0.5);
       ghost.add(ghostEmoji);
@@ -468,7 +471,7 @@ export class SpookyBackground {
       this.tweens.push(this.scene.tweens.add({
         targets: ghost,
         alpha: 0.35,
-        duration: 2000,
+        duration: SIZES.ANIM_PULSE,
         ease: 'Sine.easeIn',
       }));
 
@@ -506,7 +509,7 @@ export class SpookyBackground {
       this.tweens.push(this.scene.tweens.add({
         targets: outerGlow,
         alpha: 0.15,
-        duration: 2000,
+        duration: SIZES.ANIM_PULSE,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut',
@@ -517,7 +520,7 @@ export class SpookyBackground {
         this.tweens.push(this.scene.tweens.add({
           targets: ghost,
           alpha: 0,
-          duration: 2500,
+          duration: SIZES.ANIM_PULSE_SLOW,
           ease: 'Sine.easeOut',
           onComplete: () => ghost.destroy(),
         }));
@@ -537,21 +540,6 @@ export class SpookyBackground {
     const initial1 = this.scene.time.delayedCall(2000, spawnGhost);
     const initial2 = this.scene.time.delayedCall(5000, spawnGhost);
     this.timerEvents.push(initial1, initial2);
-  }
-
-  private createText(
-    x: number,
-    y: number,
-    content: string,
-    style: Phaser.Types.GameObjects.Text.TextStyle
-  ): Phaser.GameObjects.Text {
-    const defaultStyle: Phaser.Types.GameObjects.Text.TextStyle = {
-      fontFamily: FONTS.FAMILY,
-      ...style,
-    };
-    const text = this.scene.add.text(x, y, content, defaultStyle);
-    text.setResolution(window.devicePixelRatio * 2);
-    return text;
   }
 
   /**

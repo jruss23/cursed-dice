@@ -7,6 +7,7 @@ import Phaser from 'phaser';
 import { type Scorecard, type CategoryId, type Category } from '@/systems/scorecard';
 import { GameEventEmitter } from '@/systems/game-events';
 import { FONTS, SIZES, GAME_RULES, PALETTE, COLORS, type ScorecardLayout, RESPONSIVE } from '@/config';
+import { createText } from '@/ui/ui-utils';
 
 export interface ScorecardPanelConfig {
   x: number;
@@ -324,7 +325,7 @@ export class ScorecardPanel {
       targets: this.container,
       scaleY: { from: 0.95, to: 1 },
       alpha: { from: 0.8, to: 1 },
-      duration: 300,
+      duration: SIZES.ANIM_ENTRANCE,
       ease: 'Back.easeOut',
     });
   }
@@ -332,18 +333,6 @@ export class ScorecardPanel {
   // ===========================================================================
   // UI BUILDING
   // ===========================================================================
-
-  /** Helper to create crisp text on retina displays */
-  private createText(
-    x: number,
-    y: number,
-    content: string,
-    style: Phaser.Types.GameObjects.Text.TextStyle
-  ): Phaser.GameObjects.Text {
-    const text = this.scene.add.text(x, y, content, style);
-    text.setResolution(window.devicePixelRatio * 2);
-    return text;
-  }
 
   /** Helper to create a "locked" X icon using Graphics */
   private createLockIcon(x: number, y: number, color: number = PALETTE.red[400]): Phaser.GameObjects.Graphics {
@@ -387,7 +376,7 @@ export class ScorecardPanel {
   /** Build the shared panel frame (glow, background, corners) */
   private buildPanelFrame(width: number, height: number): void {
     // Outer glow (stroke only, pulses)
-    const outerGlow = this.scene.add.rectangle(width / 2, height / 2, width + 20, height + 20, 0x000000, 0);
+    const outerGlow = this.scene.add.rectangle(width / 2, height / 2, width + 20, height + 20, COLORS.OVERLAY, 0);
     outerGlow.setStrokeStyle(SIZES.GLOW_STROKE_MEDIUM, PALETTE.purple[500], 0.1);
     this.container.add(outerGlow);
 
@@ -395,18 +384,18 @@ export class ScorecardPanel {
     this.outerGlowTween = this.scene.tweens.add({
       targets: outerGlow,
       alpha: 0.15,
-      duration: 2000,
+      duration: SIZES.ANIM_PULSE,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
     });
 
     // Shadow behind panel
-    const shadow = this.scene.add.rectangle(width / 2 + 4, height / 2 + 4, width, height, 0x000000, 0.5);
+    const shadow = this.scene.add.rectangle(width / 2 + 4, height / 2 + 4, width, height, COLORS.SHADOW, 0.5);
     this.container.add(shadow);
 
     // Main background (dark, matching menu buttons)
-    const panelBg = this.scene.add.rectangle(width / 2, height / 2, width, height, 0x0a0a15, 0.9);
+    const panelBg = this.scene.add.rectangle(width / 2, height / 2, width, height, COLORS.PANEL_BG_DEEP, 0.9);
     panelBg.setStrokeStyle(SIZES.PANEL_BORDER_WIDTH, PALETTE.purple[500], 0.8);
     this.container.add(panelBg);
 
@@ -415,7 +404,7 @@ export class ScorecardPanel {
     const innerHighlight = this.scene.add.rectangle(
       width / 2, highlightHeight / 2 + 3,
       width - 20, highlightHeight,
-      0xffffff, 0.03
+      COLORS.HIGHLIGHT, 0.03
     );
     this.container.add(innerHighlight);
 
@@ -451,10 +440,10 @@ export class ScorecardPanel {
 
     // Title - use dynamic height
     const title_h = this.titleHeight;
-    const titleFontSize = this.needsCompactLayout ? '14px' : '16px';
+    const titleFontSize = this.needsCompactLayout ? FONTS.SIZE_SMALL : FONTS.SIZE_BUTTON;
     const titleY = padding + title_h / 2;
 
-    const title = this.createText(width / 2, titleY, 'SCORECARD', {
+    const title = createText(this.scene,width / 2, titleY, 'SCORECARD', {
       fontSize: titleFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_ACCENT,
@@ -560,7 +549,7 @@ export class ScorecardPanel {
 
     // Category name (shorter for 2-col)
     const shortName = this.getShortCategoryName(category.id);
-    const nameText = this.createText(colX + 8, y + height / 2, shortName, {
+    const nameText = createText(this.scene,colX + 8, y + height / 2, shortName, {
       fontSize: this.fontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
@@ -569,7 +558,7 @@ export class ScorecardPanel {
     this.container.add(nameText);
 
     // Potential text (shows when available, smaller)
-    const potentialText = this.createText(colX + colWidth - 45, y + height / 2, '', {
+    const potentialText = createText(this.scene,colX + colWidth - 45, y + height / 2, '', {
       fontSize: this.smallFontSize,
       fontFamily: FONTS.FAMILY,
       color: PANEL_COLORS.textPotential,
@@ -582,7 +571,7 @@ export class ScorecardPanel {
     this.container.add(lockIcon);
 
     // Score text (right aligned)
-    const scoreText = this.createText(colX + colWidth - 12, y + height / 2, '', {
+    const scoreText = createText(this.scene,colX + colWidth - 12, y + height / 2, '', {
       fontSize: this.scoreFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
@@ -591,8 +580,8 @@ export class ScorecardPanel {
     scoreText.setOrigin(1, 0.5);
     this.container.add(scoreText);
 
-    // Hit area
-    const hitArea = this.scene.add.rectangle(colX, y, colWidth, height, 0xffffff, 0);
+    // Hit area (transparent)
+    const hitArea = this.scene.add.rectangle(colX, y, colWidth, height, COLORS.HIGHLIGHT, 0);
     hitArea.setOrigin(0, 0);
     hitArea.setInteractive({ useHandCursor: true });
     this.container.add(hitArea);
@@ -664,7 +653,7 @@ export class ScorecardPanel {
     background.setOrigin(0, 0);
     this.container.add(background);
 
-    const labelText = this.createText(colX + 8, y + height / 2, 'Bonus', {
+    const labelText = createText(this.scene,colX + 8, y + height / 2, 'Bonus', {
       fontSize: this.fontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_WARNING,
@@ -673,7 +662,7 @@ export class ScorecardPanel {
     this.container.add(labelText);
 
     // Progress: "12/63" style - positioned left of bonus value
-    this.bonusProgressText = this.createText(colX + colWidth - 75, y + height / 2, '0/63', {
+    this.bonusProgressText = createText(this.scene,colX + colWidth - 75, y + height / 2, '0/63', {
       fontSize: this.smallFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_MUTED,
@@ -682,7 +671,7 @@ export class ScorecardPanel {
     this.container.add(this.bonusProgressText);
 
     // Bonus earned
-    this.bonusText = this.createText(colX + colWidth - 12, y + height / 2, '', {
+    this.bonusText = createText(this.scene,colX + colWidth - 12, y + height / 2, '', {
       fontSize: this.scoreFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SUCCESS,
@@ -702,8 +691,8 @@ export class ScorecardPanel {
     divider.setOrigin(0, 0);
     this.container.add(divider);
 
-    const labelText = this.createText(colX + 8, y + height / 2, 'TOTAL', {
-      fontSize: '15px',
+    const labelText = createText(this.scene,colX + 8, y + height / 2, 'TOTAL', {
+      fontSize: FONTS.SIZE_LABEL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SUCCESS,
       fontStyle: 'bold',
@@ -711,8 +700,8 @@ export class ScorecardPanel {
     labelText.setOrigin(0, 0.5);
     this.container.add(labelText);
 
-    this.totalText = this.createText(colX + colWidth - 12, y + height / 2, '0', {
-      fontSize: '17px',
+    this.totalText = createText(this.scene,colX + colWidth - 12, y + height / 2, '0', {
+      fontSize: FONTS.SIZE_BODY_SM,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SUCCESS,
       fontStyle: 'bold',
@@ -721,8 +710,8 @@ export class ScorecardPanel {
     this.container.add(this.totalText);
 
     // Category progress (shown when Blessing of Expansion is active)
-    this.categoryProgressText = this.createText(colX + colWidth / 2, y + height / 2 + 12, '', {
-      fontSize: '11px',
+    this.categoryProgressText = createText(this.scene,colX + colWidth / 2, y + height / 2 + 12, '', {
+      fontSize: FONTS.SIZE_MICRO,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_MUTED,
     });
@@ -777,10 +766,10 @@ export class ScorecardPanel {
     const titleHeight = this.isCompact ? 24 : 28;
 
     // Title with glow
-    const titleFontSize = this.isCompact ? '15px' : '18px';
+    const titleFontSize = this.isCompact ? FONTS.SIZE_LABEL : FONTS.SIZE_BODY;
     const titleY = contentPadding + titleHeight / 2;
 
-    const titleGlow = this.createText(width / 2, titleY, 'SCORECARD', {
+    const titleGlow = createText(this.scene,width / 2, titleY, 'SCORECARD', {
       fontSize: titleFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_ACCENT,
@@ -791,7 +780,7 @@ export class ScorecardPanel {
     titleGlow.setBlendMode(Phaser.BlendModes.ADD);
     this.container.add(titleGlow);
 
-    const title = this.createText(width / 2, titleY, 'SCORECARD', {
+    const title = createText(this.scene,width / 2, titleY, 'SCORECARD', {
       fontSize: titleFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_ACCENT,
@@ -860,7 +849,7 @@ export class ScorecardPanel {
     accent.setOrigin(0, 0);
     this.container.add(accent);
 
-    const headerText = this.createText(cx + 16, y + height / 2, text, {
+    const headerText = createText(this.scene,cx + 16, y + height / 2, text, {
       fontSize: this.smallFontSize,
       fontFamily: FONTS.FAMILY,
       color: textColor,
@@ -882,7 +871,7 @@ export class ScorecardPanel {
     this.container.add(accent);
 
     // "EXPANSION" on left
-    const headerText = this.createText(x + 12, y + height / 2, 'EXPANSION', {
+    const headerText = createText(this.scene,x + 12, y + height / 2, 'EXPANSION', {
       fontSize: this.smallFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_WARNING,
@@ -892,7 +881,7 @@ export class ScorecardPanel {
     this.container.add(headerText);
 
     // "X/13 Scored" helper text on right (updates dynamically)
-    this.expansionProgressText = this.createText(x + width - 8, y + height / 2, '0/13 Scored', {
+    this.expansionProgressText = createText(this.scene,x + width - 8, y + height / 2, '0/13 Scored', {
       fontSize: this.smallFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_WARNING,
@@ -932,7 +921,7 @@ export class ScorecardPanel {
     this.container.add(background);
 
     // Category name
-    const nameText = this.createText(cx + 14, y + height / 2, category.name, {
+    const nameText = createText(this.scene,cx + 14, y + height / 2, category.name, {
       fontSize: this.fontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
@@ -941,7 +930,7 @@ export class ScorecardPanel {
     this.container.add(nameText);
 
     // Potential score
-    const potentialText = this.createText(width - cx - 85, y + height / 2, '', {
+    const potentialText = createText(this.scene,width - cx - 85, y + height / 2, '', {
       fontSize: this.fontSize,
       fontFamily: FONTS.FAMILY,
       color: PANEL_COLORS.textPotential,
@@ -954,7 +943,7 @@ export class ScorecardPanel {
     this.container.add(lockIcon);
 
     // Actual score
-    const scoreText = this.createText(width - cx - 32, y + height / 2, '', {
+    const scoreText = createText(this.scene,width - cx - 32, y + height / 2, '', {
       fontSize: this.scoreFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
@@ -963,8 +952,8 @@ export class ScorecardPanel {
     scoreText.setOrigin(0.5, 0.5);
     this.container.add(scoreText);
 
-    // Hit area for interaction
-    const hitArea = this.scene.add.rectangle(cx, y, cw, height, 0xffffff, 0);
+    // Hit area for interaction (transparent)
+    const hitArea = this.scene.add.rectangle(cx, y, cw, height, COLORS.HIGHLIGHT, 0);
     hitArea.setOrigin(0, 0);
     hitArea.setInteractive({ useHandCursor: true });
     this.container.add(hitArea);
@@ -1049,7 +1038,7 @@ export class ScorecardPanel {
     this.container.add(background);
 
     // Label: "Bonus" with threshold hint
-    const labelText = this.createText(cx + 14, y + height / 2, 'Bonus (≥63 = +35)', {
+    const labelText = createText(this.scene,cx + 14, y + height / 2, 'Bonus (≥63 = +35)', {
       fontSize: this.fontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_WARNING,
@@ -1058,7 +1047,7 @@ export class ScorecardPanel {
     this.container.add(labelText);
 
     // Progress: "12/63" style, positioned like potential score
-    this.bonusProgressText = this.createText(width - cx - 85, y + height / 2, '0/63', {
+    this.bonusProgressText = createText(this.scene,width - cx - 85, y + height / 2, '0/63', {
       fontSize: this.fontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_MUTED,
@@ -1067,7 +1056,7 @@ export class ScorecardPanel {
     this.container.add(this.bonusProgressText);
 
     // Bonus earned: positioned like score column
-    this.bonusText = this.createText(width - cx - 32, y + height / 2, '', {
+    this.bonusText = createText(this.scene,width - cx - 32, y + height / 2, '', {
       fontSize: this.scoreFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SUCCESS,
@@ -1088,8 +1077,8 @@ export class ScorecardPanel {
     divider.setOrigin(0, 0);
     this.container.add(divider);
 
-    const labelText = this.createText(cx + 14, y + height / 2, 'TOTAL', {
-      fontSize: this.isCompact ? '12px' : '14px',
+    const labelText = createText(this.scene,cx + 14, y + height / 2, 'TOTAL', {
+      fontSize: this.isCompact ? FONTS.SIZE_TINY : FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SUCCESS,
       fontStyle: 'bold',
@@ -1097,8 +1086,8 @@ export class ScorecardPanel {
     labelText.setOrigin(0, 0.5);
     this.container.add(labelText);
 
-    this.totalText = this.createText(cx + cw - 24, y + height / 2, '0', {
-      fontSize: this.isCompact ? '14px' : '16px',
+    this.totalText = createText(this.scene,cx + cw - 24, y + height / 2, '0', {
+      fontSize: this.isCompact ? FONTS.SIZE_SMALL : FONTS.SIZE_BUTTON,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SUCCESS,
       fontStyle: 'bold',
@@ -1107,8 +1096,8 @@ export class ScorecardPanel {
     this.container.add(this.totalText);
 
     // Category progress (shown in Gauntlet mode) - positioned between TOTAL and score
-    this.categoryProgressText = this.createText(cx + cw / 2, y + height / 2, '', {
-      fontSize: this.isCompact ? '10px' : '11px',
+    this.categoryProgressText = createText(this.scene,cx + cw / 2, y + height / 2, '', {
+      fontSize: this.isCompact ? FONTS.SIZE_NANO : FONTS.SIZE_MICRO,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_MUTED,
     });
@@ -1213,7 +1202,7 @@ export class ScorecardPanel {
             const tween = this.scene.tweens.add({
               targets: row.nameText,
               alpha: { from: 1, to: 0.5 },
-              duration: 600,
+              duration: SIZES.ANIM_MEDIUM_SLOW,
               yoyo: true,
               repeat: -1,
               ease: 'Sine.easeInOut',
@@ -1305,7 +1294,7 @@ export class ScorecardPanel {
         const flashTween = this.scene.tweens.add({
           targets: row.background,
           alpha: 0.5,
-          duration: 150,
+          duration: SIZES.ANIM_QUICK,
           yoyo: true,
           repeat: 1,
           onComplete: () => {

@@ -238,10 +238,13 @@ export class AudioManager {
 
     // Wait for all to load
     await new Promise<void>((resolve) => {
-      if (this.scene!.load.isLoading()) {
+      // Check if there are items queued to load
+      const hasItemsToLoad = this.scene!.load.list.size > 0;
+      if (hasItemsToLoad) {
         this.scene!.load.once('complete', () => resolve());
         this.scene!.load.start();
       } else {
+        // All items were already cached
         resolve();
       }
     });

@@ -6,6 +6,7 @@
 
 import Phaser from 'phaser';
 import { COLORS, SIZES, FONTS, GAME_RULES, PALETTE, type ScaledSizes, getViewportMetrics } from '@/config';
+import { createText } from '@/ui/ui-utils';
 import { GameEventEmitter } from './game-events';
 import { createLogger } from './logger';
 
@@ -223,13 +224,12 @@ export class DiceManager {
 
     // Pulsing tip text above dice - tighter on mobile
     const tipOffset = isMobile ? 45 : 70;
-    const tipText = this.scene.add.text(centerX, centerY - tipOffset, 'Tap dice to lock', {
-      fontSize: isMobile ? '13px' : FONTS.SIZE_SMALL,
+    const tipText = createText(this.scene, centerX, centerY - tipOffset, 'Tap dice to lock', {
+      fontSize: isMobile ? FONTS.SIZE_MICRO : FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SUCCESS,
     });
     tipText.setOrigin(0.5, 0.5);
-    tipText.setResolution(window.devicePixelRatio * 2);
 
     // Pulsing animation
     this.scene.tweens.add({
@@ -311,43 +311,39 @@ export class DiceManager {
     // Rerolls display (left column) - horizontal on mobile
     if (isMobile) {
       // Compact horizontal layout: "REROLLS: 2"
-      const rerollsLabel = this.scene.add.text(leftColX - 25, rowY, 'REROLLS:', {
-        fontSize: '12px',
+      const rerollsLabel = createText(this.scene, leftColX - 25, rowY, 'REROLLS:', {
+        fontSize: FONTS.SIZE_TINY,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_SECONDARY,
       });
       rerollsLabel.setOrigin(0, 0.5);
-      rerollsLabel.setResolution(window.devicePixelRatio * 2);
       panel.add(rerollsLabel);
 
-      this.rerollText = this.scene.add.text(leftColX + 45, rowY, `${this.state.rerollsLeft}`, {
-        fontSize: '18px',
+      this.rerollText = createText(this.scene, leftColX + 45, rowY, `${this.state.rerollsLeft}`, {
+        fontSize: FONTS.SIZE_BODY,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_SUCCESS,
         fontStyle: 'bold',
       });
       this.rerollText.setOrigin(0, 0.5);
-      this.rerollText.setResolution(window.devicePixelRatio * 2);
       panel.add(this.rerollText);
     } else {
       // Desktop: stacked vertical layout
-      const rerollsLabel = this.scene.add.text(leftColX, rowY - 12, 'REROLLS', {
+      const rerollsLabel = createText(this.scene, leftColX, rowY - 12, 'REROLLS', {
         fontSize: FONTS.SIZE_TINY,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_SECONDARY,
       });
       rerollsLabel.setOrigin(0.5, 0.5);
-      rerollsLabel.setResolution(window.devicePixelRatio * 2);
       panel.add(rerollsLabel);
 
-      this.rerollText = this.scene.add.text(leftColX, rowY + 12, `${this.state.rerollsLeft}`, {
+      this.rerollText = createText(this.scene, leftColX, rowY + 12, `${this.state.rerollsLeft}`, {
         fontSize: FONTS.SIZE_HEADING,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_SUCCESS,
         fontStyle: 'bold',
       });
       this.rerollText.setOrigin(0.5, 0.5);
-      this.rerollText.setResolution(window.devicePixelRatio * 2);
       panel.add(this.rerollText);
     }
 
@@ -375,14 +371,13 @@ export class DiceManager {
     rollBtn.setInteractive({ useHandCursor: true });
     panel.add(rollBtn);
 
-    const rollText = this.scene.add.text(rightColX, rowY, 'ROLL', {
-      fontSize: isMobile ? '15px' : FONTS.SIZE_BODY,
+    const rollText = createText(this.scene, rightColX, rowY, 'ROLL', {
+      fontSize: isMobile ? FONTS.SIZE_LABEL : FONTS.SIZE_BODY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SUCCESS,
       fontStyle: 'bold',
     });
     rollText.setOrigin(0.5, 0.5);
-    rollText.setResolution(window.devicePixelRatio * 2);
     panel.add(rollText);
 
     // Roll button interactions
@@ -448,14 +443,13 @@ export class DiceManager {
     container.add(pipsGraphics);
 
     // Lock indicator text (for cursed dice)
-    const lockIndicator = this.scene.add.text(0, size / 2 + 22, '', {
-      fontSize: '12px',
+    const lockIndicator = createText(this.scene, 0, size / 2 + 22, '', {
+      fontSize: FONTS.SIZE_TINY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_MUTED,
       fontStyle: 'bold',
     });
     lockIndicator.setOrigin(0.5, 0.5);
-    lockIndicator.setResolution(window.devicePixelRatio * 2);
     container.add(lockIndicator);
 
     // Hold icon graphic (for user-held dice) - green checkmark

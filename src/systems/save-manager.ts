@@ -168,6 +168,14 @@ class SaveManagerClass {
     this.data = { ...DEFAULT_SAVE };
     localStorage.removeItem(STORAGE_KEY);
   }
+
+  /**
+   * Clean up resources (for singleton reset)
+   */
+  destroy(): void {
+    // SaveManager is stateless aside from cached data
+    // No event listeners or references to clean up
+  }
 }
 
 // Singleton instance

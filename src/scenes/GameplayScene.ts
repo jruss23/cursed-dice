@@ -36,7 +36,6 @@ import { ScorecardPanel } from '@/ui/scorecard-panel';
 import {
   getGameProgression,
   resetGameProgression,
-  debugSetMode,
   PASS_THRESHOLD,
   GAUNTLET_LOCKED_THRESHOLD,
   type GameMode,
@@ -45,7 +44,6 @@ import {
 import {
   getBlessingManager,
   resetBlessingManager,
-  debugSetBlessing,
   type BlessingManager,
 } from '@/systems/blessings';
 import { createLogger } from '@/systems/logger';
@@ -58,6 +56,8 @@ const log = createLogger('GameplayScene');
 import { PauseMenu } from '@/ui/pause-menu';
 import { HeaderPanel, DebugPanel, EndScreenOverlay } from '@/ui/gameplay';
 import { ParticlePool } from '@/systems/particle-pool';
+import { createText } from '@/ui/ui-utils';
+import { DebugController } from '@/systems/debug-controller';
 
 export class GameplayScene extends Phaser.Scene {
   // Core systems (created fresh each game)
@@ -98,8 +98,14 @@ export class GameplayScene extends Phaser.Scene {
   // Object pooling
   private particlePool: ParticlePool | null = null;
 
+  // Debug controller
+  private debugController: DebugController | null = null;
+
   // Layout positions (set during buildUI, used by effects)
   private diceCenterX: number = 0;
+
+  // Bound handlers for cleanup
+  private boundOnResize: (() => void) | null = null;
 
   constructor() {
     super({ key: 'GameplayScene' });
@@ -187,8 +193,8 @@ export class GameplayScene extends Phaser.Scene {
     const isPortrait = height > width * 0.9;
     this.initialAspectRatio = isPortrait ? 1 : 0; // Track initial layout mode
 
-    // Listen for resize from Phaser's scale manager
-    this.scale.on('resize', () => {
+    // Store bound handler for cleanup
+    this.boundOnResize = () => {
       const newW = this.scale.gameSize.width;
       const newH = this.scale.gameSize.height;
       const newIsPortrait = newH > newW * 0.9;
@@ -201,7 +207,10 @@ export class GameplayScene extends Phaser.Scene {
         // Restart scene preserving game state (don't reset progression)
         this.scene.restart({ difficulty: this.difficulty });
       }
-    });
+    };
+
+    // Listen for resize from Phaser's scale manager
+    this.scale.on('resize', this.boundOnResize);
   }
 
   update(): void {
@@ -244,6 +253,28 @@ export class GameplayScene extends Phaser.Scene {
     // Animated background
     this.createAnimatedBackground(width, height);
 
+    // Create debug controller (used by DebugPanel)
+    if (DEV.IS_DEVELOPMENT) {
+      this.debugController = new DebugController({
+        scene: this,
+        getScorecard: () => this.scorecard,
+        getTimeRemaining: () => this.timeRemaining,
+        setTimeRemaining: (time: number) => { this.timeRemaining = time; },
+        getDifficulty: () => this.difficulty,
+        updateTimerDisplay: (formattedTime: string) => {
+          const timerElements = this.headerPanel?.getTimerElements();
+          if (timerElements?.text) {
+            timerElements.text.setText(formattedTime);
+            timerElements.glow?.setText(formattedTime);
+          }
+        },
+        updateScorecardDisplay: () => this.scorecardPanel?.updateDisplay(),
+        syncAudioToTime: (time: number) => this.audioManager?.syncToGameTime(time),
+        endGame: (completed: boolean) => this.endGame(completed),
+        restartScene: (data) => this.scene.restart(data),
+      });
+    }
+
     // Get responsive metrics and scaled sizes
     const metrics = getViewportMetrics(this);
     const scaledSizes = getScaledSizes(metrics);
@@ -274,13 +305,13 @@ export class GameplayScene extends Phaser.Scene {
     const playAreaCenterX = leftMargin + (scorecardX - leftMargin) / 2;
 
     // Debug panel (only in debug mode)
-    if (DEV.IS_DEVELOPMENT) {
+    if (DEV.IS_DEVELOPMENT && this.debugController) {
       this.debugPanel = new DebugPanel(this, height, {
-        onSkipTime: () => this.debugSkipTime(),
-        onSkipStage: () => this.debugSkipStage(),
-        onClearData: () => this.debugClearData(),
-        onPerfectUpper: () => this.debugPerfectUpper(),
-        onSkipToMode: (mode: number) => this.debugSkipToMode(mode),
+        onSkipTime: () => this.debugController!.skipTime(),
+        onSkipStage: () => this.debugController!.skipStage(),
+        onClearData: () => this.debugController!.clearData(),
+        onPerfectUpper: () => this.debugController!.perfectUpper(),
+        onSkipToMode: (mode: number) => this.debugController!.skipToMode(mode),
         currentMode: this.currentMode,
       });
     }
@@ -302,7 +333,7 @@ export class GameplayScene extends Phaser.Scene {
 
     // Select prompt - positioned above scorecard panel
     const promptPadding = 12;
-    this.selectPrompt = this.createText(scorecardX + scorecardWidth / 2, promptPadding, 'Click a category to score', {
+    this.selectPrompt = createText(this, scorecardX + scorecardWidth / 2, promptPadding, 'Click a category to score', {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SUCCESS,
@@ -335,13 +366,13 @@ export class GameplayScene extends Phaser.Scene {
     const centerX = width / 2;
 
     // Debug panel (only in debug mode) - positioned differently
-    if (DEV.IS_DEVELOPMENT) {
+    if (DEV.IS_DEVELOPMENT && this.debugController) {
       this.debugPanel = new DebugPanel(this, height, {
-        onSkipTime: () => this.debugSkipTime(),
-        onSkipStage: () => this.debugSkipStage(),
-        onClearData: () => this.debugClearData(),
-        onPerfectUpper: () => this.debugPerfectUpper(),
-        onSkipToMode: (mode: number) => this.debugSkipToMode(mode),
+        onSkipTime: () => this.debugController!.skipTime(),
+        onSkipStage: () => this.debugController!.skipStage(),
+        onClearData: () => this.debugController!.clearData(),
+        onPerfectUpper: () => this.debugController!.perfectUpper(),
+        onSkipToMode: (mode: number) => this.debugController!.skipToMode(mode),
         currentMode: this.currentMode,
       });
     }
@@ -378,7 +409,7 @@ export class GameplayScene extends Phaser.Scene {
     // Select prompt - only show on tablet/desktop, not needed on mobile (self-evident)
     if (!metrics.isMobile) {
       const promptY = scorecardY - 22;
-      this.selectPrompt = this.createText(centerX, promptY, 'Tap a category to score', {
+      this.selectPrompt = createText(this, centerX, promptY, 'Tap a category to score', {
         fontSize: FONTS.SIZE_SMALL,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_SUCCESS,
@@ -406,7 +437,7 @@ export class GameplayScene extends Phaser.Scene {
     pauseBg.setStrokeStyle(2, PALETTE.purple[500], 0.8);
     pauseBg.setInteractive({ useHandCursor: true });
 
-    const pauseText = this.createText(pauseX + btnWidth / 2, btnY - btnHeight / 2, 'PAUSE', {
+    const pauseText = createText(this, pauseX + btnWidth / 2, btnY - btnHeight / 2, 'PAUSE', {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_ACCENT,
@@ -431,7 +462,7 @@ export class GameplayScene extends Phaser.Scene {
     quitBg.setStrokeStyle(2, PALETTE.red[500], 0.8);
     quitBg.setInteractive({ useHandCursor: true });
 
-    const quitText = this.createText(quitX + btnWidth / 2, btnY - btnHeight / 2, 'QUIT', {
+    const quitText = createText(this, quitX + btnWidth / 2, btnY - btnHeight / 2, 'QUIT', {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_DANGER,
@@ -476,9 +507,9 @@ export class GameplayScene extends Phaser.Scene {
     });
 
     // Debug keys (only in development)
-    if (DEV.IS_DEVELOPMENT) {
-      this.inputManager.bind('debugTime', () => this.debugSkipTime());
-      this.inputManager.bind('debugStage', () => this.debugSkipStage());
+    if (DEV.IS_DEVELOPMENT && this.debugController) {
+      this.inputManager.bind('debugTime', () => this.debugController!.skipTime());
+      this.inputManager.bind('debugStage', () => this.debugController!.skipStage());
     }
   }
 
@@ -507,230 +538,6 @@ export class GameplayScene extends Phaser.Scene {
     // DiceManager.createUI creates: dice, helper text, rerolls text, roll button
     this.diceManager = new DiceManager(this, this.gameEvents);
     this.diceManager.createUI(centerX, diceY, scaledSizes);
-  }
-
-  /**
-   * DEBUG: Skip 10 seconds of time
-   */
-  private debugSkipTime(): void {
-    this.timeRemaining = Math.max(0, this.timeRemaining - 10000);
-    const timerElements = this.headerPanel?.getTimerElements();
-    if (timerElements?.text) {
-      timerElements.text.setText(this.formatTime(this.timeRemaining));
-      timerElements.glow?.setText(this.formatTime(this.timeRemaining));
-    }
-    // Sync audio to new time (AudioManager handles song transitions)
-    this.audioManager?.syncToGameTime(this.timeRemaining);
-    log.debug(`Skipped 10s, time remaining: ${this.formatTime(this.timeRemaining)}`);
-
-    // Visual feedback
-    this.cameras.main.flash(100, 255, 200, 100);
-  }
-
-  /**
-   * DEBUG: Skip to next stage with perfect score
-   */
-  private debugSkipStage(): void {
-    log.debug('Skipping stage with perfect score');
-
-    // Fill all unfilled categories with high scores to guarantee pass
-    const available = this.scorecard.getAvailableCategories();
-
-    for (const cat of available) {
-      // Score each category with perfect dice for that category
-      const perfectDice = this.getPerfectDiceForCategory(cat.id);
-      this.scorecard.score(cat.id, perfectDice);
-    }
-
-    // Update display
-    this.scorecardPanel?.updateDisplay();
-
-    // Show feedback
-    const { width } = this.cameras.main;
-    const skipText = this.createText(width / 2, 200, '⚡ DEBUG: Stage Skipped!', {
-      fontSize: '24px',
-      fontFamily: FONTS.FAMILY,
-      color: '#66ffcc',
-      fontStyle: 'bold',
-    });
-    skipText.setOrigin(0.5, 0.5);
-    skipText.setAlpha(0);
-
-    this.tweens.add({
-      targets: skipText,
-      alpha: 1,
-      y: 160,
-      duration: 300,
-      ease: 'Back.easeOut',
-      onComplete: () => {
-        this.tweens.add({
-          targets: skipText,
-          alpha: 0,
-          duration: 500,
-          delay: 500,
-          onComplete: () => skipText.destroy(),
-        });
-      },
-    });
-
-    this.cameras.main.flash(200, 100, 255, 200);
-
-    // End game successfully
-    this.time.delayedCall(300, () => {
-      this.endGame(true);
-    });
-  }
-
-  /**
-   * DEBUG: Clear all save data
-   */
-  private debugClearData(): void {
-    const saveManager = getSaveManager();
-    saveManager.clearAll();
-    log.debug('Save data cleared');
-
-    // Visual feedback
-    this.cameras.main.flash(200, 255, 50, 50);
-
-    const { width } = this.cameras.main;
-    const clearText = this.createText(width / 2, 200, 'Data Cleared!', {
-      fontSize: '24px',
-      fontFamily: FONTS.FAMILY,
-      color: '#ff6666',
-      fontStyle: 'bold',
-    });
-    clearText.setOrigin(0.5, 0.5);
-
-    this.tweens.add({
-      targets: clearText,
-      alpha: 0,
-      y: 160,
-      duration: 1000,
-      delay: 500,
-      onComplete: () => clearText.destroy(),
-    });
-  }
-
-  /**
-   * DEBUG: Score perfect upper section (all 5-of-a-kind for each number)
-   */
-  private debugPerfectUpper(): void {
-    const upperCategories: CategoryId[] = ['ones', 'twos', 'threes', 'fours', 'fives', 'sixes'];
-    let scored = 0;
-
-    for (const categoryId of upperCategories) {
-      const perfectDice = this.getPerfectDiceForCategory(categoryId);
-      const result = this.scorecard.score(categoryId, perfectDice);
-      if (result >= 0) {
-        scored++;
-      }
-    }
-
-    // Update the scorecard display
-    this.scorecardPanel?.updateDisplay();
-
-    // Visual feedback
-    this.cameras.main.flash(200, 50, 255, 50);
-
-    const metrics = getViewportMetrics(this);
-    const feedbackY = metrics.isMobile ? 120 : 200;
-    const feedbackText = this.createText(this.cameras.main.width / 2, feedbackY,
-      scored > 0 ? `Perfect Upper! (${scored} categories)` : 'Upper already complete!', {
-      fontSize: '20px',
-      fontFamily: FONTS.FAMILY,
-      color: '#66cc88',
-      fontStyle: 'bold',
-    });
-    feedbackText.setOrigin(0.5, 0.5);
-
-    this.tweens.add({
-      targets: feedbackText,
-      alpha: 0,
-      y: feedbackY - 40,
-      duration: 1000,
-      delay: 500,
-      onComplete: () => feedbackText.destroy(),
-    });
-
-    log.debug(`DEBUG: Scored ${scored} upper categories with perfect scores`);
-  }
-
-  /**
-   * Get perfect dice values for a given category
-   */
-  private getPerfectDiceForCategory(categoryId: CategoryId): number[] {
-    switch (categoryId) {
-      case 'ones':
-        return [1, 1, 1, 1, 1];
-      case 'twos':
-        return [2, 2, 2, 2, 2];
-      case 'threes':
-        return [3, 3, 3, 3, 3];
-      case 'fours':
-        return [4, 4, 4, 4, 4];
-      case 'fives':
-        return [5, 5, 5, 5, 5];
-      case 'sixes':
-        return [6, 6, 6, 6, 6];
-      case 'threeOfAKind':
-        return [6, 6, 6, 5, 5]; // 29 points
-      case 'fourOfAKind':
-        return [6, 6, 6, 6, 5]; // 29 points
-      case 'fullHouse':
-        return [6, 6, 6, 5, 5]; // 25 points
-      case 'smallStraight':
-        return [1, 2, 3, 4, 6]; // 30 points
-      case 'largeStraight':
-        return [1, 2, 3, 4, 5]; // 40 points
-      case 'fiveDice':
-        return [6, 6, 6, 6, 6]; // 50 points
-      case 'chance':
-        return [6, 6, 6, 6, 6]; // 30 points
-      // Special section (Blessing of Expansion)
-      case 'twoPair':
-        return [3, 3, 5, 5, 6]; // 22 points (two pair)
-      case 'allOdd':
-        return [1, 3, 3, 5, 5]; // 17 points (all odd)
-      case 'allEven':
-        return [2, 4, 4, 6, 6]; // 22 points (all even)
-      default:
-        return [6, 6, 6, 6, 6];
-    }
-  }
-
-  /**
-   * DEBUG: Skip directly to a specific mode (1-4)
-   * Modes 2-4 automatically enable expansion blessing
-   */
-  private debugSkipToMode(mode: number): void {
-    log.debug(`DEBUG: Skipping to mode ${mode} (difficulty: ${this.difficulty})`);
-
-    // Reset progression and blessings
-    resetGameProgression();
-    resetBlessingManager();
-
-    // Set the target mode
-    debugSetMode(mode as GameMode);
-
-    // Enable expansion blessing for modes 2-4
-    if (mode >= 2) {
-      debugSetBlessing('expansion');
-    }
-
-    // Restart the scene with current difficulty
-    this.scene.restart({ difficulty: this.difficulty });
-  }
-
-  /** Helper for crisp retina text */
-  private createText(
-    x: number,
-    y: number,
-    content: string,
-    style: Phaser.Types.GameObjects.Text.TextStyle
-  ): Phaser.GameObjects.Text {
-    const text = this.add.text(x, y, content, style);
-    text.setResolution(window.devicePixelRatio * 2);
-    return text;
   }
 
   private createAnimatedBackground(width: number, height: number): void {
@@ -996,7 +803,7 @@ export class GameplayScene extends Phaser.Scene {
     }
 
     // Glow layer behind text
-    const scoreGlow = this.createText(centerX, centerY, `+${points}`, {
+    const scoreGlow = createText(this, centerX, centerY, `+${points}`, {
       fontSize: size,
       fontFamily: FONTS.FAMILY,
       color: glowColor,
@@ -1008,7 +815,7 @@ export class GameplayScene extends Phaser.Scene {
     scoreGlow.setScale(1.1);
 
     // Main score text
-    const scoreText = this.createText(centerX, centerY, `+${points}`, {
+    const scoreText = createText(this, centerX, centerY, `+${points}`, {
       fontSize: size,
       fontFamily: FONTS.FAMILY,
       color: color,
@@ -1307,7 +1114,10 @@ export class GameplayScene extends Phaser.Scene {
     log.log('shutdown - cleaning up');
 
     // Remove resize listener
-    this.scale.off('resize');
+    if (this.boundOnResize) {
+      this.scale.off('resize', this.boundOnResize);
+      this.boundOnResize = null;
+    }
 
     // Stop timer
     if (this.timerEvent) {

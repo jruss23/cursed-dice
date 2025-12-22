@@ -19,6 +19,7 @@ import { resetBlessingManager, debugSetBlessing } from '@/systems/blessings';
 import { createLogger } from '@/systems/logger';
 import { getSaveManager } from '@/systems/save-manager';
 import { DifficultyButton, FlickeringTitle, SpookyBackground } from '@/ui/menu';
+import { createText } from '@/ui/ui-utils';
 
 const log = createLogger('MenuScene');
 
@@ -31,6 +32,7 @@ export class MenuScene extends Phaser.Scene {
   private menuMusic: Phaser.Sound.BaseSound | null = null;
   private difficultyButtons: DifficultyButton[] = [];
   private debugSkipData: DebugSkipData | null = null;
+  private boundOnAudioUnlocked: (() => void) | null = null;
 
   constructor() {
     super({ key: 'MenuScene' });
@@ -87,13 +89,14 @@ export class MenuScene extends Phaser.Scene {
     // Handle locked audio context - set up listener FIRST
     if (this.sound.locked) {
       log.log('Audio context locked, waiting for user interaction...');
-      this.sound.once('unlocked', () => {
+      this.boundOnAudioUnlocked = () => {
         log.log('Audio context unlocked');
         if (this.menuMusic && !this.menuMusic.isPlaying) {
           this.menuMusic.play();
           log.log('Menu music started after unlock');
         }
-      });
+      };
+      this.sound.once('unlocked', this.boundOnAudioUnlocked);
     }
 
     if (!this.cache.audio.exists('menu-music')) {
@@ -109,8 +112,8 @@ export class MenuScene extends Phaser.Scene {
     const isMobile = metrics.isMobile;
 
     // Font scaling for mobile - keep readable
-    const subtitleSize = isMobile ? '16px' : FONTS.SIZE_BODY;
-    const headerSize = isMobile ? '18px' : FONTS.SIZE_SUBHEADING;
+    const subtitleSize = isMobile ? FONTS.SIZE_BUTTON : FONTS.SIZE_BODY;
+    const headerSize = isMobile ? FONTS.SIZE_BODY : FONTS.SIZE_SUBHEADING;
 
     // All background effects (fog, skulls, dice, eyes, candles, wisps)
     new SpookyBackground(this);
@@ -121,10 +124,10 @@ export class MenuScene extends Phaser.Scene {
 
     // Subtitle with creepy effect
     const subtitleY = isMobile ? 125 : 145;
-    const subtitle = this.createText(width / 2, subtitleY, 'Beat the clock. Break the curse.', {
+    const subtitle = createText(this,width / 2, subtitleY, 'Beat the clock. Break the curse.', {
       fontSize: subtitleSize,
       fontFamily: FONTS.FAMILY,
-      color: '#aa88bb',
+      color: COLORS.MENU_SUBTITLE,
     });
     subtitle.setOrigin(0.5, 0.5);
 
@@ -140,20 +143,20 @@ export class MenuScene extends Phaser.Scene {
 
     // Difficulty selection header with spooky styling
     const selectY = isMobile ? 170 : 200;
-    const selectGlow = this.createText(width / 2, selectY, 'CHOOSE YOUR FATE', {
+    const selectGlow = createText(this,width / 2, selectY, 'CHOOSE YOUR FATE', {
       fontSize: headerSize,
       fontFamily: FONTS.FAMILY,
-      color: '#440066',
+      color: COLORS.MENU_HEADER_GLOW,
       fontStyle: 'bold',
     });
     selectGlow.setOrigin(0.5, 0.5);
     selectGlow.setAlpha(0.5);
     selectGlow.setBlendMode(Phaser.BlendModes.ADD);
 
-    const selectText = this.createText(width / 2, selectY, 'CHOOSE YOUR FATE', {
+    const selectText = createText(this,width / 2, selectY, 'CHOOSE YOUR FATE', {
       fontSize: headerSize,
       fontFamily: FONTS.FAMILY,
-      color: '#aa66cc',
+      color: COLORS.MENU_HEADER,
       fontStyle: 'bold',
     });
     selectText.setOrigin(0.5, 0.5);
@@ -200,31 +203,31 @@ export class MenuScene extends Phaser.Scene {
     const modeInfoY = isMobile
       ? lastButtonY + 65  // Below last button, above high scores
       : lastButtonY + 80; // Right under buttons on desktop
-    const modeInfoSize = isMobile ? '15px' : FONTS.SIZE_BODY;
+    const modeInfoSize = isMobile ? FONTS.SIZE_LABEL : FONTS.SIZE_BODY;
     const modeInfoText = isMobile ? 'Score 250+ each curse' : '4 Curses await... Score 250+ to survive each';
 
-    const modeInfoGlow = this.createText(
+    const modeInfoGlow = createText(this,
       width / 2,
       modeInfoY,
       modeInfoText,
       {
         fontSize: modeInfoSize,
         fontFamily: FONTS.FAMILY,
-        color: '#6622aa',
+        color: COLORS.MENU_INFO_GLOW,
       }
     );
     modeInfoGlow.setOrigin(0.5, 0.5);
     modeInfoGlow.setAlpha(0.4);
     modeInfoGlow.setBlendMode(Phaser.BlendModes.ADD);
 
-    const modeInfo = this.createText(
+    const modeInfo = createText(this,
       width / 2,
       modeInfoY,
       modeInfoText,
       {
         fontSize: modeInfoSize,
         fontFamily: FONTS.FAMILY,
-        color: '#bb88dd',
+        color: COLORS.MENU_INFO,
       }
     );
     modeInfo.setOrigin(0.5, 0.5);
@@ -241,10 +244,10 @@ export class MenuScene extends Phaser.Scene {
 
     // Version - at very bottom with safe area
     const versionY = height - 15 - metrics.safeArea.bottom;
-    const credit = this.createText(width / 2, versionY, 'v1.0', {
+    const credit = createText(this,width / 2, versionY, 'v1.0', {
       fontSize: FONTS.SIZE_TINY,
       fontFamily: FONTS.FAMILY,
-      color: '#555566',
+      color: COLORS.MENU_VERSION,
     });
     credit.setOrigin(0.5, 0.5);
 
@@ -253,17 +256,6 @@ export class MenuScene extends Phaser.Scene {
 
     // Fade in
     this.cameras.main.fadeIn(800, 0, 0, 0);
-  }
-
-  private createText(
-    x: number,
-    y: number,
-    content: string,
-    style: Phaser.Types.GameObjects.Text.TextStyle
-  ): Phaser.GameObjects.Text {
-    const text = this.add.text(x, y, content, style);
-    text.setResolution(window.devicePixelRatio * 2);
-    return text;
   }
 
   private createPulsingVignette(width: number, height: number, isMobile: boolean): void {
@@ -366,7 +358,7 @@ export class MenuScene extends Phaser.Scene {
     });
 
     // Header
-    const header = this.createText(centerX, y + 18, 'HIGH SCORES', {
+    const header = createText(this,centerX, y + 18, 'HIGH SCORES', {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_ACCENT,
@@ -377,7 +369,7 @@ export class MenuScene extends Phaser.Scene {
 
     // Show "No scores yet" if empty
     if (!hasData) {
-      const emptyText = this.createText(centerX, y + 45, 'No scores yet', {
+      const emptyText = createText(this,centerX, y + 45, 'No scores yet', {
         fontSize: FONTS.SIZE_TINY,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_MUTED,
@@ -392,7 +384,7 @@ export class MenuScene extends Phaser.Scene {
     // Best Run section (if any completed runs)
     if (highScores.bestRunTotal > 0) {
       // Section header
-      const fullRunHeader = this.createText(x + 10, currentY, '4-Curse Run', {
+      const fullRunHeader = createText(this,x + 10, currentY, '4-Curse Run', {
         fontSize: FONTS.SIZE_TINY,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_MUTED,
@@ -402,7 +394,7 @@ export class MenuScene extends Phaser.Scene {
 
       currentY += 16;
 
-      const bestRunLabel = this.createText(x + 14, currentY, 'Best Total:', {
+      const bestRunLabel = createText(this,x + 14, currentY, 'Best Total:', {
         fontSize: FONTS.SIZE_TINY,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_SECONDARY,
@@ -410,7 +402,7 @@ export class MenuScene extends Phaser.Scene {
       bestRunLabel.setOrigin(0, 0.5);
       bestRunLabel.setDepth(panelDepth + 1);
 
-      const bestRunValue = this.createText(x + panelWidth - 10, currentY, highScores.bestRunTotal.toString(), {
+      const bestRunValue = createText(this,x + panelWidth - 10, currentY, highScores.bestRunTotal.toString(), {
         fontSize: FONTS.SIZE_TINY,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_WARNING,
@@ -422,7 +414,7 @@ export class MenuScene extends Phaser.Scene {
       currentY += 15;
 
       // Runs completed
-      const runsLabel = this.createText(x + 14, currentY, 'Completed:', {
+      const runsLabel = createText(this,x + 14, currentY, 'Completed:', {
         fontSize: FONTS.SIZE_TINY,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_SECONDARY,
@@ -430,7 +422,7 @@ export class MenuScene extends Phaser.Scene {
       runsLabel.setOrigin(0, 0.5);
       runsLabel.setDepth(panelDepth + 1);
 
-      const runsValue = this.createText(x + panelWidth - 10, currentY, `${highScores.runsCompleted}x`, {
+      const runsValue = createText(this,x + panelWidth - 10, currentY, `${highScores.runsCompleted}x`, {
         fontSize: FONTS.SIZE_TINY,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_SECONDARY,
@@ -448,7 +440,7 @@ export class MenuScene extends Phaser.Scene {
 
     if (hasDiffScores) {
       // Section header
-      const curseHeader = this.createText(x + 10, currentY, 'Best Single Curse', {
+      const curseHeader = createText(this,x + 10, currentY, 'Best Single Curse', {
         fontSize: FONTS.SIZE_TINY,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_MUTED,
@@ -467,7 +459,7 @@ export class MenuScene extends Phaser.Scene {
       for (const diff of difficulties) {
         const score = highScores.byDifficulty[diff.key];
         if (score > 0) {
-          const diffLabel = this.createText(x + 14, currentY, diff.label + ':', {
+          const diffLabel = createText(this,x + 14, currentY, diff.label + ':', {
             fontSize: FONTS.SIZE_TINY,
             fontFamily: FONTS.FAMILY,
             color: diff.color,
@@ -475,7 +467,7 @@ export class MenuScene extends Phaser.Scene {
           diffLabel.setOrigin(0, 0.5);
           diffLabel.setDepth(panelDepth + 1);
 
-          const diffValue = this.createText(x + panelWidth - 10, currentY, score.toString(), {
+          const diffValue = createText(this,x + panelWidth - 10, currentY, score.toString(), {
             fontSize: FONTS.SIZE_TINY,
             fontFamily: FONTS.FAMILY,
             color: COLORS.TEXT_PRIMARY,
@@ -542,6 +534,13 @@ export class MenuScene extends Phaser.Scene {
 
   private onShutdown(): void {
     log.log('shutdown - cleaning up');
+
+    // Remove global sound manager listener (if audio never unlocked)
+    if (this.boundOnAudioUnlocked) {
+      this.sound.off('unlocked', this.boundOnAudioUnlocked);
+      this.boundOnAudioUnlocked = null;
+    }
+
     if (this.menuMusic) {
       this.menuMusic.stop();
       this.menuMusic.destroy();

@@ -64,6 +64,9 @@ export interface Blessing<T extends BlessingModeState = BlessingModeState> {
 
   /** Get current state for UI display */
   getState(): T;
+
+  /** Clean up resources (optional) */
+  destroy?(): void;
 }
 
 /**

@@ -17,18 +17,18 @@ const DEBUG_COLORS = {
   skipTimeBorder: PALETTE.gold[400],
   skipTimeBgHover: PALETTE.gold[700],
   skipTimeBorderHover: PALETTE.gold[300],
-  skipStageBg: 0x002233,  // Cyan doesn't exist in PALETTE
-  skipStageBorder: 0x00ccff,
-  skipStageBgHover: 0x003355,
-  skipStageBorderHover: 0x66eeff,
-  clearDataBg: 0x331111,
-  clearDataBorder: 0xcc4444,
-  clearDataBgHover: 0x552222,
-  clearDataBorderHover: 0xff6666,
-  perfectUpperBg: 0x112233,
-  perfectUpperBorder: 0x44aa66,
-  perfectUpperBgHover: 0x223344,
-  perfectUpperBorderHover: 0x66cc88,
+  skipStageBg: PALETTE.debug.cyanDark,
+  skipStageBorder: PALETTE.debug.cyan,
+  skipStageBgHover: PALETTE.debug.cyanDarkHover,
+  skipStageBorderHover: PALETTE.debug.cyanLight,
+  clearDataBg: PALETTE.debug.redDark,
+  clearDataBorder: PALETTE.debug.closeBorder,
+  clearDataBgHover: PALETTE.debug.redDarkHover,
+  clearDataBorderHover: PALETTE.red[400],
+  perfectUpperBg: PALETTE.debug.greenDark,
+  perfectUpperBorder: PALETTE.debug.greenBorder,
+  perfectUpperBgHover: PALETTE.debug.greenDarkHover,
+  perfectUpperBorderHover: PALETTE.debug.greenBorderHover,
 } as const;
 
 export interface DebugPanelCallbacks {
@@ -75,7 +75,7 @@ export class DebugPanel {
     this.container.add(iconBg);
 
     const bugIcon = createText(this.scene, iconSize / 2, iconSize / 2, '🐛', {
-      fontSize: '18px', // Smaller to fit 32px icon
+      fontSize: FONTS.SIZE_BODY,
     });
     bugIcon.setOrigin(0.5, 0.5);
     this.container.add(bugIcon);
@@ -99,7 +99,7 @@ export class DebugPanel {
     this.modalContainer.setDepth(1000);
 
     // Semi-transparent backdrop - clicking closes modal
-    const backdrop = this.scene.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7);
+    const backdrop = this.scene.add.rectangle(width / 2, height / 2, width, height, COLORS.OVERLAY, 0.7);
     backdrop.setInteractive();
     backdrop.on('pointerdown', () => this.closeModal());
     this.modalContainer.add(backdrop);
@@ -118,27 +118,27 @@ export class DebugPanel {
     // X close button at top right
     const closeX = panelX + panelWidth / 2 - 20;
     const closeY = panelY - panelHeight / 2 + 20;
-    const closeBtn = this.scene.add.rectangle(closeX, closeY, 30, 30, 0x442222, 0.9);
-    closeBtn.setStrokeStyle(2, 0xcc4444, 0.8);
+    const closeBtn = this.scene.add.rectangle(closeX, closeY, 30, 30, PALETTE.debug.closeBg, 0.9);
+    closeBtn.setStrokeStyle(2, PALETTE.debug.closeBorder, 0.8);
     closeBtn.setInteractive({ useHandCursor: true });
     this.modalContainer.add(closeBtn);
 
     const closeIcon = createText(this.scene, closeX, closeY, '✕', {
-      fontSize: '18px',
+      fontSize: FONTS.SIZE_BODY,
       fontFamily: FONTS.FAMILY,
-      color: '#ff6666',
+      color: COLORS.DEBUG_RED,
       fontStyle: 'bold',
     });
     closeIcon.setOrigin(0.5, 0.5);
     this.modalContainer.add(closeIcon);
 
-    closeBtn.on('pointerover', () => closeBtn.setFillStyle(0x663333));
-    closeBtn.on('pointerout', () => closeBtn.setFillStyle(0x442222));
+    closeBtn.on('pointerover', () => closeBtn.setFillStyle(PALETTE.debug.closeBgHover));
+    closeBtn.on('pointerout', () => closeBtn.setFillStyle(PALETTE.debug.closeBg));
     closeBtn.on('pointerdown', () => this.closeModal());
 
     // Title - positioned near top
     const title = createText(this.scene, panelX, panelY - 130, '🐛 DEBUG', {
-      fontSize: '18px',
+      fontSize: FONTS.SIZE_BODY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_WARNING,
       fontStyle: 'bold',
@@ -166,7 +166,7 @@ export class DebugPanel {
     this.createModalButton(panelX, yPos, buttonWidth, buttonHeight, 'Skip Stage',
       DEBUG_COLORS.skipStageBg, DEBUG_COLORS.skipStageBorder,
       DEBUG_COLORS.skipStageBgHover, DEBUG_COLORS.skipStageBorderHover,
-      '#44ddff', () => {
+      COLORS.DEBUG_CYAN, () => {
         this.callbacks.onSkipStage();
         this.closeModal(); // This one closes since it changes scene
       });
@@ -177,7 +177,7 @@ export class DebugPanel {
       this.createModalButton(panelX, yPos, buttonWidth, buttonHeight, 'Clear Data',
         DEBUG_COLORS.clearDataBg, DEBUG_COLORS.clearDataBorder,
         DEBUG_COLORS.clearDataBgHover, DEBUG_COLORS.clearDataBorderHover,
-        '#ff6666', () => {
+        COLORS.DEBUG_RED, () => {
           this.callbacks.onClearData!();
           this.closeModal(); // This one closes since it resets data
         });
@@ -189,7 +189,7 @@ export class DebugPanel {
       this.createModalButton(panelX, yPos, buttonWidth, buttonHeight, 'Perfect Upper',
         DEBUG_COLORS.perfectUpperBg, DEBUG_COLORS.perfectUpperBorder,
         DEBUG_COLORS.perfectUpperBgHover, DEBUG_COLORS.perfectUpperBorderHover,
-        '#66cc88', () => {
+        COLORS.DEBUG_GREEN, () => {
           this.callbacks.onPerfectUpper!();
           // Don't close - allow seeing result
         });
@@ -199,7 +199,7 @@ export class DebugPanel {
     if (this.callbacks.onSkipToMode) {
       yPos += buttonSpacing + 8; // Extra spacing before this section
       const modeLabel = createText(this.scene, panelX, yPos - 22, 'Skip to Curse:', {
-        fontSize: '11px',
+        fontSize: FONTS.SIZE_MICRO,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_MUTED,
       });
@@ -227,10 +227,10 @@ export class DebugPanel {
     // Current mode: green (active indicator)
     // Other modes: purple (inactive)
     const isCurrent = mode === this.callbacks.currentMode;
-    const bgColor = isCurrent ? 0x112211 : PALETTE.purple[800];
-    const borderColor = isCurrent ? 0x44aa44 : PALETTE.purple[500];
-    const hoverBg = isCurrent ? 0x224422 : PALETTE.purple[700];
-    const textColor = isCurrent ? '#66ee66' : '#aa88ff';
+    const bgColor = isCurrent ? PALETTE.debug.currentModeBg : PALETTE.purple[800];
+    const borderColor = isCurrent ? PALETTE.debug.currentModeBorder : PALETTE.purple[500];
+    const hoverBg = isCurrent ? PALETTE.debug.currentModeHover : PALETTE.purple[700];
+    const textColor = isCurrent ? COLORS.DEBUG_GREEN_BRIGHT : COLORS.DEBUG_PURPLE;
 
     const btn = this.scene.add.rectangle(x, y, size, size, bgColor, 1);
     btn.setStrokeStyle(2, borderColor, 0.8);
@@ -238,7 +238,7 @@ export class DebugPanel {
     this.modalContainer.add(btn);
 
     const text = createText(this.scene, x, y, `${mode}`, {
-      fontSize: '18px',
+      fontSize: FONTS.SIZE_BODY,
       fontFamily: FONTS.FAMILY,
       color: textColor,
       fontStyle: 'bold',
@@ -273,7 +273,7 @@ export class DebugPanel {
     this.modalContainer.add(btn);
 
     const text = createText(this.scene, x, y, label, {
-      fontSize: '16px',
+      fontSize: FONTS.SIZE_BUTTON,
       fontFamily: FONTS.FAMILY,
       color: textColor,
       fontStyle: 'bold',
@@ -315,7 +315,7 @@ export class DebugPanel {
 
     let yPos = 18;
     const debugLabel = createText(this.scene, panelWidth / 2, yPos, '⚡ DEBUG', {
-      fontSize: '14px',
+      fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_WARNING,
       fontStyle: 'bold',
@@ -331,7 +331,7 @@ export class DebugPanel {
     this.container.add(skipTimeBtn);
 
     const skipTimeText = createText(this.scene, panelWidth / 2, yPos, '-10s [D]', {
-      fontSize: '14px',
+      fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_WARNING,
       fontStyle: 'bold',
@@ -357,9 +357,9 @@ export class DebugPanel {
     this.container.add(skipStageBtn);
 
     const skipStageText = createText(this.scene, panelWidth / 2, yPos, 'SKIP [S]', {
-      fontSize: '14px',
+      fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
-      color: '#44ddff',
+      color: COLORS.DEBUG_CYAN,
       fontStyle: 'bold',
     });
     skipStageText.setOrigin(0.5, 0.5);
@@ -384,9 +384,9 @@ export class DebugPanel {
       this.container.add(clearBtn);
 
       const clearText = createText(this.scene, panelWidth / 2, yPos, 'CLEAR DATA', {
-        fontSize: '12px',
+        fontSize: FONTS.SIZE_TINY,
         fontFamily: FONTS.FAMILY,
-        color: '#ff6666',
+        color: COLORS.DEBUG_RED,
         fontStyle: 'bold',
       });
       clearText.setOrigin(0.5, 0.5);
@@ -412,9 +412,9 @@ export class DebugPanel {
       this.container.add(perfectBtn);
 
       const perfectText = createText(this.scene, panelWidth / 2, yPos, 'PERFECT ↑', {
-        fontSize: '12px',
+        fontSize: FONTS.SIZE_TINY,
         fontFamily: FONTS.FAMILY,
-        color: '#66cc88',
+        color: COLORS.DEBUG_GREEN,
         fontStyle: 'bold',
       });
       perfectText.setOrigin(0.5, 0.5);
@@ -435,7 +435,7 @@ export class DebugPanel {
     // Skip to curse mode buttons (1-4)
     if (this.callbacks.onSkipToMode) {
       const modeLabel = createText(this.scene, panelWidth / 2, yPos, 'Skip to Curse:', {
-        fontSize: '10px',
+        fontSize: FONTS.SIZE_NANO,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_MUTED,
       });
@@ -457,10 +457,10 @@ export class DebugPanel {
 
   private createDesktopModeButton(x: number, y: number, size: number, mode: number): void {
     const isCurrent = mode === this.callbacks.currentMode;
-    const bgColor = isCurrent ? 0x112211 : PALETTE.purple[800];
-    const borderColor = isCurrent ? 0x44aa44 : PALETTE.purple[500];
-    const hoverBg = isCurrent ? 0x224422 : PALETTE.purple[700];
-    const textColor = isCurrent ? '#66ee66' : '#aa88ff';
+    const bgColor = isCurrent ? PALETTE.debug.currentModeBg : PALETTE.purple[800];
+    const borderColor = isCurrent ? PALETTE.debug.currentModeBorder : PALETTE.purple[500];
+    const hoverBg = isCurrent ? PALETTE.debug.currentModeHover : PALETTE.purple[700];
+    const textColor = isCurrent ? COLORS.DEBUG_GREEN_BRIGHT : COLORS.DEBUG_PURPLE;
 
     const btn = this.scene.add.rectangle(x, y, size, size, bgColor, 1);
     btn.setStrokeStyle(2, borderColor, 0.8);
@@ -468,7 +468,7 @@ export class DebugPanel {
     this.container.add(btn);
 
     const text = createText(this.scene, x, y, `${mode}`, {
-      fontSize: '14px',
+      fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: textColor,
       fontStyle: 'bold',

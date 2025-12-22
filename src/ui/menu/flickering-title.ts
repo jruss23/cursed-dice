@@ -23,7 +23,7 @@ export class FlickeringTitle {
 
     glowColors.forEach((color, i) => {
       const glow = createText(this.scene, centerX, y, 'CURSED DICE', {
-        fontSize: '52px',
+        fontSize: FONTS.SIZE_MENU_TITLE,
         fontFamily: FONTS.FAMILY,
         color: hexToColorString(color),
         fontStyle: 'bold',
@@ -49,7 +49,7 @@ export class FlickeringTitle {
 
     // Main title glow
     this.titleGlow = createText(this.scene, centerX, y, 'CURSED DICE', {
-      fontSize: '52px',
+      fontSize: FONTS.SIZE_MENU_TITLE,
       fontFamily: FONTS.FAMILY,
       color: hexToColorString(PALETTE.purple[400]),
       fontStyle: 'bold',
@@ -60,7 +60,7 @@ export class FlickeringTitle {
 
     // Main title
     this.titleText = createText(this.scene, centerX, y, 'CURSED DICE', {
-      fontSize: '52px',
+      fontSize: FONTS.SIZE_MENU_TITLE,
       fontFamily: FONTS.FAMILY,
       color: hexToColorString(PALETTE.purple[200]),
       fontStyle: 'bold',
