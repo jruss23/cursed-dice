@@ -22,6 +22,11 @@ import {
   PALETTE,
   COLORS,
   DEV,
+  RESPONSIVE,
+  getViewportMetrics,
+  getScaledSizes,
+  type ViewportMetrics,
+  type ScaledSizes,
 } from '@/config';
 import { createScorecard, type Scorecard, type CategoryId } from '@/systems/scorecard';
 import { createGameEvents, type GameEventEmitter } from '@/systems/game-events';
@@ -31,6 +36,7 @@ import { ScorecardPanel } from '@/ui/scorecard-panel';
 import {
   getGameProgression,
   resetGameProgression,
+  debugSetMode,
   PASS_THRESHOLD,
   GAUNTLET_LOCKED_THRESHOLD,
   type GameMode,
@@ -39,6 +45,7 @@ import {
 import {
   getBlessingManager,
   resetBlessingManager,
+  debugSetBlessing,
   type BlessingManager,
 } from '@/systems/blessings';
 import { createLogger } from '@/systems/logger';
@@ -145,8 +152,8 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // Warning sound for all checkpoints (using the 10s sound, clipped)
-    this.load.audio('warning-sound', 'sounds/Police_signal.wav');
+    // Warning sound - pre-processed: 2 octaves down, 1.6x speed
+    this.load.audio('warning-sound', 'sounds/siren_warning.wav');
   }
 
   create(): void {
@@ -223,7 +230,7 @@ export class GameplayScene extends Phaser.Scene {
 
     // Initialize and play for current difficulty
     // init() preloads all songs, play() starts the correct one
-    await this.audioManager.init();
+    await this.audioManager.init(this);
     await this.audioManager.play(this.difficulty);
   }
 
@@ -237,21 +244,31 @@ export class GameplayScene extends Phaser.Scene {
     // Animated background
     this.createAnimatedBackground(width, height);
 
-    // Detect layout mode based on aspect ratio
-    const isPortrait = height > width * 0.9; // Portrait if tall enough
+    // Get responsive metrics and scaled sizes
+    const metrics = getViewportMetrics(this);
+    const scaledSizes = getScaledSizes(metrics);
 
-    if (isPortrait) {
-      this.buildPortraitLayout(width, height, progression.getTotalScore());
+    log.debug(`Layout: ${metrics.isPortrait ? 'portrait' : 'landscape'}, width: ${width}`);
+
+    if (metrics.isPortrait) {
+      this.buildPortraitLayout(width, height, progression.getTotalScore(), metrics, scaledSizes);
     } else {
-      this.buildLandscapeLayout(width, height, progression.getTotalScore());
+      this.buildLandscapeLayout(width, height, progression.getTotalScore(), metrics, scaledSizes);
     }
   }
 
   /**
    * Landscape layout: Header+Dice on left, Scorecard on right (2 columns)
    */
-  private buildLandscapeLayout(width: number, height: number, totalScore: number): void {
-    const scorecardWidth = 324;
+  private buildLandscapeLayout(
+    width: number,
+    height: number,
+    totalScore: number,
+    metrics: ViewportMetrics,
+    scaledSizes: ScaledSizes
+  ): void {
+    // Width for scorecard - panel determines its own layout
+    const scorecardWidth = width < 900 ? RESPONSIVE.SCORECARD_WIDTH_TWO_COL : scaledSizes.scorecardWidth;
     const scorecardX = width - scorecardWidth - 15;
     const leftMargin = DEV.IS_DEVELOPMENT ? 160 : 30;
     const playAreaCenterX = leftMargin + (scorecardX - leftMargin) / 2;
@@ -262,6 +279,9 @@ export class GameplayScene extends Phaser.Scene {
         onSkipTime: () => this.debugSkipTime(),
         onSkipStage: () => this.debugSkipStage(),
         onClearData: () => this.debugClearData(),
+        onPerfectUpper: () => this.debugPerfectUpper(),
+        onSkipToMode: (mode: number) => this.debugSkipToMode(mode),
+        currentMode: this.currentMode,
       });
     }
 
@@ -272,12 +292,13 @@ export class GameplayScene extends Phaser.Scene {
       totalScore,
       timeRemaining: this.timeRemaining,
       passThreshold: PASS_THRESHOLD,
-      compact: false,
+      compact: metrics.isMobile,
+      metrics,
     });
 
-    // Dice area
+    // Dice area with scaled sizes
     this.diceCenterX = playAreaCenterX;
-    this.createDicePanel(playAreaCenterX, height * 0.55);
+    this.createDicePanel(playAreaCenterX, height * 0.48, scaledSizes);
 
     // Select prompt - positioned above scorecard panel
     const promptPadding = 12;
@@ -289,8 +310,8 @@ export class GameplayScene extends Phaser.Scene {
     this.selectPrompt.setOrigin(0.5, 0);
     this.addPulseAnimation(this.selectPrompt);
 
-    // Scorecard panel - below the prompt (6px padding below text)
-    const promptHeight = 14; // approx height of SIZE_SMALL text
+    // Scorecard panel - below the prompt
+    const promptHeight = 14;
     const scorecardY = promptPadding + promptHeight + promptPadding;
     this.scorecardPanel = new ScorecardPanel(this, this.scorecard, this.gameEvents, {
       x: scorecardX,
@@ -304,7 +325,13 @@ export class GameplayScene extends Phaser.Scene {
   /**
    * Portrait layout: Header+Dice stacked on top, Scorecard below
    */
-  private buildPortraitLayout(width: number, height: number, totalScore: number): void {
+  private buildPortraitLayout(
+    width: number,
+    height: number,
+    totalScore: number,
+    metrics: ViewportMetrics,
+    scaledSizes: ScaledSizes
+  ): void {
     const centerX = width / 2;
 
     // Debug panel (only in debug mode) - positioned differently
@@ -313,6 +340,9 @@ export class GameplayScene extends Phaser.Scene {
         onSkipTime: () => this.debugSkipTime(),
         onSkipStage: () => this.debugSkipStage(),
         onClearData: () => this.debugClearData(),
+        onPerfectUpper: () => this.debugPerfectUpper(),
+        onSkipToMode: (mode: number) => this.debugSkipToMode(mode),
+        currentMode: this.currentMode,
       });
     }
 
@@ -324,29 +354,38 @@ export class GameplayScene extends Phaser.Scene {
       timeRemaining: this.timeRemaining,
       passThreshold: PASS_THRESHOLD,
       compact: true,
+      metrics,
     });
 
-    // Dice area (positioned higher)
-    this.diceCenterX = centerX;
-    this.createDicePanel(centerX, 280);
+    // Calculate dynamic positions based on mobile/tablet
+    // Mobile: No select prompt (self-evident), scorecard moved up for more space
+    const diceY = metrics.isMobile ? 164 : 250;
+    const scorecardY = metrics.isMobile ? 325 : 380; // +40px down on mobile
 
-    // Scorecard (centered below dice, scaled down slightly)
-    const scorecardWidth = Math.min(324, width - 30);
+    // Dice area with scaled sizes
+    this.diceCenterX = centerX;
+    this.createDicePanel(centerX, diceY, scaledSizes);
+
+    // Scorecard (centered below dice) - use two-column width on small screens
+    const scorecardWidth = width < 900 ? RESPONSIVE.SCORECARD_WIDTH_TWO_COL : scaledSizes.scorecardWidth;
     const scorecardX = (width - scorecardWidth) / 2;
     this.scorecardPanel = new ScorecardPanel(this, this.scorecard, this.gameEvents, {
       x: scorecardX,
-      y: 380,
-      compact: true, // Use compact mode for portrait
+      y: scorecardY,
+      compact: true,
     });
 
-    // Select prompt above scorecard
-    this.selectPrompt = this.createText(centerX, 365, 'Tap a category to score', {
-      fontSize: FONTS.SIZE_SMALL,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_SUCCESS,
-    });
-    this.selectPrompt.setOrigin(0.5, 0.5);
-    this.addPulseAnimation(this.selectPrompt);
+    // Select prompt - only show on tablet/desktop, not needed on mobile (self-evident)
+    if (!metrics.isMobile) {
+      const promptY = scorecardY - 22;
+      this.selectPrompt = this.createText(centerX, promptY, 'Tap a category to score', {
+        fontSize: FONTS.SIZE_SMALL,
+        fontFamily: FONTS.FAMILY,
+        color: COLORS.TEXT_SUCCESS,
+      });
+      this.selectPrompt.setOrigin(0.5, 0.5);
+      this.addPulseAnimation(this.selectPrompt);
+    }
 
     // QUIT button - bottom left corner
     this.createQuitButton(height);
@@ -357,11 +396,11 @@ export class GameplayScene extends Phaser.Scene {
    */
   private createQuitButton(height: number): void {
     const btnWidth = 70;
-    const btnHeight = 32;
-    const btnY = height - 20;
+    const btnHeight = 32; // Match 32px touch targets
+    const btnY = height - 6; // Closer to corner
 
     // PAUSE button (left)
-    const pauseX = 20;
+    const pauseX = 6; // Closer to corner
     const pauseBg = this.add.rectangle(pauseX, btnY, btnWidth, btnHeight, PALETTE.purple[700], 0.9);
     pauseBg.setOrigin(0, 1);
     pauseBg.setStrokeStyle(2, PALETTE.purple[500], 0.8);
@@ -386,7 +425,7 @@ export class GameplayScene extends Phaser.Scene {
     pauseBg.on('pointerdown', () => this.pauseGame());
 
     // QUIT button (right of pause)
-    const quitX = pauseX + btnWidth + 10;
+    const quitX = pauseX + btnWidth + 4; // Reduced gap from 10 to 4
     const quitBg = this.add.rectangle(quitX, btnY, btnWidth, btnHeight, PALETTE.red[800], 0.9);
     quitBg.setOrigin(0, 1);
     quitBg.setStrokeStyle(2, PALETTE.red[500], 0.8);
@@ -461,13 +500,13 @@ export class GameplayScene extends Phaser.Scene {
    * Create the dice area with DiceManager
    * DiceManager handles: dice sprites, helper text, rerolls display, roll button
    */
-  private createDicePanel(centerX: number, centerY?: number): void {
+  private createDicePanel(centerX: number, centerY?: number, scaledSizes?: ScaledSizes): void {
     const diceY = centerY ?? SIZES.LAYOUT_DICE_Y;
 
     // Create DiceManager and render its UI
     // DiceManager.createUI creates: dice, helper text, rerolls text, roll button
     this.diceManager = new DiceManager(this, this.gameEvents);
-    this.diceManager.createUI(centerX, diceY);
+    this.diceManager.createUI(centerX, diceY, scaledSizes);
   }
 
   /**
@@ -573,6 +612,50 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   /**
+   * DEBUG: Score perfect upper section (all 5-of-a-kind for each number)
+   */
+  private debugPerfectUpper(): void {
+    const upperCategories: CategoryId[] = ['ones', 'twos', 'threes', 'fours', 'fives', 'sixes'];
+    let scored = 0;
+
+    for (const categoryId of upperCategories) {
+      const perfectDice = this.getPerfectDiceForCategory(categoryId);
+      const result = this.scorecard.score(categoryId, perfectDice);
+      if (result >= 0) {
+        scored++;
+      }
+    }
+
+    // Update the scorecard display
+    this.scorecardPanel?.updateDisplay();
+
+    // Visual feedback
+    this.cameras.main.flash(200, 50, 255, 50);
+
+    const metrics = getViewportMetrics(this);
+    const feedbackY = metrics.isMobile ? 120 : 200;
+    const feedbackText = this.createText(this.cameras.main.width / 2, feedbackY,
+      scored > 0 ? `Perfect Upper! (${scored} categories)` : 'Upper already complete!', {
+      fontSize: '20px',
+      fontFamily: FONTS.FAMILY,
+      color: '#66cc88',
+      fontStyle: 'bold',
+    });
+    feedbackText.setOrigin(0.5, 0.5);
+
+    this.tweens.add({
+      targets: feedbackText,
+      alpha: 0,
+      y: feedbackY - 40,
+      duration: 1000,
+      delay: 500,
+      onComplete: () => feedbackText.destroy(),
+    });
+
+    log.debug(`DEBUG: Scored ${scored} upper categories with perfect scores`);
+  }
+
+  /**
    * Get perfect dice values for a given category
    */
   private getPerfectDiceForCategory(categoryId: CategoryId): number[] {
@@ -613,6 +696,29 @@ export class GameplayScene extends Phaser.Scene {
       default:
         return [6, 6, 6, 6, 6];
     }
+  }
+
+  /**
+   * DEBUG: Skip directly to a specific mode (1-4)
+   * Modes 2-4 automatically enable expansion blessing
+   */
+  private debugSkipToMode(mode: number): void {
+    log.debug(`DEBUG: Skipping to mode ${mode} (difficulty: ${this.difficulty})`);
+
+    // Reset progression and blessings
+    resetGameProgression();
+    resetBlessingManager();
+
+    // Set the target mode
+    debugSetMode(mode as GameMode);
+
+    // Enable expansion blessing for modes 2-4
+    if (mode >= 2) {
+      debugSetBlessing('expansion');
+    }
+
+    // Restart the scene with current difficulty
+    this.scene.restart({ difficulty: this.difficulty });
   }
 
   /** Helper for crisp retina text */
@@ -807,16 +913,9 @@ export class GameplayScene extends Phaser.Scene {
 
   private playWarningSound(checkpoint: string): void {
     if (this.cache.audio.exists('warning-sound')) {
-      const sound = this.sound.add('warning-sound', { volume: 0.7 });
+      // Pre-processed siren (3 octaves down, 3.2x speed)
+      const sound = this.sound.add('warning-sound', { volume: 0.5 });
       sound.play();
-
-      // Stop at 50% duration to clip the sound
-      this.time.delayedCall(500, () => {
-        if (sound.isPlaying) {
-          sound.stop();
-        }
-      });
-
       log.log(`Playing warning: ${checkpoint}`);
     }
   }

@@ -257,7 +257,13 @@ export const SIZES = {
   PANEL_CORNER_SIZE: 10,
   PANEL_CORNER_INSET: 6,
   PANEL_GLOW_SIZE: 12,
-  PANEL_BORDER_WIDTH: 2,
+  PANEL_BORDER_WIDTH: 1,
+
+  // Pulsing glow stroke widths (for outer glow rectangles)
+  GLOW_STROKE_SMALL: 4,    // Subtle glow for small elements
+  GLOW_STROKE_MEDIUM: 6,   // Standard panel glow
+  GLOW_STROKE_LARGE: 8,    // Prominent glow for buttons/focus elements
+  GLOW_STROKE_HOVER: 10,   // Enhanced glow on hover
 
   // Sprint scene layout (Y positions)
   LAYOUT_TITLE_Y: 40,
@@ -306,6 +312,24 @@ export const GAME_RULES = {
   UPPER_BONUS_AMOUNT: 35,
   CATEGORIES_COUNT: 13,
 } as const;
+
+// =============================================================================
+// RESPONSIVE EXPORTS
+// =============================================================================
+
+// Re-export responsive utilities for convenient imports
+export {
+  RESPONSIVE,
+  BREAKPOINTS,
+  getViewportMetrics,
+  getScaledSizes,
+  getScorecardLayout,
+  getScaledFontSizes,
+  scaleValue,
+  type ViewportMetrics,
+  type ScaledSizes,
+  type ScorecardLayout,
+} from './systems/responsive';
 
 // =============================================================================
 // LEGACY EXPORT (for backwards compatibility during migration)

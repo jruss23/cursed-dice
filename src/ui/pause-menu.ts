@@ -42,12 +42,13 @@ export class PauseMenu {
     const panelWidth = 320;
     const panelHeight = 240;
 
-    // Outer glow
+    // Outer glow (stroked outline like difficulty buttons)
     const outerGlow = this.scene.add.rectangle(
       width / 2, height / 2,
-      panelWidth + SIZES.PANEL_GLOW_SIZE, panelHeight + SIZES.PANEL_GLOW_SIZE,
-      PALETTE.purple[500], 0.1
+      panelWidth + 20, panelHeight + 20,
+      0x000000, 0
     );
+    outerGlow.setStrokeStyle(SIZES.GLOW_STROKE_LARGE, PALETTE.purple[500], 0.1);
     this.container.add(outerGlow);
 
     // Panel background
@@ -56,7 +57,7 @@ export class PauseMenu {
       panelWidth, panelHeight,
       PALETTE.purple[800], 0.98
     );
-    panelBg.setStrokeStyle(2, PALETTE.purple[500], 0.8);
+    panelBg.setStrokeStyle(SIZES.PANEL_BORDER_WIDTH, PALETTE.purple[500], 0.8);
     this.container.add(panelBg);
 
     // Corner accents
@@ -111,10 +112,10 @@ export class PauseMenu {
       () => this.callbacks.onQuit()
     );
 
-    // Glow pulse animation
+    // Glow pulse animation (matches scorecard style)
     this.scene.tweens.add({
       targets: outerGlow,
-      alpha: 0.2,
+      alpha: 0.15,
       duration: 2000,
       yoyo: true,
       repeat: -1,

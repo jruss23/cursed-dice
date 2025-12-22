@@ -4,7 +4,7 @@
  */
 
 import Phaser from 'phaser';
-import { type DifficultyConfig, FONTS, PALETTE, COLORS } from '@/config';
+import { type DifficultyConfig, FONTS, PALETTE, COLORS, SIZES, type ViewportMetrics } from '@/config';
 import { createText } from '@/ui/ui-utils';
 
 // Button-specific colors
@@ -18,10 +18,16 @@ export interface DifficultyButtonCallbacks {
   onClick: (config: DifficultyConfig) => void;
 }
 
+export interface DifficultyButtonOptions {
+  /** Viewport metrics for responsive sizing */
+  metrics?: ViewportMetrics;
+}
+
 export class DifficultyButton {
   private scene: Phaser.Scene;
   private container: Phaser.GameObjects.Container;
   private config: DifficultyConfig;
+  private options: DifficultyButtonOptions;
 
   constructor(
     scene: Phaser.Scene,
@@ -29,23 +35,38 @@ export class DifficultyButton {
     y: number,
     config: DifficultyConfig,
     index: number,
-    callbacks: DifficultyButtonCallbacks
+    callbacks: DifficultyButtonCallbacks,
+    options: DifficultyButtonOptions = {}
   ) {
     this.scene = scene;
     this.config = config;
+    this.options = options;
     this.container = this.scene.add.container(x, y);
 
     this.build(index, callbacks);
   }
 
   private build(index: number, callbacks: DifficultyButtonCallbacks): void {
-    const buttonWidth = 320;
-    const buttonHeight = 75;
+    const metrics = this.options.metrics;
+    const viewportWidth = metrics?.width ?? 1200;
+    const isMobile = metrics?.isMobile ?? false;
+
+    // Responsive button sizing
+    const maxWidth = Math.min(320, viewportWidth - 40); // 20px margin each side
+    const buttonWidth = isMobile ? maxWidth : 320;
+    const buttonHeight = isMobile ? 58 : 75; // Still 44px+ for touch
+
+    // Font sizes - keep readable on mobile
+    const labelSize = isMobile ? '22px' : '26px';
+    const subSize = isMobile ? '14px' : '14px';
+    const iconSize = isMobile ? '24px' : '28px';
+
     const config = this.config;
 
-    // Outer glow
+    // Outer glow (pulsing) - smaller on mobile
+    const glowStroke = isMobile ? SIZES.GLOW_STROKE_SMALL : SIZES.GLOW_STROKE_LARGE;
     const outerGlow = this.scene.add.rectangle(0, 0, buttonWidth + 20, buttonHeight + 20, 0x000000, 0);
-    outerGlow.setStrokeStyle(8, Phaser.Display.Color.HexStringToColor(config.color).color, 0.1);
+    outerGlow.setStrokeStyle(glowStroke, Phaser.Display.Color.HexStringToColor(config.color).color, 0.2);
     this.container.add(outerGlow);
 
     // Button background with gradient effect
@@ -80,17 +101,18 @@ export class DifficultyButton {
       this.container.add(accent);
     });
 
-    // Difficulty icon/symbol
+    // Difficulty icon/symbol - position scaled with button width
+    const iconX = -buttonWidth / 2 + (isMobile ? 30 : 35);
     const icons = ['', '', ''];
-    const iconText = createText(this.scene, -buttonWidth / 2 + 35, 0, icons[index], {
-      fontSize: '28px',
+    const iconText = createText(this.scene, iconX, 0, icons[index], {
+      fontSize: iconSize,
     });
     iconText.setOrigin(0.5, 0.5);
     this.container.add(iconText);
 
     // Difficulty label
     const label = createText(this.scene, 10, -12, config.label, {
-      fontSize: '26px',
+      fontSize: labelSize,
       fontFamily: FONTS.FAMILY,
       color: config.color,
       fontStyle: 'bold',
@@ -100,27 +122,32 @@ export class DifficultyButton {
 
     // Time and description
     const timeText = createText(this.scene, 10, 14, `${config.timeDisplay} per curse`, {
-      fontSize: '14px',
+      fontSize: subSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SECONDARY,
     });
     timeText.setOrigin(0.5, 0.5);
     this.container.add(timeText);
 
-    // Decorative skulls on sides
-    const leftSkull = createText(this.scene, -buttonWidth / 2 - 25, 0, '', {
-      fontSize: '20px',
-    });
-    leftSkull.setOrigin(0.5, 0.5);
-    leftSkull.setAlpha(0.3);
-    this.container.add(leftSkull);
+    // Decorative skulls on sides (hidden on mobile to save space)
+    let leftSkull: Phaser.GameObjects.Text | null = null;
+    let rightSkull: Phaser.GameObjects.Text | null = null;
 
-    const rightSkull = createText(this.scene, buttonWidth / 2 + 25, 0, '', {
-      fontSize: '20px',
-    });
-    rightSkull.setOrigin(0.5, 0.5);
-    rightSkull.setAlpha(0.3);
-    this.container.add(rightSkull);
+    if (!isMobile) {
+      leftSkull = createText(this.scene, -buttonWidth / 2 - 25, 0, '', {
+        fontSize: '20px',
+      });
+      leftSkull.setOrigin(0.5, 0.5);
+      leftSkull.setAlpha(0.3);
+      this.container.add(leftSkull);
+
+      rightSkull = createText(this.scene, buttonWidth / 2 + 25, 0, '', {
+        fontSize: '20px',
+      });
+      rightSkull.setOrigin(0.5, 0.5);
+      rightSkull.setAlpha(0.3);
+      this.container.add(rightSkull);
+    }
 
     // Make interactive
     bg.setInteractive({ useHandCursor: true });
@@ -129,7 +156,7 @@ export class DifficultyButton {
     bg.on('pointerover', () => {
       bg.setFillStyle(BUTTON_COLORS.bgHover, 0.95);
       bg.setStrokeStyle(4, Phaser.Display.Color.HexStringToColor(config.color).color, 1);
-      outerGlow.setStrokeStyle(12, Phaser.Display.Color.HexStringToColor(config.color).color, 0.2);
+      outerGlow.setStrokeStyle(isMobile ? SIZES.GLOW_STROKE_MEDIUM : SIZES.GLOW_STROKE_HOVER, Phaser.Display.Color.HexStringToColor(config.color).color, 0.2);
 
       this.scene.tweens.add({
         targets: this.container,
@@ -139,11 +166,14 @@ export class DifficultyButton {
         ease: 'Quad.easeOut',
       });
 
-      this.scene.tweens.add({
-        targets: [leftSkull, rightSkull],
-        alpha: 0.7,
-        duration: 150,
-      });
+      // Animate skulls only on desktop
+      if (leftSkull && rightSkull) {
+        this.scene.tweens.add({
+          targets: [leftSkull, rightSkull],
+          alpha: 0.7,
+          duration: 150,
+        });
+      }
 
       label.setColor('#ffffff');
     });
@@ -151,7 +181,7 @@ export class DifficultyButton {
     bg.on('pointerout', () => {
       bg.setFillStyle(BUTTON_COLORS.bg, 0.9);
       bg.setStrokeStyle(3, Phaser.Display.Color.HexStringToColor(config.color).color, 0.8);
-      outerGlow.setStrokeStyle(8, Phaser.Display.Color.HexStringToColor(config.color).color, 0.1);
+      outerGlow.setStrokeStyle(glowStroke, Phaser.Display.Color.HexStringToColor(config.color).color, 0.2);
 
       this.scene.tweens.add({
         targets: this.container,
@@ -161,11 +191,14 @@ export class DifficultyButton {
         ease: 'Quad.easeOut',
       });
 
-      this.scene.tweens.add({
-        targets: [leftSkull, rightSkull],
-        alpha: 0.3,
-        duration: 150,
-      });
+      // Animate skulls only on desktop
+      if (leftSkull && rightSkull) {
+        this.scene.tweens.add({
+          targets: [leftSkull, rightSkull],
+          alpha: 0.3,
+          duration: 150,
+        });
+      }
 
       label.setColor(config.color);
     });
@@ -200,10 +233,10 @@ export class DifficultyButton {
       ease: 'Back.easeOut',
     });
 
-    // Subtle idle animation
+    // Subtle idle animation - pulse glow
     this.scene.tweens.add({
       targets: outerGlow,
-      alpha: 0.15,
+      alpha: 0.35,
       duration: 2000 + index * 300,
       yoyo: true,
       repeat: -1,

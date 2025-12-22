@@ -6,7 +6,7 @@
 import Phaser from 'phaser';
 import { type Scorecard, type CategoryId, type Category } from '@/systems/scorecard';
 import { GameEventEmitter } from '@/systems/game-events';
-import { FONTS, SIZES, GAME_RULES, PALETTE, COLORS } from '@/config';
+import { FONTS, SIZES, GAME_RULES, PALETTE, COLORS, type ScorecardLayout, RESPONSIVE } from '@/config';
 
 export interface ScorecardPanelConfig {
   x: number;
@@ -14,6 +14,7 @@ export interface ScorecardPanelConfig {
   width?: number;
   height?: number;
   compact?: boolean; // Smaller row heights for portrait/mobile layout
+  // Note: layout is auto-determined based on viewport size, not passed in
 }
 
 interface CategoryRow {
@@ -67,8 +68,8 @@ export class ScorecardPanel {
   private currentDice: number[] = Array(GAME_RULES.DICE_COUNT).fill(1);
   private lockedCategories: Set<CategoryId> = new Set(); // Mode 3 & 4: locked categories
   private isCompact: boolean = false; // Compact mode for portrait/mobile
+  private layout: ScorecardLayout = 'single-column'; // Layout mode
   private isGauntletMode: boolean = false; // Mode 4: limited categories available
-  private hasExpansionBlessing: boolean = false; // Blessing of Expansion active (adds categories)
   private gauntletPulseTweens: Map<CategoryId, Phaser.Tweens.Tween> = new Map(); // Pulsing effects by category
 
   // UI elements
@@ -76,6 +77,7 @@ export class ScorecardPanel {
   private bonusText: Phaser.GameObjects.Text | null = null;
   private bonusProgressText: Phaser.GameObjects.Text | null = null;
   private categoryProgressText: Phaser.GameObjects.Text | null = null; // Shows "X/13 filled" in Gauntlet
+  private expansionProgressText: Phaser.GameObjects.Text | null = null; // Shows "X/13 Scored" in expansion header
 
   // Tween tracking
   private outerGlowTween: Phaser.Tweens.Tween | null = null;
@@ -89,57 +91,142 @@ export class ScorecardPanel {
   // Content bounds (set during build, used by row methods)
   private contentBounds: { x: number; width: number } = { x: 0, width: 0 };
 
-  // Sizing helpers - compact to fit all content including blessing categories
+  // Sizing helpers - adapt to layout mode
+  // "Compact mode" = two-column layout with special section enabled (17 categories)
+  private get needsCompactLayout(): boolean {
+    return this.layout === 'two-column' && this.scorecard.isSpecialSectionEnabled();
+  }
   private get rowHeight(): number {
+    if (this.layout === 'two-column') return RESPONSIVE.ROW_HEIGHT_MOBILE; // 36px for touch - never reduce
     return this.isCompact ? 22 : 24;
   }
   private get headerHeight(): number {
+    if (this.layout === 'two-column') {
+      return this.needsCompactLayout ? RESPONSIVE.COMPACT_HEADER_HEIGHT : 24;
+    }
     return this.isCompact ? 18 : 20;
   }
   private get totalRowHeight(): number {
+    if (this.layout === 'two-column') {
+      return this.needsCompactLayout ? RESPONSIVE.COMPACT_TOTAL_HEIGHT : RESPONSIVE.ROW_HEIGHT_MOBILE;
+    }
     return this.isCompact ? 22 : 24;
   }
+  private get titleHeight(): number {
+    if (this.layout === 'two-column') {
+      return this.needsCompactLayout ? RESPONSIVE.COMPACT_TITLE_HEIGHT : 28;
+    }
+    return this.isCompact ? 24 : 28;
+  }
+  private get contentPadding(): number {
+    if (this.layout === 'two-column') {
+      return this.needsCompactLayout ? RESPONSIVE.COMPACT_CONTENT_PADDING : 6;
+    }
+    return 6;
+  }
+  private get dividerHeight(): number {
+    if (this.layout === 'two-column') {
+      return this.needsCompactLayout ? RESPONSIVE.COMPACT_DIVIDER_HEIGHT : 6;
+    }
+    return 6;
+  }
+  private get bottomPadding(): number {
+    if (this.layout === 'two-column') {
+      return this.needsCompactLayout ? RESPONSIVE.COMPACT_BOTTOM_PADDING : 8;
+    }
+    return 8;
+  }
+  private get titleGap(): number {
+    if (this.layout === 'two-column') {
+      return this.needsCompactLayout ? RESPONSIVE.COMPACT_TITLE_GAP : 2;
+    }
+    return 2;
+  }
   private get fontSize(): string {
+    if (this.layout === 'two-column') return '15px'; // Bumped from 13px for readability
     return this.isCompact ? '11px' : '12px';
   }
   private get smallFontSize(): string {
+    if (this.layout === 'two-column') return '13px'; // Bumped from 11px for readability
     return this.isCompact ? '9px' : '10px';
   }
   private get scoreFontSize(): string {
+    if (this.layout === 'two-column') return '16px'; // Bumped from 14px for readability
     return this.isCompact ? '12px' : '14px';
+  }
+  private get isTwoColumn(): boolean {
+    return this.layout === 'two-column';
   }
 
   /**
-   * Calculate the dynamic height based on whether special section is enabled
+   * Single source of truth for layout decision
+   * Two-column on screens < 900px wide
+   */
+  private determineLayout(): ScorecardLayout {
+    const { width } = this.scene.cameras.main;
+    return width < 900 ? 'two-column' : 'single-column';
+  }
+
+  /**
+   * Calculate the dynamic height based on layout and whether special section is enabled
    */
   private calculateHeight(): number {
-    const contentPadding = 6;
-    const titleHeight = this.isCompact ? 24 : 28;
-    const titleGap = 2;
-    const dividerHeight = 6; // 2 + 1 + 3 for divider gaps
-    const totalDividerHeight = 1;
-    const bottomPadding = 8;
+    // Use dynamic getters for all spacing values
+    const padding = this.contentPadding;
+    const title = this.titleHeight;
+    const gap = this.titleGap;
+    const divider = this.dividerHeight;
+    const bottom = this.bottomPadding;
 
-    // Base content: title + upper section + bonus + lower section + total
-    let height = contentPadding + titleHeight + titleGap;
+    if (this.isTwoColumn) {
+      // Two-column layout: Left has upper(6)+bonus, Right has lower(7)
+      // Special section (if enabled) spans full width, then Total at bottom
+      let height = padding + title + gap;
+      height += this.headerHeight; // Column headers
+      height += 7 * this.rowHeight; // 7 rows (max of lower section)
+      height += this.totalRowHeight; // Total row at bottom
+      height += bottom;
+
+      // Special section spans both columns at bottom (4 categories in 2x2 grid)
+      if (this.scorecard.isSpecialSectionEnabled()) {
+        height += divider;
+        height += this.headerHeight;
+        height += 2 * this.rowHeight; // 2 rows of 2 categories each
+      }
+      return height;
+    }
+
+    // Single-column layout (original)
+    const totalDividerHeight = 1;
+    let height = padding + title + gap;
     height += this.headerHeight; // Upper section header
     height += 6 * this.rowHeight; // 6 upper categories
     height += this.rowHeight; // Bonus row
-    height += dividerHeight; // Divider between upper and lower
+    height += divider; // Divider between upper and lower
     height += this.headerHeight; // Lower section header
     height += 7 * this.rowHeight; // 7 lower categories
     height += totalDividerHeight; // Line above total
     height += this.totalRowHeight; // Total row
-    height += bottomPadding;
+    height += bottom;
 
     // Add special section if enabled
     if (this.scorecard.isSpecialSectionEnabled()) {
-      height += dividerHeight; // Divider before special
+      height += divider; // Divider before special
       height += this.headerHeight; // Special section header
-      height += 3 * this.rowHeight; // 3 special categories
+      height += 4 * this.rowHeight; // 4 special categories
     }
 
     return height;
+  }
+
+  /**
+   * Calculate width based on layout
+   */
+  private calculateWidth(): number {
+    if (this.isTwoColumn) {
+      return RESPONSIVE.SCORECARD_WIDTH_TWO_COL; // 340px
+    }
+    return this.isCompact ? 300 : SIZES.SCORECARD_WIDTH;
   }
 
   constructor(
@@ -153,21 +240,23 @@ export class ScorecardPanel {
     this.events = events;
     this.isCompact = config.compact ?? false;
 
+    // Determine layout based on viewport - single source of truth
+    this.layout = this.determineLayout();
+
     // Initialize bound event handlers
     this.onDiceRolled = ({ values }) => this.setDice(values);
     this.onLockedCategories = (locked: Set<CategoryId>) => this.setLockedCategories(locked);
     this.onBlessingExpansion = () => {
-      this.hasExpansionBlessing = true;
       this.rebuild();
     };
 
-    // Calculate dynamic height based on current state
-    const compactWidth = 300;
+    // Calculate dimensions based on layout mode
+    const dynamicWidth = config.width ?? this.calculateWidth();
     const dynamicHeight = this.calculateHeight();
 
     this.config = {
       ...config,
-      width: config.width ?? (this.isCompact ? compactWidth : SIZES.SCORECARD_WIDTH),
+      width: dynamicWidth,
       height: dynamicHeight,
     };
     this.container = scene.add.container(config.x, config.y);
@@ -187,15 +276,19 @@ export class ScorecardPanel {
     // Update locked categories (Mode 3 & 4)
     this.events.on('mode:lockedCategories', this.onLockedCategories);
 
-    // Rebuild when blessing of expansion is enabled (adds 3 categories)
+    // Rebuild when blessing of expansion is enabled (adds 4 categories)
     this.events.on('blessing:expansion:enable', this.onBlessingExpansion);
   }
 
   /**
    * Rebuild the scorecard panel with new dimensions
-   * Called when blessing of expansion adds 3 new categories
+   * Called when blessing of expansion adds 4 new categories
    */
   private rebuild(): void {
+    // Recalculate layout using single source of truth
+    this.layout = this.determineLayout();
+    this.config.width = this.calculateWidth();
+
     // Stop all running tweens
     if (this.outerGlowTween) {
       this.outerGlowTween.stop();
@@ -281,10 +374,21 @@ export class ScorecardPanel {
     const height = this.config.height!;
 
     // === PANEL FRAME (matching menu button design) ===
+    this.buildPanelFrame(width, height);
 
+    // === CONTENT ===
+    if (this.isTwoColumn) {
+      this.buildTwoColumnContent(width, height);
+    } else {
+      this.buildSingleColumnContent(width, height);
+    }
+  }
+
+  /** Build the shared panel frame (glow, background, corners) */
+  private buildPanelFrame(width: number, height: number): void {
     // Outer glow (stroke only, pulses)
     const outerGlow = this.scene.add.rectangle(width / 2, height / 2, width + 20, height + 20, 0x000000, 0);
-    outerGlow.setStrokeStyle(8, PALETTE.purple[500], 0.1);
+    outerGlow.setStrokeStyle(SIZES.GLOW_STROKE_MEDIUM, PALETTE.purple[500], 0.1);
     this.container.add(outerGlow);
 
     // Glow pulse animation
@@ -303,11 +407,11 @@ export class ScorecardPanel {
 
     // Main background (dark, matching menu buttons)
     const panelBg = this.scene.add.rectangle(width / 2, height / 2, width, height, 0x0a0a15, 0.9);
-    panelBg.setStrokeStyle(3, PALETTE.purple[500], 0.8);
+    panelBg.setStrokeStyle(SIZES.PANEL_BORDER_WIDTH, PALETTE.purple[500], 0.8);
     this.container.add(panelBg);
 
     // Inner highlight bar at top
-    const highlightHeight = this.isCompact ? 8 : 10;
+    const highlightHeight = this.isTwoColumn ? 10 : (this.isCompact ? 8 : 10);
     const innerHighlight = this.scene.add.rectangle(
       width / 2, highlightHeight / 2 + 3,
       width - 20, highlightHeight,
@@ -335,8 +439,336 @@ export class ScorecardPanel {
       accent.strokePath();
       this.container.add(accent);
     });
+  }
 
-    // === CONTENT AREA (inset from panel edges) ===
+  /** Build two-column mobile layout: Upper+Bonus on left, Lower+Total on right */
+  private buildTwoColumnContent(width: number, _height: number): void {
+    const padding = this.contentPadding;
+    const colGap = 6;
+    const colWidth = (width - padding * 2 - colGap) / 2;
+    const leftX = padding;
+    const rightX = padding + colWidth + colGap;
+
+    // Title - use dynamic height
+    const title_h = this.titleHeight;
+    const titleFontSize = this.needsCompactLayout ? '14px' : '16px';
+    const titleY = padding + title_h / 2;
+
+    const title = this.createText(width / 2, titleY, 'SCORECARD', {
+      fontSize: titleFontSize,
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TEXT_ACCENT,
+      fontStyle: 'bold',
+    });
+    title.setOrigin(0.5, 0.5);
+    this.container.add(title);
+
+    let leftY = padding + title_h + this.titleGap;
+    let rightY = leftY;
+
+    // === LEFT COLUMN: Upper section + Bonus ===
+    this.contentBounds = { x: leftX, width: colWidth };
+
+    leftY = this.addSectionHeader('UPPER', leftY, 'upper');
+    const upperCategories = this.scorecard.getUpperSection();
+    for (let i = 0; i < upperCategories.length; i++) {
+      leftY = this.addCategoryRowTwoCol(upperCategories[i], leftY, i % 2 === 0, 'upper', leftX, colWidth);
+    }
+    leftY = this.addBonusRowTwoCol(leftY, leftX, colWidth);
+
+    // === RIGHT COLUMN: Lower section ===
+    this.contentBounds = { x: rightX, width: colWidth };
+
+    rightY = this.addSectionHeader('LOWER', rightY, 'lower');
+    const lowerCategories = this.scorecard.getLowerSection();
+    for (let i = 0; i < lowerCategories.length; i++) {
+      rightY = this.addCategoryRowTwoCol(lowerCategories[i], rightY, i % 2 === 0, 'lower', rightX, colWidth);
+    }
+
+    // Track where columns end
+    let bottomY = Math.max(leftY, rightY);
+
+    // === SPECIAL SECTION (2x2 grid) ===
+    if (this.scorecard.isSpecialSectionEnabled()) {
+      const fullWidth = width - padding * 2;
+
+      let y = bottomY + this.dividerHeight / 2;
+      const divider = this.scene.add.rectangle(padding, y, fullWidth, 1, PALETTE.gold[500], 0.5);
+      divider.setOrigin(0, 0);
+      this.container.add(divider);
+      y += this.dividerHeight / 2;
+
+      // Expansion header with helper text on same row
+      y = this.addExpansionHeader(y, padding, fullWidth);
+
+      // 2x2 grid layout for 4 expansion categories
+      const specialCategories = this.scorecard.getSpecialSection();
+      const gridColWidth = (fullWidth - colGap) / 2;
+      const gridLeftX = padding;
+      const gridRightX = padding + gridColWidth + colGap;
+
+      // Row 1: categories 0 and 1
+      if (specialCategories[0]) {
+        this.contentBounds = { x: gridLeftX, width: gridColWidth };
+        this.addCategoryRowTwoCol(specialCategories[0], y, true, 'special', gridLeftX, gridColWidth);
+      }
+      if (specialCategories[1]) {
+        this.contentBounds = { x: gridRightX, width: gridColWidth };
+        this.addCategoryRowTwoCol(specialCategories[1], y, true, 'special', gridRightX, gridColWidth);
+      }
+      y += this.rowHeight;
+
+      // Row 2: categories 2 and 3
+      if (specialCategories[2]) {
+        this.contentBounds = { x: gridLeftX, width: gridColWidth };
+        this.addCategoryRowTwoCol(specialCategories[2], y, false, 'special', gridLeftX, gridColWidth);
+      }
+      if (specialCategories[3]) {
+        this.contentBounds = { x: gridRightX, width: gridColWidth };
+        this.addCategoryRowTwoCol(specialCategories[3], y, false, 'special', gridRightX, gridColWidth);
+      }
+      y += this.rowHeight;
+
+      bottomY = y;
+    }
+
+    // === TOTAL ROW (spans full width at very bottom) ===
+    const fullWidth = width - padding * 2;
+    this.contentBounds = { x: padding, width: fullWidth };
+    this.addTotalRowTwoCol(bottomY, padding, fullWidth);
+
+    // Reset content bounds
+    this.contentBounds = { x: padding, width: fullWidth };
+  }
+
+  /** Add a category row for two-column layout (simplified, no potential column) */
+  private addCategoryRowTwoCol(
+    category: Category,
+    y: number,
+    isEven: boolean,
+    section: 'upper' | 'lower' | 'special',
+    colX: number,
+    colWidth: number
+  ): number {
+    const height = this.rowHeight;
+    const rowColor = this.getRowColor(section, isEven);
+
+    // Background
+    const background = this.scene.add.rectangle(colX, y, colWidth, height, rowColor);
+    background.setOrigin(0, 0);
+    this.container.add(background);
+
+    // Category name (shorter for 2-col)
+    const shortName = this.getShortCategoryName(category.id);
+    const nameText = this.createText(colX + 8, y + height / 2, shortName, {
+      fontSize: this.fontSize,
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TEXT_PRIMARY,
+    });
+    nameText.setOrigin(0, 0.5);
+    this.container.add(nameText);
+
+    // Potential text (shows when available, smaller)
+    const potentialText = this.createText(colX + colWidth - 45, y + height / 2, '', {
+      fontSize: this.smallFontSize,
+      fontFamily: FONTS.FAMILY,
+      color: PANEL_COLORS.textPotential,
+    });
+    potentialText.setOrigin(0.5, 0.5);
+    this.container.add(potentialText);
+
+    // Lock icon
+    const lockIcon = this.createLockIcon(colX + colWidth - 45, y + height / 2, PALETTE.red[400]);
+    this.container.add(lockIcon);
+
+    // Score text (right aligned)
+    const scoreText = this.createText(colX + colWidth - 12, y + height / 2, '', {
+      fontSize: this.scoreFontSize,
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TEXT_PRIMARY,
+      fontStyle: 'bold',
+    });
+    scoreText.setOrigin(1, 0.5);
+    this.container.add(scoreText);
+
+    // Hit area
+    const hitArea = this.scene.add.rectangle(colX, y, colWidth, height, 0xffffff, 0);
+    hitArea.setOrigin(0, 0);
+    hitArea.setInteractive({ useHandCursor: true });
+    this.container.add(hitArea);
+
+    // Hover effects
+    hitArea.on('pointerover', () => {
+      if (this.scorecard.isAvailable(category.id)) {
+        this.container.bringToTop(background);
+        this.container.bringToTop(nameText);
+        this.container.bringToTop(potentialText);
+        this.container.bringToTop(scoreText);
+        this.container.bringToTop(hitArea);
+
+        if (this.isGauntletMode) {
+          background.setFillStyle(PALETTE.green[700]);
+          background.setStrokeStyle(2, PALETTE.green[400]);
+        } else {
+          background.setFillStyle(PANEL_COLORS.rowHover);
+          background.setStrokeStyle(2, PALETTE.green[500]);
+        }
+        this.events.emit('ui:categoryHover', { categoryId: category.id });
+      }
+    });
+
+    hitArea.on('pointerout', () => {
+      const cat = this.scorecard.getCategory(category.id);
+      if (cat && cat.score !== null) {
+        background.setFillStyle(PANEL_COLORS.rowFilled);
+        background.setStrokeStyle(0);
+        nameText.setColor(COLORS.TEXT_SECONDARY);
+      } else if (this.isGauntletMode && this.scorecard.isAvailable(category.id)) {
+        background.setFillStyle(PALETTE.green[900]);
+        background.setStrokeStyle(2, PALETTE.green[500], 0.8);
+        nameText.setColor(COLORS.TEXT_SUCCESS);
+      } else {
+        background.setFillStyle(rowColor);
+        background.setStrokeStyle(0);
+        nameText.setColor(COLORS.TEXT_PRIMARY);
+      }
+      this.events.emit('ui:categoryHover', { categoryId: null });
+    });
+
+    hitArea.on('pointerdown', () => {
+      if (this.scorecard.isAvailable(category.id)) {
+        this.events.emit('score:category', { categoryId: category.id, dice: this.currentDice });
+      }
+    });
+
+    // Store row reference
+    this.categoryRows.set(category.id, {
+      id: category.id,
+      nameText,
+      scoreText,
+      potentialText,
+      lockIcon,
+      background,
+      hitArea,
+      rowColor,
+    });
+
+    return y + height;
+  }
+
+  /** Add bonus row for two-column layout */
+  private addBonusRowTwoCol(y: number, colX: number, colWidth: number): number {
+    const height = this.rowHeight;
+
+    const background = this.scene.add.rectangle(colX, y, colWidth, height, PALETTE.gold[900], 0.4);
+    background.setOrigin(0, 0);
+    this.container.add(background);
+
+    const labelText = this.createText(colX + 8, y + height / 2, 'Bonus', {
+      fontSize: this.fontSize,
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TEXT_WARNING,
+    });
+    labelText.setOrigin(0, 0.5);
+    this.container.add(labelText);
+
+    // Progress: "12/63" style - positioned left of bonus value
+    this.bonusProgressText = this.createText(colX + colWidth - 75, y + height / 2, '0/63', {
+      fontSize: this.smallFontSize,
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TEXT_MUTED,
+    });
+    this.bonusProgressText.setOrigin(0.5, 0.5);
+    this.container.add(this.bonusProgressText);
+
+    // Bonus earned
+    this.bonusText = this.createText(colX + colWidth - 12, y + height / 2, '', {
+      fontSize: this.scoreFontSize,
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TEXT_SUCCESS,
+      fontStyle: 'bold',
+    });
+    this.bonusText.setOrigin(1, 0.5);
+    this.container.add(this.bonusText);
+
+    return y + height;
+  }
+
+  /** Add total row for two-column layout */
+  private addTotalRowTwoCol(y: number, colX: number, colWidth: number): number {
+    const height = this.totalRowHeight;
+
+    const divider = this.scene.add.rectangle(colX, y, colWidth, 1, PALETTE.green[500], 0.6);
+    divider.setOrigin(0, 0);
+    this.container.add(divider);
+
+    const labelText = this.createText(colX + 8, y + height / 2, 'TOTAL', {
+      fontSize: '15px',
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TEXT_SUCCESS,
+      fontStyle: 'bold',
+    });
+    labelText.setOrigin(0, 0.5);
+    this.container.add(labelText);
+
+    this.totalText = this.createText(colX + colWidth - 12, y + height / 2, '0', {
+      fontSize: '17px',
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TEXT_SUCCESS,
+      fontStyle: 'bold',
+    });
+    this.totalText.setOrigin(1, 0.5);
+    this.container.add(this.totalText);
+
+    // Category progress (shown when Blessing of Expansion is active)
+    this.categoryProgressText = this.createText(colX + colWidth / 2, y + height / 2 + 12, '', {
+      fontSize: '11px',
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TEXT_MUTED,
+    });
+    this.categoryProgressText.setOrigin(0.5, 0.5);
+    this.container.add(this.categoryProgressText);
+
+    return y + height;
+  }
+
+  /** Get row color based on section and parity */
+  private getRowColor(section: 'upper' | 'lower' | 'special', isEven: boolean): number {
+    if (section === 'special') {
+      return isEven ? PANEL_COLORS.specialRowEven : PANEL_COLORS.specialRowOdd;
+    } else if (section === 'upper') {
+      return isEven ? PANEL_COLORS.upperRowEven : PANEL_COLORS.upperRowOdd;
+    }
+    return isEven ? PANEL_COLORS.lowerRowEven : PANEL_COLORS.lowerRowOdd;
+  }
+
+  /** Get short category name for 2-column display */
+  private getShortCategoryName(id: CategoryId): string {
+    const shortNames: Record<string, string> = {
+      ones: '1s',
+      twos: '2s',
+      threes: '3s',
+      fours: '4s',
+      fives: '5s',
+      sixes: '6s',
+      threeOfAKind: '3 of Kind',
+      fourOfAKind: '4 of Kind',
+      fullHouse: 'Full House',
+      smallStraight: 'Sm Straight',
+      largeStraight: 'Lg Straight',
+      fiveDice: '5 Dice!',
+      chance: 'Chance',
+      // Special categories (Blessing of Expansion)
+      twoPair: 'Two Pair',
+      allOdd: 'All Odd',
+      allEven: 'All Even',
+      allHigh: 'All High',
+    };
+    return shortNames[id] || id;
+  }
+
+  /** Build single-column layout (original desktop layout) */
+  private buildSingleColumnContent(width: number, _height: number): void {
     const contentPadding = 6;
     const contentX = contentPadding;
     const contentWidth = width - contentPadding * 2;
@@ -405,7 +837,7 @@ export class ScorecardPanel {
       this.container.add(divider2);
       y += 3;
 
-      y = this.addSectionHeader('BLESSING BONUS', y, 'special');
+      y = this.addExpansionHeader(y, contentX, contentWidth);
       const specialCategories = this.scorecard.getSpecialSection();
       for (let i = 0; i < specialCategories.length; i++) {
         y = this.addCategoryRow(specialCategories[i], y, i % 2 === 0, 'special');
@@ -436,6 +868,38 @@ export class ScorecardPanel {
     });
     headerText.setOrigin(0, 0.5);
     this.container.add(headerText);
+
+    return y + height;
+  }
+
+  /** Expansion section header with helper text: "EXPANSION | Fill 13 of 17" */
+  private addExpansionHeader(y: number, x: number, width: number): number {
+    const height = this.headerHeight;
+
+    // Left accent bar
+    const accent = this.scene.add.rectangle(x, y, 4, height, PANEL_COLORS.specialBorder);
+    accent.setOrigin(0, 0);
+    this.container.add(accent);
+
+    // "EXPANSION" on left
+    const headerText = this.createText(x + 12, y + height / 2, 'EXPANSION', {
+      fontSize: this.smallFontSize,
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TEXT_WARNING,
+      fontStyle: 'bold',
+    });
+    headerText.setOrigin(0, 0.5);
+    this.container.add(headerText);
+
+    // "X/13 Scored" helper text on right (updates dynamically)
+    this.expansionProgressText = this.createText(x + width - 8, y + height / 2, '0/13 Scored', {
+      fontSize: this.smallFontSize,
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TEXT_WARNING,
+      fontStyle: 'bold',
+    });
+    this.expansionProgressText.setOrigin(1, 0.5);
+    this.container.add(this.expansionProgressText);
 
     return y + height;
   }
@@ -777,26 +1241,16 @@ export class ScorecardPanel {
       this.totalText.setText(this.scorecard.getTotal().toString());
     }
 
-    // Update category progress (shown when Blessing of Expansion is active)
+    // Category progress text is no longer shown
     if (this.categoryProgressText) {
-      if (this.hasExpansionBlessing) {
-        // Count filled vs total categories
-        const allCategories = this.scorecard.getCategories();
-        const totalCount = allCategories.length;
-        const filledCount = allCategories.filter(c => c.score !== null).length;
-        const remainingCount = totalCount - filledCount;
+      this.categoryProgressText.setVisible(false);
+    }
 
-        // Count upper section specifically for bonus planning
-        const upperIds = ['ones', 'twos', 'threes', 'fours', 'fives', 'sixes'];
-        const upperFilled = allCategories.filter(c => upperIds.includes(c.id) && c.score !== null).length;
-        const upperTotal = 6;
-
-        // Show remaining count and upper progress
-        this.categoryProgressText.setText(`${remainingCount} left (top: ${upperFilled}/${upperTotal})`);
-        this.categoryProgressText.setVisible(true);
-      } else {
-        this.categoryProgressText.setVisible(false);
-      }
+    // Update expansion progress text (X/13 Scored)
+    if (this.expansionProgressText && this.scorecard.isSpecialSectionEnabled()) {
+      const allCategories = this.scorecard.getCategories();
+      const filledCount = allCategories.filter(c => c.score !== null).length;
+      this.expansionProgressText.setText(`${filledCount}/13 Scored`);
     }
   }
 
@@ -810,7 +1264,6 @@ export class ScorecardPanel {
     this.gauntletPulseTweens.forEach(tween => tween.stop());
     this.gauntletPulseTweens.clear();
     this.isGauntletMode = false;
-    this.hasExpansionBlessing = false;
 
     for (const [, row] of this.categoryRows) {
       row.hitArea.setInteractive({ useHandCursor: true });

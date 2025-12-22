@@ -12,21 +12,38 @@ import {
   SIZES,
   PALETTE,
   COLORS,
+  getViewportMetrics,
 } from '@/config';
-import { resetGameProgression } from '@/systems/game-progression';
-import { resetBlessingManager } from '@/systems/blessings';
+import { resetGameProgression, debugSetMode, type GameMode } from '@/systems/game-progression';
+import { resetBlessingManager, debugSetBlessing } from '@/systems/blessings';
 import { createLogger } from '@/systems/logger';
 import { getSaveManager } from '@/systems/save-manager';
 import { DifficultyButton, FlickeringTitle, SpookyBackground } from '@/ui/menu';
 
 const log = createLogger('MenuScene');
 
+interface DebugSkipData {
+  debugSkipToMode?: number;
+  debugEnableExpansion?: boolean;
+}
+
 export class MenuScene extends Phaser.Scene {
   private menuMusic: Phaser.Sound.BaseSound | null = null;
   private difficultyButtons: DifficultyButton[] = [];
+  private debugSkipData: DebugSkipData | null = null;
 
   constructor() {
     super({ key: 'MenuScene' });
+  }
+
+  init(data?: DebugSkipData): void {
+    // Store debug skip data if provided
+    if (data?.debugSkipToMode) {
+      this.debugSkipData = data;
+      log.debug('Received debug skip data:', data);
+    } else {
+      this.debugSkipData = null;
+    }
   }
 
   preload(): void {
@@ -45,16 +62,39 @@ export class MenuScene extends Phaser.Scene {
   create(): void {
     log.log('create() called');
 
+    // Handle debug skip to mode
+    if (this.debugSkipData?.debugSkipToMode) {
+      this.debugStartGame(this.debugSkipData);
+      return;
+    }
+
     // Register shutdown handler
     this.events.once('shutdown', this.onShutdown, this);
 
     // Load and play menu music
     const playMenuMusic = () => {
-      if (this.cache.audio.exists('menu-music')) {
+      if (this.cache.audio.exists('menu-music') && !this.menuMusic) {
         this.menuMusic = this.sound.add('menu-music', { loop: true, volume: 0.4 });
-        this.menuMusic.play();
+
+        // Only play if not locked, otherwise wait for unlock
+        if (!this.sound.locked) {
+          this.menuMusic.play();
+          log.log('Menu music started');
+        }
       }
     };
+
+    // Handle locked audio context - set up listener FIRST
+    if (this.sound.locked) {
+      log.log('Audio context locked, waiting for user interaction...');
+      this.sound.once('unlocked', () => {
+        log.log('Audio context unlocked');
+        if (this.menuMusic && !this.menuMusic.isPlaying) {
+          this.menuMusic.play();
+          log.log('Menu music started after unlock');
+        }
+      });
+    }
 
     if (!this.cache.audio.exists('menu-music')) {
       this.load.audio('menu-music', 'sounds/menu.mp3');
@@ -64,36 +104,25 @@ export class MenuScene extends Phaser.Scene {
       playMenuMusic();
     }
 
-    // Handle locked audio context
-    if (this.sound.locked) {
-      this.sound.once('unlocked', () => {
-        if (this.menuMusic && !this.menuMusic.isPlaying) {
-          this.menuMusic.play();
-        }
-      });
-    }
-
     const { width, height } = this.cameras.main;
+    const metrics = getViewportMetrics(this);
+    const isMobile = metrics.isMobile;
+
+    // Font scaling for mobile - keep readable
+    const subtitleSize = isMobile ? '16px' : FONTS.SIZE_BODY;
+    const headerSize = isMobile ? '18px' : FONTS.SIZE_SUBHEADING;
 
     // All background effects (fog, skulls, dice, eyes, candles, wisps)
     new SpookyBackground(this);
 
-    // "MAIN MENU" header at the very top
-    const mainMenuLabel = this.createText(width / 2, 25, 'MAIN MENU', {
-      fontSize: FONTS.SIZE_TINY,
-      fontFamily: FONTS.FAMILY,
-      color: '#666677',
-      fontStyle: 'bold',
-    });
-    mainMenuLabel.setOrigin(0.5, 0.5);
-    mainMenuLabel.setAlpha(0.6);
-
-    // Flickering title
-    new FlickeringTitle(this, width / 2);
+    // Flickering title - position adjusted for mobile
+    const titleY = isMobile ? 65 : undefined; // FlickeringTitle uses default 85 on desktop
+    new FlickeringTitle(this, width / 2, titleY);
 
     // Subtitle with creepy effect
-    const subtitle = this.createText(width / 2, 145, 'Beat the clock. Break the curse.', {
-      fontSize: FONTS.SIZE_BODY,
+    const subtitleY = isMobile ? 125 : 145;
+    const subtitle = this.createText(width / 2, subtitleY, 'Beat the clock. Break the curse.', {
+      fontSize: subtitleSize,
       fontFamily: FONTS.FAMILY,
       color: '#aa88bb',
     });
@@ -110,8 +139,9 @@ export class MenuScene extends Phaser.Scene {
     });
 
     // Difficulty selection header with spooky styling
-    const selectGlow = this.createText(width / 2, 200, 'CHOOSE YOUR FATE', {
-      fontSize: FONTS.SIZE_SUBHEADING,
+    const selectY = isMobile ? 170 : 200;
+    const selectGlow = this.createText(width / 2, selectY, 'CHOOSE YOUR FATE', {
+      fontSize: headerSize,
       fontFamily: FONTS.FAMILY,
       color: '#440066',
       fontStyle: 'bold',
@@ -120,8 +150,8 @@ export class MenuScene extends Phaser.Scene {
     selectGlow.setAlpha(0.5);
     selectGlow.setBlendMode(Phaser.BlendModes.ADD);
 
-    const selectText = this.createText(width / 2, 200, 'CHOOSE YOUR FATE', {
-      fontSize: FONTS.SIZE_SUBHEADING,
+    const selectText = this.createText(width / 2, selectY, 'CHOOSE YOUR FATE', {
+      fontSize: headerSize,
       fontFamily: FONTS.FAMILY,
       color: '#aa66cc',
       fontStyle: 'bold',
@@ -138,9 +168,9 @@ export class MenuScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
 
-    // Create spooky difficulty buttons
-    const buttonStartY = 270;
-    const buttonSpacing = 95;
+    // Create spooky difficulty buttons - more spacing on desktop
+    const buttonStartY = isMobile ? 235 : 270;
+    const buttonSpacing = isMobile ? 82 : 110;
 
     this.difficultyButtons = [];
     DIFFICULTY_LIST.forEach((diffKey, index) => {
@@ -151,21 +181,34 @@ export class MenuScene extends Phaser.Scene {
         buttonStartY + index * buttonSpacing,
         config,
         index,
-        { onClick: (cfg) => this.startGame(cfg.key) }
+        { onClick: (cfg) => this.startGame(cfg.key) },
+        { metrics }
       );
       this.difficultyButtons.push(button);
     });
 
-    // High Scores Panel (bottom-left)
-    this.createHighScoresPanel(20, height - 180);
+    // High Scores Panel - centered on mobile, left-aligned on desktop
+    if (isMobile) {
+      const lastButtonY = buttonStartY + buttonSpacing * 2;
+      this.createHighScoresPanel((width - 170) / 2, lastButtonY + 90);
+    } else {
+      this.createHighScoresPanel(20, height - 180);
+    }
 
-    // Mode info at bottom - more visible with glow
+    // Mode info - positioned just below last button
+    const lastButtonY = buttonStartY + buttonSpacing * 2;
+    const modeInfoY = isMobile
+      ? lastButtonY + 65  // Below last button, above high scores
+      : lastButtonY + 80; // Right under buttons on desktop
+    const modeInfoSize = isMobile ? '15px' : FONTS.SIZE_BODY;
+    const modeInfoText = isMobile ? 'Score 250+ each curse' : '4 Curses await... Score 250+ to survive each';
+
     const modeInfoGlow = this.createText(
       width / 2,
-      height - 70,
-      '4 Curses await... Score 250+ to survive each',
+      modeInfoY,
+      modeInfoText,
       {
-        fontSize: FONTS.SIZE_BODY,
+        fontSize: modeInfoSize,
         fontFamily: FONTS.FAMILY,
         color: '#6622aa',
       }
@@ -176,10 +219,10 @@ export class MenuScene extends Phaser.Scene {
 
     const modeInfo = this.createText(
       width / 2,
-      height - 70,
-      '4 Curses await... Score 250+ to survive each',
+      modeInfoY,
+      modeInfoText,
       {
-        fontSize: FONTS.SIZE_BODY,
+        fontSize: modeInfoSize,
         fontFamily: FONTS.FAMILY,
         color: '#bb88dd',
       }
@@ -196,16 +239,17 @@ export class MenuScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
 
-    // Version
-    const credit = this.createText(width / 2, height - 35, 'v1.0', {
+    // Version - at very bottom with safe area
+    const versionY = height - 15 - metrics.safeArea.bottom;
+    const credit = this.createText(width / 2, versionY, 'v1.0', {
       fontSize: FONTS.SIZE_TINY,
       fontFamily: FONTS.FAMILY,
       color: '#555566',
     });
     credit.setOrigin(0.5, 0.5);
 
-    // Pulsing vignette effect
-    this.createPulsingVignette(width, height);
+    // Pulsing vignette effect (disabled on mobile)
+    this.createPulsingVignette(width, height, isMobile);
 
     // Fade in
     this.cameras.main.fadeIn(800, 0, 0, 0);
@@ -222,12 +266,17 @@ export class MenuScene extends Phaser.Scene {
     return text;
   }
 
-  private createPulsingVignette(width: number, height: number): void {
+  private createPulsingVignette(width: number, height: number, isMobile: boolean): void {
+    // Skip heavy vignette on mobile - too dark and covers content
+    if (isMobile) {
+      return;
+    }
+
     const vignette = this.add.graphics();
     vignette.fillStyle(0x000000, 1);
 
-    // Create vignette around edges
-    const thickness = 100;
+    // Create vignette around edges - scale with viewport
+    const thickness = Math.min(100, height * 0.12);
 
     // Top
     vignette.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0.8, 0.8, 0, 0);
@@ -237,13 +286,14 @@ export class MenuScene extends Phaser.Scene {
     vignette.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0, 0, 0.8, 0.8);
     vignette.fillRect(0, height - thickness, width, thickness);
 
-    // Corners with radial darkness
+    // Corners with radial darkness - scale with viewport
+    const cornerRadius = Math.min(250, Math.min(width, height) * 0.3);
     const cornerGraphics = this.add.graphics();
     cornerGraphics.fillStyle(0x000000, 0.5);
-    cornerGraphics.fillCircle(0, 0, 250);
-    cornerGraphics.fillCircle(width, 0, 250);
-    cornerGraphics.fillCircle(0, height, 250);
-    cornerGraphics.fillCircle(width, height, 250);
+    cornerGraphics.fillCircle(0, 0, cornerRadius);
+    cornerGraphics.fillCircle(width, 0, cornerRadius);
+    cornerGraphics.fillCircle(0, height, cornerRadius);
+    cornerGraphics.fillCircle(width, height, cornerRadius);
 
     // Pulse the vignette
     this.tweens.add({
@@ -273,8 +323,18 @@ export class MenuScene extends Phaser.Scene {
 
     // Outer glow (matches difficulty button style)
     const outerGlow = this.add.rectangle(centerX, centerY, panelWidth + 16, panelHeight + 16, 0x000000, 0);
-    outerGlow.setStrokeStyle(6, PALETTE.purple[500], 0.15);
+    outerGlow.setStrokeStyle(SIZES.GLOW_STROKE_MEDIUM, PALETTE.purple[500], 0.15);
     outerGlow.setDepth(panelDepth);
+
+    // Pulse animation for glow
+    this.tweens.add({
+      targets: outerGlow,
+      alpha: 0.25,
+      duration: SIZES.ANIM_PULSE,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
 
     // Background shadow
     const bgShadow = this.add.rectangle(centerX + 3, centerY + 3, panelWidth, panelHeight, PALETTE.neutral[900], 0.5);
@@ -282,7 +342,7 @@ export class MenuScene extends Phaser.Scene {
 
     // Main background
     const bg = this.add.rectangle(centerX, centerY, panelWidth, panelHeight, PALETTE.purple[900], 0.95);
-    bg.setStrokeStyle(2, PALETTE.purple[500], 0.7);
+    bg.setStrokeStyle(SIZES.PANEL_BORDER_WIDTH, PALETTE.purple[500], 0.7);
     bg.setDepth(panelDepth);
 
     // Corner accents (matching difficulty button style)
@@ -453,6 +513,31 @@ export class MenuScene extends Phaser.Scene {
     this.cameras.main.once('camerafadeoutcomplete', () => {
       this.scene.start('GameplayScene', { difficulty });
     });
+  }
+
+  /**
+   * DEBUG: Start game directly at a specific mode
+   * Used by debug skip-to-mode feature
+   */
+  private debugStartGame(data: DebugSkipData): void {
+    const mode = data.debugSkipToMode as GameMode;
+
+    log.debug(`DEBUG: Starting game at mode ${mode}, expansion=${data.debugEnableExpansion}`);
+
+    // Reset and set up progression
+    resetGameProgression();
+    resetBlessingManager();
+
+    // Set the target mode
+    debugSetMode(mode);
+
+    // Enable expansion blessing for modes 2-4
+    if (data.debugEnableExpansion) {
+      debugSetBlessing('expansion');
+    }
+
+    // Start game immediately without fanfare
+    this.scene.start('GameplayScene', { difficulty: 'normal' });
   }
 
   private onShutdown(): void {

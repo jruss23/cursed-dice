@@ -108,6 +108,28 @@
   <h1>Audio Test Page</h1>
   <p>Test and compare audio files before stitching.</p>
 
+  <!-- Warning Siren -->
+  <h2>Warning Siren (Time Alerts)</h2>
+  <div class="section">
+    <p style="font-size: 12px; color: #888; margin-bottom: 15px;">
+      Plays at 60s, 30s, and 10s remaining. Base sound is a police siren - we transform it to be lower and spookier.
+    </p>
+    <div class="base-files">
+      <div class="base-file">
+        <label>Original Siren</label>
+        <audio controls src="sounds/Police_signal.wav"></audio>
+        <small style="display: block; margin-top: 4px; color: #888;">Raw file (obnoxious!)</small>
+      </div>
+      <div class="base-file">
+        <label>Processed (In-Game)</label>
+        <audio controls src="sounds/siren_warning.wav"></audio>
+        <small style="display: block; margin-top: 4px; color: #888;">
+          3 octaves down, 3.2x speed (ffmpeg)
+        </small>
+      </div>
+    </div>
+  </div>
+
   <!-- Base Source Files -->
   <h2>Source Files</h2>
   <div class="section">

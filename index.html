@@ -2,9 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Cursed Dice</title>
     <style>
+        /* Safe area insets as CSS variables for JS access */
+        :root {
+            --sat: env(safe-area-inset-top);
+            --sab: env(safe-area-inset-bottom);
+            --sal: env(safe-area-inset-left);
+            --sar: env(safe-area-inset-right);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -27,11 +35,18 @@
             min-height: 100vh;
             min-height: 100dvh;
             font-family: Arial, sans-serif;
+            padding: 0;
+            margin: 0;
         }
 
         #game-container {
             opacity: 0;
             transition: opacity 0.15s ease-out;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh; /* Use dynamic viewport height for mobile */
+            max-width: 1200px;
+            max-height: 800px; /* Increased from 700 */
         }
 
         #game-container.ready {

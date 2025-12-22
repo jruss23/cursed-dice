@@ -190,3 +190,16 @@ export function resetBlessingManager(): void {
 export function hasBlessingManager(): boolean {
   return instance !== null;
 }
+
+/**
+ * DEBUG: Set a blessing as chosen without going through Mode 1
+ * Used for debug skip-to-mode feature
+ */
+export function debugSetBlessing(blessingId: BlessingId): void {
+  const manager = getBlessingManager();
+  // Access private state for debug purposes
+  const state = (manager as unknown as { state: BlessingManagerState }).state;
+  state.chosenBlessingId = blessingId;
+  state.hasChosen = true;
+  log.debug(`DEBUG: Set blessing to ${blessingId}`);
+}

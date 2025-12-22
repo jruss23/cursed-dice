@@ -4,7 +4,7 @@
  */
 
 import Phaser from 'phaser';
-import { FONTS, PALETTE, COLORS, SIZES } from '@/config';
+import { FONTS, PALETTE, COLORS, SIZES, getViewportMetrics } from '@/config';
 
 export interface EndScreenConfig {
   passed: boolean;
@@ -31,6 +31,7 @@ export class EndScreenOverlay {
   private overlay: Phaser.GameObjects.Rectangle;
   private panel: Phaser.GameObjects.Container;
   private tweens: Phaser.Tweens.Tween[] = [];
+  private isMobile: boolean = false;
 
   constructor(
     scene: Phaser.Scene,
@@ -39,14 +40,16 @@ export class EndScreenOverlay {
   ) {
     this.scene = scene;
     const { width, height } = this.scene.cameras.main;
+    const metrics = getViewportMetrics(scene);
+    this.isMobile = metrics.isMobile;
 
     // Dark overlay
     this.overlay = this.scene.add.rectangle(width / 2, height / 2, width, height, PALETTE.purple[900], 0.95);
     this.overlay.setDepth(100);
 
-    // Panel dimensions
-    const panelWidth = 400;
-    const panelHeight = 340;
+    // Panel dimensions - responsive for mobile
+    const panelWidth = this.isMobile ? Math.min(340, width - 30) : 400;
+    const panelHeight = this.isMobile ? 300 : 340;
     const panelX = (width - panelWidth) / 2;
     const panelY = (height - panelHeight) / 2;
 
@@ -261,15 +264,16 @@ export class EndScreenOverlay {
     showBlessingChoice: boolean,
     callbacks: EndScreenCallbacks
   ): void {
-    const buttonY = 280;
+    const buttonY = this.isMobile ? 250 : 280;
+    const buttonOffset = this.isMobile ? 70 : 90;
 
     if (isRunComplete) {
       // Victory - single menu button (centered, primary style)
       this.createButton(panelWidth / 2, buttonY, 'NEW GAME', callbacks.onNewGame, 'primary');
     } else if (passed) {
       // Passed - quit (danger) left, continue (primary) right
-      this.createButton(panelWidth / 2 - 90, buttonY, 'QUIT', callbacks.onQuit, 'danger');
-      this.createButton(panelWidth / 2 + 90, buttonY, 'CONTINUE', () => {
+      this.createButton(panelWidth / 2 - buttonOffset, buttonY, 'QUIT', callbacks.onQuit, 'danger');
+      this.createButton(panelWidth / 2 + buttonOffset, buttonY, 'CONTINUE', () => {
         if (showBlessingChoice) {
           // Fade out just the panel, keep dark overlay for smooth transition
           this.fadeOutPanel(() => {
@@ -281,8 +285,8 @@ export class EndScreenOverlay {
       }, 'primary');
     } else {
       // Failed - quit (danger) left, try again (warning) right
-      this.createButton(panelWidth / 2 - 90, buttonY, 'QUIT', callbacks.onQuit, 'danger');
-      this.createButton(panelWidth / 2 + 90, buttonY, 'TRY AGAIN', callbacks.onTryAgain, 'warning');
+      this.createButton(panelWidth / 2 - buttonOffset, buttonY, 'QUIT', callbacks.onQuit, 'danger');
+      this.createButton(panelWidth / 2 + buttonOffset, buttonY, 'TRY AGAIN', callbacks.onTryAgain, 'warning');
     }
   }
 
@@ -293,8 +297,8 @@ export class EndScreenOverlay {
     onClick: () => void,
     style: ButtonStyle = 'primary'
   ): void {
-    const btnWidth = 150;
-    const btnHeight = 44;
+    const btnWidth = this.isMobile ? 120 : 150;
+    const btnHeight = this.isMobile ? 36 : 44;
 
     // Style configurations
     const styles = {

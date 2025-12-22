@@ -231,3 +231,12 @@ export function resetGameProgression(): void {
     instance = new GameProgressionManager();
   }
 }
+
+/**
+ * DEBUG: Set the current mode directly (for testing)
+ */
+export function debugSetMode(mode: GameMode): void {
+  const manager = getGameProgression();
+  (manager as unknown as { state: ProgressionState }).state.currentMode = mode;
+  log.debug(`DEBUG: Set mode to ${mode}`);
+}

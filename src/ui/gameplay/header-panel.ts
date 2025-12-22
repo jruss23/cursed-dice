@@ -4,7 +4,7 @@
  */
 
 import Phaser from 'phaser';
-import { FONTS, PALETTE, COLORS } from '@/config';
+import { FONTS, PALETTE, COLORS, SIZES, type ViewportMetrics } from '@/config';
 
 export interface HeaderPanelConfig {
   currentMode: number;
@@ -13,6 +13,8 @@ export interface HeaderPanelConfig {
   timeRemaining: number;
   passThreshold: number;
   compact?: boolean;
+  /** Viewport metrics for responsive sizing */
+  metrics?: ViewportMetrics;
 }
 
 export class HeaderPanel {
@@ -31,12 +33,29 @@ export class HeaderPanel {
   }
 
   private build(centerX: number, config: HeaderPanelConfig): void {
-    const { currentMode, modeName, totalScore, timeRemaining, passThreshold, compact = false } = config;
+    const { currentMode, modeName, totalScore, timeRemaining, passThreshold, compact = false, metrics } = config;
 
-    const panelWidth = compact ? 340 : 420;
-    const panelHeight = compact ? 110 : 140;
+    // Responsive sizing based on viewport
+    const isMobile = metrics?.isMobile ?? false;
+    const viewportWidth = metrics?.width ?? 1200;
+    const scale = metrics?.scale ?? 1;
+
+    // Panel width: constrained by viewport, smaller on mobile
+    const baseWidth = compact ? 340 : 420;
+    const panelWidth = Math.min(baseWidth, viewportWidth - 20);
+
+    // Panel height: much smaller on mobile
+    const panelHeight = isMobile ? (compact ? 70 : 85) : (compact ? 110 : 140);
+
     const panelX = centerX - panelWidth / 2;
-    const panelY = 15;
+    const panelY = (metrics?.safeArea.top ?? 0) + 10;
+
+    // Font scaling for mobile
+    const fontScale = Math.max(0.75, Math.min(1, scale));
+    const smallLabelSize = `${Math.round((isMobile ? 12 : 11) * fontScale)}px`;
+    const valueSize = `${Math.round((isMobile ? 32 : 24) * fontScale)}px`;
+    const timerSize = `${Math.round(isMobile ? 24 : 44)}px`;
+    const thresholdSize = `${Math.round((isMobile ? 13 : 14) * fontScale)}px`;
 
     this.container.setPosition(panelX, panelY);
 
@@ -53,7 +72,7 @@ export class HeaderPanel {
       panelWidth, panelHeight,
       PALETTE.purple[900], 0.92
     );
-    panelBg.setStrokeStyle(2, PALETTE.purple[500], 0.7);
+    panelBg.setStrokeStyle(SIZES.PANEL_BORDER_WIDTH, PALETTE.purple[500], 0.7);
     this.container.add(panelBg);
 
     // Corner accents
@@ -76,12 +95,17 @@ export class HeaderPanel {
       this.container.add(accent);
     });
 
-    // === TOP ROW: Curse # | Mode Title | Run Total ===
-    const topY = 25;
+    // === SIDE COLUMNS: Curse # (left) | Run Total (right) ===
+    const sideInset = Math.max(40, panelWidth * 0.12); // Proportional side columns
+
+    // On mobile, center the side sections vertically; on desktop use top positioning
+    const sideCenterY = isMobile ? panelHeight / 2 : 25;
+    const labelOffset = isMobile ? -14 : -8;
+    const valueOffset = isMobile ? 10 : 12;
 
     // Left: Curse number
-    const curseLabel = this.createText(50, topY - 8, 'CURSE', {
-      fontSize: '11px',
+    const curseLabel = this.createText(sideInset, sideCenterY + labelOffset, 'CURSE', {
+      fontSize: smallLabelSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SECONDARY,
       fontStyle: 'bold',
@@ -89,8 +113,8 @@ export class HeaderPanel {
     curseLabel.setOrigin(0.5, 0.5);
     this.container.add(curseLabel);
 
-    const curseNum = this.createText(50, topY + 12, `${currentMode}/4`, {
-      fontSize: '24px',
+    const curseNum = this.createText(sideInset, sideCenterY + valueOffset, `${currentMode}/4`, {
+      fontSize: valueSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
       fontStyle: 'bold',
@@ -98,9 +122,11 @@ export class HeaderPanel {
     curseNum.setOrigin(0.5, 0.5);
     this.container.add(curseNum);
 
-    // Center: Mode title
+    // Center: Mode title (top on mobile)
+    const topY = isMobile ? 16 : 25;
+    const titleFontSize = isMobile ? `${Math.round(14 * fontScale)}px` : FONTS.SIZE_SUBHEADING;
     const title = this.createText(panelWidth / 2, topY, modeName, {
-      fontSize: FONTS.SIZE_SUBHEADING,
+      fontSize: titleFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
       fontStyle: 'bold',
@@ -109,8 +135,8 @@ export class HeaderPanel {
     this.container.add(title);
 
     // Right: Run total
-    const totalLabel = this.createText(panelWidth - 50, topY - 8, 'TOTAL', {
-      fontSize: '11px',
+    const totalLabel = this.createText(panelWidth - sideInset, sideCenterY + labelOffset, 'TOTAL', {
+      fontSize: smallLabelSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SECONDARY,
       fontStyle: 'bold',
@@ -118,8 +144,8 @@ export class HeaderPanel {
     totalLabel.setOrigin(0.5, 0.5);
     this.container.add(totalLabel);
 
-    this.totalScoreText = this.createText(panelWidth - 50, topY + 12, `${totalScore}`, {
-      fontSize: '24px',
+    this.totalScoreText = this.createText(panelWidth - sideInset, sideCenterY + valueOffset, `${totalScore}`, {
+      fontSize: valueSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
       fontStyle: 'bold',
@@ -128,9 +154,9 @@ export class HeaderPanel {
     this.container.add(this.totalScoreText);
 
     // === MIDDLE: Timer ===
-    const timerY = 70;
+    const timerY = isMobile ? 38 : 70;
     this.timerGlow = this.createText(panelWidth / 2, timerY, this.formatTime(timeRemaining), {
-      fontSize: '44px',
+      fontSize: timerSize,
       fontFamily: FONTS.FAMILY,
       color: '#226622',
       fontStyle: 'bold',
@@ -141,7 +167,7 @@ export class HeaderPanel {
     this.container.add(this.timerGlow);
 
     this.timerText = this.createText(panelWidth / 2, timerY, this.formatTime(timeRemaining), {
-      fontSize: '44px',
+      fontSize: timerSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TIMER_SAFE,
       fontStyle: 'bold',
@@ -150,10 +176,10 @@ export class HeaderPanel {
     this.container.add(this.timerText);
 
     // === BOTTOM ROW: Threshold (centered) ===
-    const bottomY = 115;
+    const bottomY = isMobile ? panelHeight - 12 : 115;
 
     const thresholdText = this.createText(panelWidth / 2, bottomY, `Need ${passThreshold}+ to advance`, {
-      fontSize: FONTS.SIZE_SMALL,
+      fontSize: thresholdSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_WARNING,
     });

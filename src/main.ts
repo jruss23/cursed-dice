@@ -4,7 +4,7 @@
  */
 
 import Phaser from 'phaser';
-import { DEV, CANVAS, COLORS } from '@/config';
+import { DEV, COLORS } from '@/config';
 import { createLogger } from '@/systems/logger';
 import { MenuScene } from '@/scenes/MenuScene';
 import { GameplayScene } from '@/scenes/GameplayScene';
@@ -55,11 +55,14 @@ const phaserConfig: Phaser.Types.Core.GameConfig = {
   parent: 'game-container',
   backgroundColor: COLORS.BG_DARK,
   scale: {
-    mode: Phaser.Scale.FIT,
+    mode: Phaser.Scale.RESIZE, // Resize canvas to match viewport for true responsiveness
     autoCenter: Phaser.Scale.CENTER_BOTH,
-    width: CANVAS.WIDTH,
-    height: CANVAS.HEIGHT,
-    expandParent: false, // Don't modify parent container
+    width: '100%',  // Fill container width
+    height: '100%', // Fill container height
+    min: {
+      width: 320,  // Minimum supported width
+      height: 480, // Minimum supported height
+    },
   },
   render: {
     antialias: true,

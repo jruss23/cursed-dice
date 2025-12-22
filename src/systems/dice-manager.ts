@@ -5,7 +5,7 @@
  */
 
 import Phaser from 'phaser';
-import { COLORS, SIZES, FONTS, GAME_RULES, PALETTE } from '@/config';
+import { COLORS, SIZES, FONTS, GAME_RULES, PALETTE, type ScaledSizes, getViewportMetrics } from '@/config';
 import { GameEventEmitter } from './game-events';
 import { createLogger } from './logger';
 
@@ -37,40 +37,28 @@ interface DiceSprite {
   originalY: number;
 }
 
-// Pip positions for each die value
-const PIP_POSITIONS: Record<number, { x: number; y: number }[]> = {
+/** Pip position multipliers (normalized to pip offset) */
+const PIP_LAYOUT: Record<number, { x: number; y: number }[]> = {
   1: [{ x: 0, y: 0 }],
-  2: [
-    { x: -SIZES.DICE_PIP_OFFSET, y: -SIZES.DICE_PIP_OFFSET },
-    { x: SIZES.DICE_PIP_OFFSET, y: SIZES.DICE_PIP_OFFSET },
-  ],
-  3: [
-    { x: -SIZES.DICE_PIP_OFFSET, y: -SIZES.DICE_PIP_OFFSET },
-    { x: 0, y: 0 },
-    { x: SIZES.DICE_PIP_OFFSET, y: SIZES.DICE_PIP_OFFSET },
-  ],
-  4: [
-    { x: -SIZES.DICE_PIP_OFFSET, y: -SIZES.DICE_PIP_OFFSET },
-    { x: SIZES.DICE_PIP_OFFSET, y: -SIZES.DICE_PIP_OFFSET },
-    { x: -SIZES.DICE_PIP_OFFSET, y: SIZES.DICE_PIP_OFFSET },
-    { x: SIZES.DICE_PIP_OFFSET, y: SIZES.DICE_PIP_OFFSET },
-  ],
-  5: [
-    { x: -SIZES.DICE_PIP_OFFSET, y: -SIZES.DICE_PIP_OFFSET },
-    { x: SIZES.DICE_PIP_OFFSET, y: -SIZES.DICE_PIP_OFFSET },
-    { x: 0, y: 0 },
-    { x: -SIZES.DICE_PIP_OFFSET, y: SIZES.DICE_PIP_OFFSET },
-    { x: SIZES.DICE_PIP_OFFSET, y: SIZES.DICE_PIP_OFFSET },
-  ],
-  6: [
-    { x: -SIZES.DICE_PIP_OFFSET, y: -SIZES.DICE_PIP_OFFSET },
-    { x: -SIZES.DICE_PIP_OFFSET, y: 0 },
-    { x: -SIZES.DICE_PIP_OFFSET, y: SIZES.DICE_PIP_OFFSET },
-    { x: SIZES.DICE_PIP_OFFSET, y: -SIZES.DICE_PIP_OFFSET },
-    { x: SIZES.DICE_PIP_OFFSET, y: 0 },
-    { x: SIZES.DICE_PIP_OFFSET, y: SIZES.DICE_PIP_OFFSET },
-  ],
+  2: [{ x: -1, y: -1 }, { x: 1, y: 1 }],
+  3: [{ x: -1, y: -1 }, { x: 0, y: 0 }, { x: 1, y: 1 }],
+  4: [{ x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: 1, y: 1 }],
+  5: [{ x: -1, y: -1 }, { x: 1, y: -1 }, { x: 0, y: 0 }, { x: -1, y: 1 }, { x: 1, y: 1 }],
+  6: [{ x: -1, y: -1 }, { x: -1, y: 0 }, { x: -1, y: 1 }, { x: 1, y: -1 }, { x: 1, y: 0 }, { x: 1, y: 1 }],
 };
+
+/** Get pip positions for a value with scaled offset */
+function getPipPositions(value: number, pipOffset: number): { x: number; y: number }[] {
+  return PIP_LAYOUT[value].map(p => ({ x: p.x * pipOffset, y: p.y * pipOffset }));
+}
+
+/** Current dice size configuration */
+interface DiceSizeConfig {
+  size: number;
+  spacing: number;
+  pipRadius: number;
+  pipOffset: number;
+}
 
 // =============================================================================
 // DICE MANAGER
@@ -84,6 +72,14 @@ export class DiceManager {
   private rollButton: Phaser.GameObjects.Container | null = null;
   private rerollText: Phaser.GameObjects.Text | null = null;
   private enabled: boolean = true;
+
+  // Current size configuration (responsive)
+  private sizeConfig: DiceSizeConfig = {
+    size: SIZES.DICE_SIZE,
+    spacing: SIZES.DICE_SPACING,
+    pipRadius: SIZES.DICE_PIP_RADIUS,
+    pipOffset: SIZES.DICE_PIP_OFFSET,
+  };
 
   constructor(scene: Phaser.Scene, events: GameEventEmitter) {
     this.scene = scene;
@@ -205,14 +201,30 @@ export class DiceManager {
 
   /**
    * Create the dice UI at the specified position
+   * @param scaledSizes Optional scaled sizes for responsive layout
    */
-  createUI(centerX: number, centerY: number): void {
-    const diceAreaWidth = (GAME_RULES.DICE_COUNT - 1) * SIZES.DICE_SPACING;
+  createUI(centerX: number, centerY: number, scaledSizes?: ScaledSizes): void {
+    // Get viewport metrics for responsive adjustments
+    const metrics = getViewportMetrics(this.scene);
+    const isMobile = metrics.isMobile;
+
+    // Apply scaled sizes if provided
+    if (scaledSizes) {
+      this.sizeConfig = {
+        size: scaledSizes.dice,
+        spacing: scaledSizes.diceSpacing,
+        pipRadius: scaledSizes.pipRadius,
+        pipOffset: scaledSizes.pipOffset,
+      };
+    }
+
+    const diceAreaWidth = (GAME_RULES.DICE_COUNT - 1) * this.sizeConfig.spacing;
     const startX = centerX - diceAreaWidth / 2;
 
-    // Pulsing tip text above dice (like scorecard helper)
-    const tipText = this.scene.add.text(centerX, centerY - 70, 'Click dice to lock', {
-      fontSize: FONTS.SIZE_SMALL,
+    // Pulsing tip text above dice - tighter on mobile
+    const tipOffset = isMobile ? 45 : 70;
+    const tipText = this.scene.add.text(centerX, centerY - tipOffset, 'Tap dice to lock', {
+      fontSize: isMobile ? '13px' : FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SUCCESS,
     });
@@ -231,32 +243,35 @@ export class DiceManager {
 
     // Create dice sprites
     for (let i = 0; i < GAME_RULES.DICE_COUNT; i++) {
-      const x = startX + i * SIZES.DICE_SPACING;
+      const x = startX + i * this.sizeConfig.spacing;
       this.sprites.push(this.createDieSprite(x, centerY, i));
     }
 
-    // Create controls panel below dice (more spacing)
-    this.createControlsPanel(centerX, centerY + 140);
+    // Create controls panel below dice - leave room for lock icons/checkmarks
+    // Mobile: 85px gives space for icons while keeping scorecard visible
+    const controlsOffset = isMobile ? 99 : 140;
+    this.createControlsPanel(centerX, centerY + controlsOffset, isMobile);
   }
 
   /**
    * Create the controls panel with rerolls and roll button
    */
-  private createControlsPanel(centerX: number, centerY: number): void {
-    const panelWidth = 260;
-    const panelHeight = 70;
+  private createControlsPanel(centerX: number, centerY: number, isMobile: boolean = false): void {
+    const panelWidth = isMobile ? 280 : 260;
+    const panelHeight = isMobile ? 60 : 84; // mobile +18px, desktop +14px taller
     const panelX = centerX - panelWidth / 2;
     const panelY = centerY - panelHeight / 2;
 
     // Panel container
     const panel = this.scene.add.container(panelX, panelY);
 
-    // Panel background with glow
+    // Panel background with glow (stroked outline like difficulty buttons)
     const outerGlow = this.scene.add.rectangle(
       panelWidth / 2, panelHeight / 2,
-      panelWidth + SIZES.PANEL_GLOW_SIZE, panelHeight + SIZES.PANEL_GLOW_SIZE,
-      PALETTE.purple[500], 0.06
+      panelWidth + 16, panelHeight + 16,
+      0x000000, 0
     );
+    outerGlow.setStrokeStyle(SIZES.GLOW_STROKE_MEDIUM, PALETTE.purple[500], 0.1);
     panel.add(outerGlow);
 
     const panelBg = this.scene.add.rectangle(
@@ -289,45 +304,71 @@ export class DiceManager {
     });
 
     // Two-column layout: Rerolls (left) | Roll button (right)
-    const leftColX = 65;
-    const rightColX = panelWidth - 75;
+    const leftColX = isMobile ? 55 : 65;
+    const rightColX = panelWidth - (isMobile ? 70 : 75);
     const rowY = panelHeight / 2;
 
-    // Rerolls display (left column)
-    const rerollsLabel = this.scene.add.text(leftColX, rowY - 12, 'REROLLS', {
-      fontSize: FONTS.SIZE_TINY,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_SECONDARY,
-    });
-    rerollsLabel.setOrigin(0.5, 0.5);
-    rerollsLabel.setResolution(window.devicePixelRatio * 2);
-    panel.add(rerollsLabel);
+    // Rerolls display (left column) - horizontal on mobile
+    if (isMobile) {
+      // Compact horizontal layout: "REROLLS: 2"
+      const rerollsLabel = this.scene.add.text(leftColX - 25, rowY, 'REROLLS:', {
+        fontSize: '12px',
+        fontFamily: FONTS.FAMILY,
+        color: COLORS.TEXT_SECONDARY,
+      });
+      rerollsLabel.setOrigin(0, 0.5);
+      rerollsLabel.setResolution(window.devicePixelRatio * 2);
+      panel.add(rerollsLabel);
 
-    this.rerollText = this.scene.add.text(leftColX, rowY + 12, `${this.state.rerollsLeft}`, {
-      fontSize: FONTS.SIZE_HEADING,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_SUCCESS,
-      fontStyle: 'bold',
-    });
-    this.rerollText.setOrigin(0.5, 0.5);
-    this.rerollText.setResolution(window.devicePixelRatio * 2);
-    panel.add(this.rerollText);
+      this.rerollText = this.scene.add.text(leftColX + 45, rowY, `${this.state.rerollsLeft}`, {
+        fontSize: '18px',
+        fontFamily: FONTS.FAMILY,
+        color: COLORS.TEXT_SUCCESS,
+        fontStyle: 'bold',
+      });
+      this.rerollText.setOrigin(0, 0.5);
+      this.rerollText.setResolution(window.devicePixelRatio * 2);
+      panel.add(this.rerollText);
+    } else {
+      // Desktop: stacked vertical layout
+      const rerollsLabel = this.scene.add.text(leftColX, rowY - 12, 'REROLLS', {
+        fontSize: FONTS.SIZE_TINY,
+        fontFamily: FONTS.FAMILY,
+        color: COLORS.TEXT_SECONDARY,
+      });
+      rerollsLabel.setOrigin(0.5, 0.5);
+      rerollsLabel.setResolution(window.devicePixelRatio * 2);
+      panel.add(rerollsLabel);
+
+      this.rerollText = this.scene.add.text(leftColX, rowY + 12, `${this.state.rerollsLeft}`, {
+        fontSize: FONTS.SIZE_HEADING,
+        fontFamily: FONTS.FAMILY,
+        color: COLORS.TEXT_SUCCESS,
+        fontStyle: 'bold',
+      });
+      this.rerollText.setOrigin(0.5, 0.5);
+      this.rerollText.setResolution(window.devicePixelRatio * 2);
+      panel.add(this.rerollText);
+    }
 
     // Vertical divider
-    const divider = this.scene.add.rectangle(panelWidth / 2, rowY, 1, panelHeight - 24, PALETTE.purple[500], 0.3);
+    const divider = this.scene.add.rectangle(panelWidth / 2, rowY, 1, panelHeight - (isMobile ? 16 : 24), PALETTE.purple[500], 0.3);
     panel.add(divider);
 
-    // Roll button (right column)
+    // Roll button (right column) - 32px on mobile to match scorecard touch targets
+    const btnWidth = isMobile ? 100 : 110;
+    const btnHeight = isMobile ? 32 : 44;
+
     const btnGlow = this.scene.add.rectangle(
       rightColX, rowY,
-      120, 52,
+      btnWidth + 10, btnHeight + 8,
       PALETTE.green[500], 0.12
     );
     panel.add(btnGlow);
 
     const rollBtn = this.scene.add.rectangle(
       rightColX, rowY,
-      110, 44,
+      btnWidth, btnHeight,
       PALETTE.green[700], 0.95
     );
     rollBtn.setStrokeStyle(2, PALETTE.green[500]);
@@ -335,7 +376,7 @@ export class DiceManager {
     panel.add(rollBtn);
 
     const rollText = this.scene.add.text(rightColX, rowY, 'ROLL', {
-      fontSize: FONTS.SIZE_BODY,
+      fontSize: isMobile ? '15px' : FONTS.SIZE_BODY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SUCCESS,
       fontStyle: 'bold',
@@ -364,11 +405,11 @@ export class DiceManager {
     this.rollButton.setData('bg', rollBtn);
     this.rollButton.setData('glow', btnGlow);
 
-    // Subtle glow pulse
+    // Glow pulse animation (matches scorecard style)
     this.scene.tweens.add({
       targets: outerGlow,
-      alpha: 0.12,
-      duration: 2500,
+      alpha: 0.15,
+      duration: 2000,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
@@ -377,7 +418,7 @@ export class DiceManager {
 
   private createDieSprite(x: number, y: number, index: number): DiceSprite {
     const container = this.scene.add.container(x, y);
-    const size = SIZES.DICE_SIZE;
+    const size = this.sizeConfig.size;
 
     // Shadow beneath die (centered)
     const shadow = this.scene.add.ellipse(0, size / 2 + 6, size * 0.85, size * 0.25, 0x000000, 0.4);
@@ -841,9 +882,9 @@ export class DiceManager {
   private drawPips(graphics: Phaser.GameObjects.Graphics, value: number, color: number): void {
     graphics.clear();
     graphics.fillStyle(color, 1);
-    const positions = PIP_POSITIONS[value] || [];
+    const positions = getPipPositions(value, this.sizeConfig.pipOffset);
     for (const pos of positions) {
-      graphics.fillCircle(pos.x, pos.y, SIZES.DICE_PIP_RADIUS);
+      graphics.fillCircle(pos.x, pos.y, this.sizeConfig.pipRadius);
     }
   }
 

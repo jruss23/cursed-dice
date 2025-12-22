@@ -1,6 +1,6 @@
 /**
  * Dice Scorecard System
- * Handles all 16 categories (13 base + 3 special) and scoring logic
+ * Handles all 17 categories (13 base + 4 special) and scoring logic
  * Special section unlocked via "Blessing of Expansion" after Mode 1
  */
 
@@ -28,7 +28,8 @@ export type CategoryId =
   // Special section (Blessing of Expansion)
   | 'twoPair'
   | 'allOdd'
-  | 'allEven';
+  | 'allEven'
+  | 'allHigh';
 
 export interface Category {
   id: CategoryId;
@@ -132,6 +133,13 @@ function isAllOdd(dice: number[]): boolean {
  */
 function isAllEven(dice: number[]): boolean {
   return dice.every((d) => d % 2 === 0);
+}
+
+/**
+ * Check if all dice show high numbers (4, 5, 6)
+ */
+function isAllHigh(dice: number[]): boolean {
+  return dice.every((d) => d >= 4);
 }
 
 /**
@@ -260,31 +268,41 @@ function createCategories(): Map<CategoryId, Category> {
   });
 
   // Special section (Blessing of Expansion - unlocked after Mode 1)
+  // All expansion categories score fixed 45 pts when condition is met
   categories.set('twoPair', {
     id: 'twoPair',
     name: 'Two Pair',
-    description: '2 different pairs = sum',
+    description: '2 different pairs = 45 pts',
     section: 'special',
     score: null,
-    calculate: (dice) => (hasTwoPair(dice) ? sumAll(dice) : 0),
+    calculate: (dice) => (hasTwoPair(dice) ? 45 : 0),
   });
 
   categories.set('allOdd', {
     id: 'allOdd',
     name: 'All Odd',
-    description: 'All 1s, 3s, 5s = sum',
+    description: 'All dice 1, 3, or 5 = 45 pts',
     section: 'special',
     score: null,
-    calculate: (dice) => (isAllOdd(dice) ? sumAll(dice) : 0),
+    calculate: (dice) => (isAllOdd(dice) ? 45 : 0),
   });
 
   categories.set('allEven', {
     id: 'allEven',
     name: 'All Even',
-    description: 'All 2s, 4s, 6s = sum',
+    description: 'All dice 2, 4, or 6 = 45 pts',
     section: 'special',
     score: null,
-    calculate: (dice) => (isAllEven(dice) ? sumAll(dice) : 0),
+    calculate: (dice) => (isAllEven(dice) ? 45 : 0),
+  });
+
+  categories.set('allHigh', {
+    id: 'allHigh',
+    name: 'All High',
+    description: 'All dice 4, 5, or 6 = 45 pts',
+    section: 'special',
+    score: null,
+    calculate: (dice) => (isAllHigh(dice) ? 45 : 0),
   });
 
   return categories;

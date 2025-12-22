@@ -38,7 +38,6 @@
     "vite-tsconfig-paths": "^5.1.4"
   },
   "dependencies": {
-    "phaser": "^3.90.0",
-    "tone": "^15.1.22"
+    "phaser": "^3.90.0"
   }
 }
