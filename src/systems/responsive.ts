@@ -12,9 +12,9 @@ import Phaser from 'phaser';
 // =============================================================================
 
 export interface ViewportMetrics {
-  /** Canvas width in pixels */
+  /** Canvas width in logical pixels (not DPR-scaled) */
   width: number;
-  /** Canvas height in pixels */
+  /** Canvas height in logical pixels (not DPR-scaled) */
   height: number;
   /** Aspect ratio (width / height) */
   aspectRatio: number;
@@ -24,6 +24,8 @@ export interface ViewportMetrics {
   isMobile: boolean;
   /** True if width < 400 */
   isSmallMobile: boolean;
+  /** True if height < 700 (iPhone X Safari, etc.) */
+  isShortScreen: boolean;
   /** Scale factor relative to 1200px base (0.3 - 1.0) */
   scale: number;
   /** Safe area insets for notched devices */
@@ -121,13 +123,22 @@ export const RESPONSIVE = {
 
 /**
  * Get current viewport metrics from a Phaser scene
+ * Converts DPR-scaled canvas dimensions back to logical pixels for layout
  */
 export function getViewportMetrics(scene: Phaser.Scene): ViewportMetrics {
-  const { width, height } = scene.cameras.main;
+  // Get DPR (same calculation as main.ts)
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+
+  // Canvas dimensions are DPR-scaled, convert back to logical pixels
+  const { width: rawWidth, height: rawHeight } = scene.cameras.main;
+  const width = rawWidth / dpr;
+  const height = rawHeight / dpr;
+
   const aspectRatio = width / height;
   const isPortrait = height > width * 0.9;
   const isMobile = width < BREAKPOINTS.MOBILE;
   const isSmallMobile = width < BREAKPOINTS.SMALL_MOBILE;
+  const isShortScreen = height < 700; // iPhone X Safari ~640px
   const scale = Math.max(0.3, Math.min(1.0, width / BASE_WIDTH));
   const safeArea = getSafeAreaInsets();
 
@@ -138,6 +149,7 @@ export function getViewportMetrics(scene: Phaser.Scene): ViewportMetrics {
     isPortrait,
     isMobile,
     isSmallMobile,
+    isShortScreen,
     scale,
     safeArea,
   };

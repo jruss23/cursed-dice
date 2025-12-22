@@ -388,10 +388,26 @@ export class GameplayScene extends Phaser.Scene {
       metrics,
     });
 
-    // Calculate dynamic positions based on mobile/tablet
-    // Mobile: No select prompt (self-evident), scorecard moved up for more space
-    const diceY = metrics.isMobile ? 164 : 250;
-    const scorecardY = metrics.isMobile ? 325 : 380; // +40px down on mobile
+    // Calculate dynamic positions based on available height
+    // Short screens (iPhone X Safari ~640px): compress layout to fit
+    // Normal mobile: standard compact layout
+    // Tablet/desktop: more spacious layout
+    let diceY: number;
+    let scorecardY: number;
+
+    if (metrics.isShortScreen) {
+      // Very compact for short screens (iPhone X Safari)
+      diceY = metrics.safeArea.top + 130;
+      scorecardY = diceY + 145;
+    } else if (metrics.isMobile) {
+      // Standard mobile compact
+      diceY = 164;
+      scorecardY = 325;
+    } else {
+      // Tablet/desktop - more spacious
+      diceY = 250;
+      scorecardY = 380;
+    }
 
     // Dice area with scaled sizes
     this.diceCenterX = centerX;
