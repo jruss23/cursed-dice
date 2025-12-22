@@ -47,30 +47,25 @@ window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => 
 });
 
 // =============================================================================
-// HIGH-DPI / RETINA SUPPORT
+// RESPONSIVE CONFIGURATION
 // =============================================================================
 
-/**
- * Device pixel ratio - capped at 3 for performance
- * iPhone: 2-3x, Android: 1-4x, Desktop: typically 1-2x
- */
-const DPR = Math.min(window.devicePixelRatio || 1, 3);
-
-log.log(`Device pixel ratio: ${window.devicePixelRatio}, using: ${DPR}`);
+log.log(`Device pixel ratio: ${window.devicePixelRatio}`);
 
 /**
  * Phaser Game Configuration
- * Uses Scale.NONE with manual DPR handling for crisp retina graphics
+ * Uses Scale.FIT for proper sizing across devices
+ * Text sharpness handled via setResolution() in createText helper
  */
 const phaserConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.WEBGL,
   parent: 'game-container',
   backgroundColor: COLORS.BG_DARK,
   scale: {
-    mode: Phaser.Scale.NONE, // Manual scaling for retina support
-    width: window.innerWidth * DPR,
-    height: window.innerHeight * DPR,
-    zoom: 1 / DPR, // Counter-scale to fit viewport
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: window.innerWidth,
+    height: window.innerHeight,
   },
   render: {
     antialias: true,
@@ -94,13 +89,11 @@ const phaserConfig: Phaser.Types.Core.GameConfig = {
 const game = new Phaser.Game(phaserConfig);
 
 /**
- * Handle window resize - manually update canvas size for retina support
+ * Handle window resize - update game size to match viewport
  */
 const handleResize = () => {
-  const w = window.innerWidth * DPR;
-  const h = window.innerHeight * DPR;
-  game.scale.resize(w, h);
-  log.debug(`Resized to ${w}x${h} (logical: ${window.innerWidth}x${window.innerHeight})`);
+  game.scale.resize(window.innerWidth, window.innerHeight);
+  log.debug(`Resized to ${window.innerWidth}x${window.innerHeight}`);
 };
 
 window.addEventListener('resize', handleResize);

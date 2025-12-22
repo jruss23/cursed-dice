@@ -123,16 +123,10 @@ export const RESPONSIVE = {
 
 /**
  * Get current viewport metrics from a Phaser scene
- * Converts DPR-scaled canvas dimensions back to logical pixels for layout
+ * Camera dimensions are in logical pixels (Phaser handles DPR via resolution config)
  */
 export function getViewportMetrics(scene: Phaser.Scene): ViewportMetrics {
-  // Get DPR (same calculation as main.ts)
-  const dpr = Math.min(window.devicePixelRatio || 1, 3);
-
-  // Canvas dimensions are DPR-scaled, convert back to logical pixels
-  const { width: rawWidth, height: rawHeight } = scene.cameras.main;
-  const width = rawWidth / dpr;
-  const height = rawHeight / dpr;
+  const { width, height } = scene.cameras.main;
 
   const aspectRatio = width / height;
   const isPortrait = height > width * 0.9;
