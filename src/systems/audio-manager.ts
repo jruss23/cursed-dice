@@ -29,9 +29,9 @@ type Song = 'chill' | 'normal' | 'intense';
 
 /** Audio file paths (relative to assets/sounds/) */
 const SONGS: Record<Song, string> = {
-  chill: 'sounds/chill.mp3',
-  normal: 'sounds/normal.mp3',
-  intense: 'sounds/intense.mp3',
+  chill: 'sounds/chill.ogg',
+  normal: 'sounds/normal.ogg',
+  intense: 'sounds/intense.ogg',
 };
 
 /** Map difficulty to song file */
@@ -87,7 +87,7 @@ export class AudioManager {
     }
   }
 
-  /** Start playing music for a difficulty mode */
+  /** Start playing music for a difficulty mode (lazy loads the track) */
   async play(difficulty: Difficulty): Promise<void> {
     if (!this.scene) {
       log.error('AudioManager not initialized with scene');
@@ -109,9 +109,11 @@ export class AudioManager {
     this.lastTimeRemainingMs = this.totalDurationMs;
 
     const songName = DIFFICULTY_SONGS[difficulty];
-    const sound = this.sounds.get(songName);
+
+    // Lazy load the song for this difficulty
+    const sound = await this.loadSong(songName);
     if (!sound) {
-      log.error(`No sound for: ${songName}`);
+      log.error(`Failed to load song for: ${songName}`);
       return;
     }
 
@@ -131,8 +133,8 @@ export class AudioManager {
       const elapsedMs = this.totalDurationMs - timeRemainingMs;
       const seekPositionSec = elapsedMs / 1000;
 
-      // Phaser's WebAudioSound has seek method
-      if ('seek' in this.currentSound && typeof this.currentSound.seek === 'function') {
+      // Phaser's WebAudioSound has seek property (getter/setter)
+      if ('seek' in this.currentSound) {
         log.log(`Time skip detected: seeking to ${seekPositionSec.toFixed(1)}s`);
         (this.currentSound as Phaser.Sound.WebAudioSound).seek = seekPositionSec;
       }
@@ -220,48 +222,45 @@ export class AudioManager {
   // INTERNAL METHODS
   // ==========================================================================
 
-  private async loadSongs(): Promise<void> {
-    if (!this.scene) return;
+  /** Load a single song on demand (lazy loading) */
+  private async loadSong(songName: Song): Promise<Phaser.Sound.BaseSound | null> {
+    if (!this.scene) return null;
 
-    const songNames = Object.keys(SONGS) as Song[];
-    log.log(`Loading ${songNames.length} songs: ${songNames.join(', ')}`);
-
-    // Load all songs
-    for (const name of songNames) {
-      const key = `music-${name}`;
-
-      // Check if already loaded in cache
-      if (!this.scene.cache.audio.exists(key)) {
-        this.scene.load.audio(key, SONGS[name]);
-      }
+    // Already loaded?
+    if (this.sounds.has(songName)) {
+      return this.sounds.get(songName)!;
     }
 
-    // Wait for all to load
-    await new Promise<void>((resolve) => {
-      // Check if there are items queued to load
-      const hasItemsToLoad = this.scene!.load.list.size > 0;
-      if (hasItemsToLoad) {
+    const key = `music-${songName}`;
+    log.log(`Lazy loading: ${songName}`);
+
+    // Load if not in cache
+    if (!this.scene.cache.audio.exists(key)) {
+      this.scene.load.audio(key, SONGS[songName]);
+
+      // Wait for this song to load
+      await new Promise<void>((resolve) => {
         this.scene!.load.once('complete', () => resolve());
         this.scene!.load.start();
-      } else {
-        // All items were already cached
-        resolve();
-      }
-    });
-
-    // Create sound objects
-    for (const name of songNames) {
-      const key = `music-${name}`;
-      if (this.scene.cache.audio.exists(key)) {
-        const sound = this.scene.sound.add(key, { loop: true, volume: this.currentVolume });
-        this.sounds.set(name, sound);
-        log.log(`Loaded: ${name}`);
-      } else {
-        log.error(`Failed to load: ${name}`);
-      }
+      });
     }
 
-    log.log(`All songs loaded. Sounds: ${Array.from(this.sounds.keys()).join(', ')}`);
+    // Create sound object
+    if (this.scene.cache.audio.exists(key)) {
+      const sound = this.scene.sound.add(key, { loop: true, volume: this.currentVolume });
+      this.sounds.set(songName, sound);
+      log.log(`Loaded: ${songName}`);
+      return sound;
+    } else {
+      log.error(`Failed to load: ${songName}`);
+      return null;
+    }
+  }
+
+  /** @deprecated No longer preloads all songs - uses lazy loading instead */
+  private async loadSongs(): Promise<void> {
+    // Now a no-op - songs are loaded on demand in play()
+    log.log('AudioManager ready (lazy loading enabled)');
   }
 
   private stopAll(): void {

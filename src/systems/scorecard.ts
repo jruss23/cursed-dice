@@ -106,6 +106,43 @@ function sumAll(dice: number[]): number {
   return dice.reduce((sum, d) => sum + d, 0);
 }
 
+/**
+ * Generate all 5-dice subsets from 6 dice
+ * Used by Sixth Blessing to find the best 5 of 6 for each category
+ * Returns 6 possible combinations (dropping each die once)
+ */
+function get5of6Subsets(dice: number[]): number[][] {
+  if (dice.length !== 6) return [dice];
+
+  const subsets: number[][] = [];
+  for (let i = 0; i < 6; i++) {
+    // Create subset excluding index i
+    const subset = [...dice.slice(0, i), ...dice.slice(i + 1)];
+    subsets.push(subset);
+  }
+  return subsets;
+}
+
+/**
+ * Find the best score for a category across all 5-of-6 subsets
+ * Used by Sixth Blessing scoring
+ */
+function findBestScoreFor6Dice(dice: number[], calculate: (d: number[]) => number): { score: number; subset: number[] } {
+  const subsets = get5of6Subsets(dice);
+  let bestScore = -1;
+  let bestSubset = dice.slice(0, 5);
+
+  for (const subset of subsets) {
+    const score = calculate(subset);
+    if (score > bestScore) {
+      bestScore = score;
+      bestSubset = subset;
+    }
+  }
+
+  return { score: bestScore, subset: bestSubset };
+}
+
 // =============================================================================
 // SPECIAL SECTION DETECTION (Blessing of Expansion)
 // =============================================================================
@@ -412,14 +449,23 @@ export class Scorecard {
 
   /**
    * Calculate potential score for a category with given dice
+   * If 6 dice are passed (Sixth Blessing), finds the best 5 of 6 for this category
    */
   calculatePotential(id: CategoryId, dice: number[]): number {
     const cat = this.state.categories.get(id);
-    return cat ? cat.calculate(dice) : 0;
+    if (!cat) return 0;
+
+    // If 6 dice, find the best 5-of-6 subset for this category
+    if (dice.length === 6) {
+      return findBestScoreFor6Dice(dice, cat.calculate).score;
+    }
+
+    return cat.calculate(dice);
   }
 
   /**
    * Score a category with given dice
+   * If 6 dice are passed (Sixth Blessing), uses the best 5 of 6 for this category
    * Returns the score achieved, or -1 if category already filled
    */
   score(id: CategoryId, dice: number[]): number {
@@ -433,9 +479,22 @@ export class Scorecard {
       return -1;
     }
 
-    const points = cat.calculate(dice);
+    let points: number;
+    let usedDice: number[];
+
+    // If 6 dice, find the best 5-of-6 subset for this category
+    if (dice.length === 6) {
+      const result = findBestScoreFor6Dice(dice, cat.calculate);
+      points = result.score;
+      usedDice = result.subset;
+      log.log(`Sixth Blessing: best 5 of [${dice.join(', ')}] for "${id}" is [${usedDice.join(', ')}] = ${points}`);
+    } else {
+      points = cat.calculate(dice);
+      usedDice = dice;
+    }
+
     cat.score = points;
-    log.log(`Scored ${points} in "${id}" with dice [${dice.join(', ')}]`);
+    log.log(`Scored ${points} in "${id}" with dice [${usedDice.join(', ')}]`);
 
     // Check upper bonus
     this.checkUpperBonus();
@@ -448,6 +507,26 @@ export class Scorecard {
    */
   forceScore(id: CategoryId, dice: number[]): number {
     return this.score(id, dice);
+  }
+
+  /**
+   * Debug: overwrite a category score (ignores if already filled)
+   */
+  debugOverwriteScore(id: CategoryId, dice: number[]): number {
+    const cat = this.state.categories.get(id);
+    if (!cat) {
+      log.error(`debugOverwriteScore: unknown category "${id}"`);
+      return -1;
+    }
+
+    const points = cat.calculate(dice);
+    cat.score = points;
+    log.debug(`DEBUG: Overwrote "${id}" with ${points} using dice [${dice.join(', ')}]`);
+
+    // Recheck upper bonus
+    this.checkUpperBonus();
+
+    return points;
   }
 
   /**

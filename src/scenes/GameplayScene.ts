@@ -25,6 +25,7 @@ import {
   RESPONSIVE,
   getViewportMetrics,
   getScaledSizes,
+  getPortraitLayout,
   type ViewportMetrics,
   type ScaledSizes,
 } from '@/config';
@@ -55,9 +56,11 @@ import { BlessingChoicePanel } from '@/ui/blessing-choice-panel';
 const log = createLogger('GameplayScene');
 import { PauseMenu } from '@/ui/pause-menu';
 import { HeaderPanel, DebugPanel, EndScreenOverlay } from '@/ui/gameplay';
+import { SixthBlessingButton } from '@/ui/gameplay/sixth-blessing-button';
 import { ParticlePool } from '@/systems/particle-pool';
 import { createText } from '@/ui/ui-utils';
 import { DebugController } from '@/systems/debug-controller';
+import { SixthBlessing } from '@/systems/blessings/blessing-sixth';
 
 export class GameplayScene extends Phaser.Scene {
   // Core systems (created fresh each game)
@@ -72,6 +75,7 @@ export class GameplayScene extends Phaser.Scene {
   private headerPanel: HeaderPanel | null = null;
   private debugPanel: DebugPanel | null = null;
   private selectPrompt: Phaser.GameObjects.Text | null = null;
+  private sixthBlessingButton: SixthBlessingButton | null = null;
 
   // Game state
   private difficulty: Difficulty = 'normal';
@@ -159,7 +163,7 @@ export class GameplayScene extends Phaser.Scene {
 
   preload(): void {
     // Warning sound - pre-processed: 2 octaves down, 1.6x speed
-    this.load.audio('warning-sound', 'sounds/siren_warning.wav');
+    this.load.audio('warning-sound', 'sounds/siren_warning.ogg');
   }
 
   create(): void {
@@ -347,6 +351,7 @@ export class GameplayScene extends Phaser.Scene {
     this.scorecardPanel = new ScorecardPanel(this, this.scorecard, this.gameEvents, {
       x: scorecardX,
       y: scorecardY,
+      passThreshold: PASS_THRESHOLD,
     });
 
     // QUIT button - bottom left corner
@@ -377,6 +382,10 @@ export class GameplayScene extends Phaser.Scene {
       });
     }
 
+    // Get viewport-relative layout using Phaser's scale API
+    // Reference: https://rexrainbow.github.io/phaser3-rex-notes/docs/site/scalemanager/
+    const layout = getPortraitLayout(this);
+
     // Header panel (compact for portrait)
     this.headerPanel = new HeaderPanel(this, centerX, {
       currentMode: this.currentMode,
@@ -386,45 +395,27 @@ export class GameplayScene extends Phaser.Scene {
       passThreshold: PASS_THRESHOLD,
       compact: true,
       metrics,
+      compactHeight: layout.headerHeight,
     });
 
-    // Calculate dynamic positions based on available height
-    // Short screens (iPhone X Safari ~640px): compress layout to fit
-    // Normal mobile: standard compact layout
-    // Tablet/desktop: more spacious layout
-    let diceY: number;
-    let scorecardY: number;
-
-    if (metrics.isShortScreen) {
-      // Very compact for short screens (iPhone X Safari)
-      diceY = metrics.safeArea.top + 130;
-      scorecardY = diceY + 145;
-    } else if (metrics.isMobile) {
-      // Standard mobile compact
-      diceY = 164;
-      scorecardY = 325;
-    } else {
-      // Tablet/desktop - more spacious
-      diceY = 250;
-      scorecardY = 380;
-    }
-
-    // Dice area with scaled sizes
+    // Dice area with scaled sizes - use layout-calculated Y position
     this.diceCenterX = centerX;
-    this.createDicePanel(centerX, diceY, scaledSizes);
+    this.createDicePanel(centerX, layout.diceY, scaledSizes, layout.isUltraCompact);
 
     // Scorecard (centered below dice) - use two-column width on small screens
     const scorecardWidth = width < 900 ? RESPONSIVE.SCORECARD_WIDTH_TWO_COL : scaledSizes.scorecardWidth;
     const scorecardX = (width - scorecardWidth) / 2;
     this.scorecardPanel = new ScorecardPanel(this, this.scorecard, this.gameEvents, {
       x: scorecardX,
-      y: scorecardY,
+      y: layout.scorecardY,
       compact: true,
+      maxHeight: layout.scorecardHeight,
+      passThreshold: PASS_THRESHOLD,
     });
 
     // Select prompt - only show on tablet/desktop, not needed on mobile (self-evident)
     if (!metrics.isMobile) {
-      const promptY = scorecardY - 22;
+      const promptY = layout.scorecardY - 22;
       this.selectPrompt = createText(this, centerX, promptY, 'Tap a category to score', {
         fontSize: FONTS.SIZE_SMALL,
         fontFamily: FONTS.FAMILY,
@@ -547,13 +538,68 @@ export class GameplayScene extends Phaser.Scene {
    * Create the dice area with DiceManager
    * DiceManager handles: dice sprites, helper text, rerolls display, roll button
    */
-  private createDicePanel(centerX: number, centerY?: number, scaledSizes?: ScaledSizes): void {
+  private createDicePanel(
+    centerX: number,
+    centerY?: number,
+    scaledSizes?: ScaledSizes,
+    isUltraCompact?: boolean
+  ): void {
     const diceY = centerY ?? SIZES.LAYOUT_DICE_Y;
 
     // Create DiceManager and render its UI
     // DiceManager.createUI creates: dice, helper text, rerolls text, roll button
     this.diceManager = new DiceManager(this, this.gameEvents);
-    this.diceManager.createUI(centerX, diceY, scaledSizes);
+
+    // If sixth blessing is chosen, enable the blessing slot in controls panel
+    const hasSixthBlessing = this.blessingManager.getChosenBlessingId() === 'sixth';
+    if (hasSixthBlessing) {
+      this.diceManager.enableBlessingSlot();
+    }
+
+    this.diceManager.createUI(centerX, diceY, scaledSizes, isUltraCompact);
+
+    // Set up Sixth Blessing integration if that blessing is chosen
+    if (hasSixthBlessing) {
+      this.setupSixthBlessingIntegration();
+    }
+  }
+
+  /**
+   * Set up Sixth Blessing button and callbacks if that blessing is chosen
+   */
+  private setupSixthBlessingIntegration(): void {
+    const blessing = this.blessingManager.getActiveBlessing() as SixthBlessing | null;
+    if (!blessing) return;
+
+    log.log('Setting up Sixth Blessing integration');
+
+    // Get button position from DiceManager (in the controls panel)
+    const pos = this.diceManager.getBlessingButtonPosition();
+    if (!pos) {
+      log.warn('Could not get blessing button position');
+      return;
+    }
+
+    this.sixthBlessingButton = new SixthBlessingButton(
+      this,
+      this.gameEvents,
+      {
+        x: pos.x,
+        y: pos.y,
+        height: pos.height,
+        onActivate: () => {
+          // Activate blessing (uses a charge)
+          const success = blessing.activate();
+          if (success) {
+            // Show the 6th die
+            this.diceManager.activateSixthDie();
+          }
+          return success;
+        },
+        getCharges: () => blessing.getChargesRemaining(),
+        isActive: () => blessing.isActive(),
+      }
+    );
   }
 
   private createAnimatedBackground(width: number, height: number): void {
@@ -761,6 +807,15 @@ export class GameplayScene extends Phaser.Scene {
     if (points < 0) return; // Category already filled
 
     log.log(`Scored ${points} in ${categoryId}`);
+
+    // Deactivate Sixth Blessing if it was active (after scoring, not after rolling)
+    if (this.diceManager.isSixthDieActive()) {
+      const blessing = this.blessingManager.getActiveBlessing() as SixthBlessing | null;
+      if (blessing) {
+        blessing.deactivate();
+      }
+      this.diceManager.deactivateSixthDie();
+    }
 
     // Celebration effect!
     this.showScoreEffect(points);
@@ -1160,6 +1215,11 @@ export class GameplayScene extends Phaser.Scene {
     if (this.scorecardPanel) {
       this.scorecardPanel.destroy();
       this.scorecardPanel = null;
+    }
+
+    if (this.sixthBlessingButton) {
+      this.sixthBlessingButton.destroy();
+      this.sixthBlessingButton = null;
     }
 
     if (this.headerPanel) {

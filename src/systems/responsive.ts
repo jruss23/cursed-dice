@@ -62,6 +62,23 @@ export interface ScaledSizes {
 
 export type ScorecardLayout = 'single-column' | 'two-column';
 
+export interface PortraitLayout {
+  /** Header panel height */
+  headerHeight: number;
+  /** Y position for header panel center */
+  headerY: number;
+  /** Y position for dice center */
+  diceY: number;
+  /** Y position for controls panel center */
+  controlsY: number;
+  /** Y position for scorecard top */
+  scorecardY: number;
+  /** Available height for scorecard */
+  scorecardHeight: number;
+  /** Whether layout is in ultra-compact mode */
+  isUltraCompact: boolean;
+}
+
 // =============================================================================
 // CONSTANTS
 // =============================================================================
@@ -333,4 +350,74 @@ export function getUsableWidth(metrics: ViewportMetrics): number {
  */
 export function getUsableHeight(metrics: ViewportMetrics): number {
   return metrics.height - metrics.safeArea.top - metrics.safeArea.bottom;
+}
+
+// =============================================================================
+// PORTRAIT LAYOUT (Mobile-First)
+// =============================================================================
+
+/**
+ * Calculate portrait layout using Phaser's scale.gameSize
+ * Uses percentage-based positioning with min/max constraints
+ *
+ * Layout zones (top to bottom):
+ * - Safe area top padding
+ * - Header panel (12% of usable height, min 55px, max 75px)
+ * - Dice zone (dice + controls, ~28% of usable height)
+ * - Scorecard (remaining space)
+ * - Bottom padding + safe area
+ *
+ * Reference: https://rexrainbow.github.io/phaser3-rex-notes/docs/site/scalemanager/
+ */
+export function getPortraitLayout(scene: Phaser.Scene): PortraitLayout {
+  // Use Phaser's scale API for actual visible dimensions
+  const { height } = scene.scale.gameSize;
+  const safeArea = getSafeAreaInsets();
+
+  // Usable height after safe areas
+  const usableHeight = height - safeArea.top - safeArea.bottom;
+
+  // Ultra-compact mode for very short screens (iPhone SE with browser chrome ~550px)
+  const isUltraCompact = usableHeight < 580;
+
+  // Header zone: compact 3-column layout (curse | timer | total)
+  // Ultra-compact: 40px, normal mobile: 48px
+  const headerHeight = isUltraCompact ? 40 : Math.min(50, Math.max(44, usableHeight * 0.08));
+
+  // Dice zone sizing
+  const diceVisualHeight = isUltraCompact ? 70 : 80; // dice + lock icons
+  const controlsHeight = isUltraCompact ? 50 : 60;   // controls panel
+  const diceZoneGap = isUltraCompact ? 8 : 12;       // gap between dice and controls
+  const diceZoneTotal = diceVisualHeight + controlsHeight + diceZoneGap;
+
+  // Bottom padding (for quit buttons, etc.)
+  const bottomPadding = isUltraCompact ? 35 : 45;
+
+  // Calculate positions from top down
+  const headerY = safeArea.top + headerHeight / 2 + 5;
+  const headerEndY = safeArea.top + headerHeight + 10;
+
+  // Dice area starts after header
+  const diceZoneStartY = headerEndY + (isUltraCompact ? 5 : 10);
+  const diceY = diceZoneStartY + diceVisualHeight / 2;
+  const controlsY = diceZoneStartY + diceVisualHeight + diceZoneGap + controlsHeight / 2;
+
+  // Scorecard starts after dice zone
+  const scorecardStartY = diceZoneStartY + diceZoneTotal + (isUltraCompact ? 8 : 15);
+
+  // Scorecard gets remaining space
+  const scorecardHeight = Math.max(
+    200, // minimum usable height
+    height - safeArea.bottom - bottomPadding - scorecardStartY
+  );
+
+  return {
+    headerHeight,
+    headerY,
+    diceY,
+    controlsY,
+    scorecardY: scorecardStartY,
+    scorecardHeight,
+    isUltraCompact,
+  };
 }

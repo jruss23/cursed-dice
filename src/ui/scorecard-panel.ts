@@ -15,6 +15,8 @@ export interface ScorecardPanelConfig {
   width?: number;
   height?: number;
   compact?: boolean; // Smaller row heights for portrait/mobile layout
+  maxHeight?: number; // Maximum height constraint from viewport layout
+  passThreshold?: number; // Score threshold to display next to total (e.g., 250)
   // Note: layout is auto-determined based on viewport size, not passed in
 }
 
@@ -72,6 +74,10 @@ export class ScorecardPanel {
   private layout: ScorecardLayout = 'single-column'; // Layout mode
   private isGauntletMode: boolean = false; // Mode 4: limited categories available
   private gauntletPulseTweens: Map<CategoryId, Phaser.Tweens.Tween> = new Map(); // Pulsing effects by category
+  private maxHeight: number | undefined; // Maximum height constraint from viewport
+  private calculatedRowHeight: number = RESPONSIVE.ROW_HEIGHT_MOBILE; // Dynamically calculated row height
+  private passThreshold: number = 250; // Score threshold to display next to total
+  private isInputLocked: boolean = false; // Prevents multi-click exploit after scoring
 
   // UI elements
   private totalText: Phaser.GameObjects.Text | null = null;
@@ -81,7 +87,6 @@ export class ScorecardPanel {
   private expansionProgressText: Phaser.GameObjects.Text | null = null; // Shows "X/13 Scored" in expansion header
 
   // Tween tracking
-  private outerGlowTween: Phaser.Tweens.Tween | null = null;
   private flashTweens: Phaser.Tweens.Tween[] = [];
 
   // Bound event handlers for cleanup
@@ -98,7 +103,7 @@ export class ScorecardPanel {
     return this.layout === 'two-column' && this.scorecard.isSpecialSectionEnabled();
   }
   private get rowHeight(): number {
-    if (this.layout === 'two-column') return RESPONSIVE.ROW_HEIGHT_MOBILE; // 36px for touch - never reduce
+    if (this.layout === 'two-column') return this.calculatedRowHeight; // Dynamic based on available height
     return this.isCompact ? 22 : 24;
   }
   private get headerHeight(): number {
@@ -166,6 +171,45 @@ export class ScorecardPanel {
   private determineLayout(): ScorecardLayout {
     const { width } = this.scene.cameras.main;
     return width < 900 ? 'two-column' : 'single-column';
+  }
+
+  /**
+   * Calculate optimal row height based on available maxHeight
+   * Only applies to two-column layout
+   */
+  private calculateRowHeight(): void {
+    if (!this.isTwoColumn || this.maxHeight === undefined) {
+      this.calculatedRowHeight = RESPONSIVE.ROW_HEIGHT_MOBILE; // Default 36px
+      return;
+    }
+
+    // Calculate fixed overhead (non-row elements)
+    const padding = this.needsCompactLayout ? RESPONSIVE.COMPACT_CONTENT_PADDING : 6;
+    const title = this.needsCompactLayout ? RESPONSIVE.COMPACT_TITLE_HEIGHT : 28;
+    const gap = this.needsCompactLayout ? RESPONSIVE.COMPACT_TITLE_GAP : 2;
+    const header = this.needsCompactLayout ? RESPONSIVE.COMPACT_HEADER_HEIGHT : 24;
+    const total = this.needsCompactLayout ? RESPONSIVE.COMPACT_TOTAL_HEIGHT : RESPONSIVE.ROW_HEIGHT_MOBILE;
+    const bottom = this.needsCompactLayout ? RESPONSIVE.COMPACT_BOTTOM_PADDING : 8;
+    const divider = this.needsCompactLayout ? RESPONSIVE.COMPACT_DIVIDER_HEIGHT : 6;
+
+    // Fixed overhead for main layout
+    let fixedHeight = padding + title + gap + header + total + bottom;
+
+    // Number of rows needed
+    let numRows = 7; // Max of upper(6)+bonus or lower(7)
+
+    // If expansion is enabled, add its overhead
+    if (this.scorecard.isSpecialSectionEnabled()) {
+      fixedHeight += divider + header;
+      numRows += 2; // 2 rows for 2x2 grid
+    }
+
+    // Calculate available height for rows
+    const availableForRows = this.maxHeight - fixedHeight;
+    const idealRowHeight = Math.floor(availableForRows / numRows);
+
+    // Clamp between minimum touch target (28px) and normal (36px)
+    this.calculatedRowHeight = Math.max(28, Math.min(RESPONSIVE.ROW_HEIGHT_MOBILE, idealRowHeight));
   }
 
   /**
@@ -240,12 +284,20 @@ export class ScorecardPanel {
     this.scorecard = scorecard;
     this.events = events;
     this.isCompact = config.compact ?? false;
+    this.maxHeight = config.maxHeight;
+    this.passThreshold = config.passThreshold ?? 250;
 
     // Determine layout based on viewport - single source of truth
     this.layout = this.determineLayout();
 
+    // Calculate optimal row height based on available space (must be before calculateHeight)
+    this.calculateRowHeight();
+
     // Initialize bound event handlers
-    this.onDiceRolled = ({ values }) => this.setDice(values);
+    this.onDiceRolled = ({ values }) => {
+      this.unlockInput(); // Re-enable category selection after roll
+      this.setDice(values);
+    };
     this.onLockedCategories = (locked: Set<CategoryId>) => this.setLockedCategories(locked);
     this.onBlessingExpansion = () => {
       this.rebuild();
@@ -288,13 +340,10 @@ export class ScorecardPanel {
   private rebuild(): void {
     // Recalculate layout using single source of truth
     this.layout = this.determineLayout();
+    this.calculateRowHeight(); // Recalculate row heights for new content
     this.config.width = this.calculateWidth();
 
     // Stop all running tweens
-    if (this.outerGlowTween) {
-      this.outerGlowTween.stop();
-      this.outerGlowTween = null;
-    }
     this.gauntletPulseTweens.forEach(tween => tween.stop());
     this.gauntletPulseTweens.clear();
     this.flashTweens.forEach(tween => {
@@ -314,6 +363,7 @@ export class ScorecardPanel {
     this.container.removeAll(true);
 
     // Recalculate height with special section now enabled
+    // Row heights are already calculated to fit within maxHeight
     this.config.height = this.calculateHeight();
 
     // Rebuild UI
@@ -373,23 +423,8 @@ export class ScorecardPanel {
     }
   }
 
-  /** Build the shared panel frame (glow, background, corners) */
+  /** Build the shared panel frame (background, corners) */
   private buildPanelFrame(width: number, height: number): void {
-    // Outer glow (stroke only, pulses)
-    const outerGlow = this.scene.add.rectangle(width / 2, height / 2, width + 20, height + 20, COLORS.OVERLAY, 0);
-    outerGlow.setStrokeStyle(SIZES.GLOW_STROKE_MEDIUM, PALETTE.purple[500], 0.1);
-    this.container.add(outerGlow);
-
-    // Glow pulse animation
-    this.outerGlowTween = this.scene.tweens.add({
-      targets: outerGlow,
-      alpha: 0.15,
-      duration: SIZES.ANIM_PULSE,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-
     // Shadow behind panel
     const shadow = this.scene.add.rectangle(width / 2 + 4, height / 2 + 4, width, height, COLORS.SHADOW, 0.5);
     this.container.add(shadow);
@@ -625,7 +660,9 @@ export class ScorecardPanel {
     });
 
     hitArea.on('pointerdown', () => {
+      if (this.isInputLocked) return; // Prevent multi-click exploit
       if (this.scorecard.isAvailable(category.id)) {
+        this.lockInput(); // Lock immediately on selection
         this.events.emit('score:category', { categoryId: category.id, dice: this.currentDice });
       }
     });
@@ -649,29 +686,21 @@ export class ScorecardPanel {
   private addBonusRowTwoCol(y: number, colX: number, colWidth: number): number {
     const height = this.rowHeight;
 
-    const background = this.scene.add.rectangle(colX, y, colWidth, height, PALETTE.gold[900], 0.4);
+    const background = this.scene.add.rectangle(colX, y, colWidth, height, PALETTE.gold[800], 0.3);
     background.setOrigin(0, 0);
     this.container.add(background);
 
-    const labelText = createText(this.scene,colX + 8, y + height / 2, 'Bonus', {
-      fontSize: this.fontSize,
+    // Dynamic label: "Upper (0) >= 63" - progress is inline
+    this.bonusProgressText = createText(this.scene, colX + 8, y + height / 2, 'Upper (0) >= 63', {
+      fontSize: FONTS.SIZE_TINY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_WARNING,
     });
-    labelText.setOrigin(0, 0.5);
-    this.container.add(labelText);
-
-    // Progress: "12/63" style - positioned left of bonus value
-    this.bonusProgressText = createText(this.scene,colX + colWidth - 75, y + height / 2, '0/63', {
-      fontSize: this.smallFontSize,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_MUTED,
-    });
-    this.bonusProgressText.setOrigin(0.5, 0.5);
+    this.bonusProgressText.setOrigin(0, 0.5);
     this.container.add(this.bonusProgressText);
 
-    // Bonus earned
-    this.bonusText = createText(this.scene,colX + colWidth - 12, y + height / 2, '', {
+    // Bonus earned - shows "35" only when earned
+    this.bonusText = createText(this.scene, colX + colWidth - 8, y + height / 2, '', {
       fontSize: this.scoreFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SUCCESS,
@@ -691,7 +720,7 @@ export class ScorecardPanel {
     divider.setOrigin(0, 0);
     this.container.add(divider);
 
-    const labelText = createText(this.scene,colX + 8, y + height / 2, 'TOTAL', {
+    const labelText = createText(this.scene, colX + 8, y + height / 2, 'TOTAL', {
       fontSize: FONTS.SIZE_LABEL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SUCCESS,
@@ -700,7 +729,10 @@ export class ScorecardPanel {
     labelText.setOrigin(0, 0.5);
     this.container.add(labelText);
 
-    this.totalText = createText(this.scene,colX + colWidth - 12, y + height / 2, '0', {
+    // Right side: combined "0/250" display
+    const rightEdge = colX + colWidth - 8;
+
+    this.totalText = createText(this.scene, rightEdge, y + height / 2, `0/${this.passThreshold}`, {
       fontSize: FONTS.SIZE_BODY_SM,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SUCCESS,
@@ -708,15 +740,6 @@ export class ScorecardPanel {
     });
     this.totalText.setOrigin(1, 0.5);
     this.container.add(this.totalText);
-
-    // Category progress (shown when Blessing of Expansion is active)
-    this.categoryProgressText = createText(this.scene,colX + colWidth / 2, y + height / 2 + 12, '', {
-      fontSize: FONTS.SIZE_MICRO,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_MUTED,
-    });
-    this.categoryProgressText.setOrigin(0.5, 0.5);
-    this.container.add(this.categoryProgressText);
 
     return y + height;
   }
@@ -1006,8 +1029,9 @@ export class ScorecardPanel {
 
     // Click to score
     hitArea.on('pointerdown', () => {
+      if (this.isInputLocked) return; // Prevent multi-click exploit
       if (this.scorecard.isAvailable(category.id)) {
-        // Emit event for scoring - let the scene handle it
+        this.lockInput(); // Lock immediately on selection
         this.events.emit('score:category', { categoryId: category.id, dice: this.currentDice });
       }
     });
@@ -1077,7 +1101,7 @@ export class ScorecardPanel {
     divider.setOrigin(0, 0);
     this.container.add(divider);
 
-    const labelText = createText(this.scene,cx + 14, y + height / 2, 'TOTAL', {
+    const labelText = createText(this.scene, cx + 14, y + height / 2, 'TOTAL', {
       fontSize: this.isCompact ? FONTS.SIZE_TINY : FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SUCCESS,
@@ -1086,23 +1110,24 @@ export class ScorecardPanel {
     labelText.setOrigin(0, 0.5);
     this.container.add(labelText);
 
-    this.totalText = createText(this.scene,cx + cw - 24, y + height / 2, '0', {
+    // Threshold indicator (e.g., "/ 250")
+    const thresholdText = createText(this.scene, cx + cw - 60, y + height / 2, `/ ${this.passThreshold}`, {
+      fontSize: this.isCompact ? FONTS.SIZE_TINY : FONTS.SIZE_SMALL,
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TEXT_WARNING,
+    });
+    thresholdText.setOrigin(0, 0.5);
+    this.container.add(thresholdText);
+
+    // Total score (left of threshold)
+    this.totalText = createText(this.scene, cx + cw - 65, y + height / 2, '0', {
       fontSize: this.isCompact ? FONTS.SIZE_SMALL : FONTS.SIZE_BUTTON,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SUCCESS,
       fontStyle: 'bold',
     });
-    this.totalText.setOrigin(0.5, 0.5);
+    this.totalText.setOrigin(1, 0.5);
     this.container.add(this.totalText);
-
-    // Category progress (shown in Gauntlet mode) - positioned between TOTAL and score
-    this.categoryProgressText = createText(this.scene,cx + cw / 2, y + height / 2, '', {
-      fontSize: this.isCompact ? FONTS.SIZE_NANO : FONTS.SIZE_MICRO,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_MUTED,
-    });
-    this.categoryProgressText.setOrigin(0.5, 0.5);
-    this.container.add(this.categoryProgressText);
 
     return y + height;
   }
@@ -1218,16 +1243,49 @@ export class ScorecardPanel {
     const bonus = this.scorecard.getUpperBonus();
 
     if (this.bonusProgressText && this.bonusText) {
-      // Always show progress
-      this.bonusProgressText.setText(`${upperSubtotal}/63`);
-      this.bonusProgressText.setColor(upperSubtotal >= 63 ? COLORS.TEXT_SUCCESS : COLORS.TEXT_MUTED);
+      // Check if all upper categories are filled
+      const upperCategories = this.scorecard.getUpperSection();
+      const allUppersFilled = upperCategories.every(c => c.score !== null);
 
-      // Show +35 when earned
-      this.bonusText.setText(bonus > 0 ? '+35' : '');
+      // Two-column: inline format "Upper (X) >= 63"
+      if (this.layout === 'two-column') {
+        this.bonusProgressText.setText(`Upper (${upperSubtotal}) >= 63`);
+        // Keep label gold/amber - only the score value turns green
+        this.bonusProgressText.setColor(COLORS.TEXT_WARNING);
+        // Show 35 if earned, 0 if all filled but not earned, empty if still in progress
+        if (bonus > 0) {
+          this.bonusText.setText('35');
+          this.bonusText.setColor(COLORS.TEXT_SUCCESS);
+        } else if (allUppersFilled) {
+          this.bonusText.setText('0');
+          this.bonusText.setColor(COLORS.TEXT_PRIMARY);
+        } else {
+          this.bonusText.setText('');
+        }
+      } else {
+        // Single-column: progress format "X/63"
+        this.bonusProgressText.setText(`${upperSubtotal}/63`);
+        this.bonusProgressText.setColor(upperSubtotal >= 63 ? COLORS.TEXT_SUCCESS : COLORS.TEXT_MUTED);
+        if (bonus > 0) {
+          this.bonusText.setText('+35');
+          this.bonusText.setColor(COLORS.TEXT_SUCCESS);
+        } else if (allUppersFilled) {
+          this.bonusText.setText('0');
+          this.bonusText.setColor(COLORS.TEXT_PRIMARY);
+        } else {
+          this.bonusText.setText('');
+        }
+      }
     }
 
     if (this.totalText) {
-      this.totalText.setText(this.scorecard.getTotal().toString());
+      const total = this.scorecard.getTotal();
+      // Two-column uses combined "score/threshold" format
+      if (this.layout === 'two-column') {
+        this.totalText.setText(`${total}/${this.passThreshold}`);
+      } else {
+        this.totalText.setText(total.toString());
+      }
     }
 
     // Category progress text is no longer shown
@@ -1323,6 +1381,21 @@ export class ScorecardPanel {
   }
 
   /**
+   * Lock input to prevent multi-click exploit after scoring
+   * Call this immediately after a category is selected
+   */
+  lockInput(): void {
+    this.isInputLocked = true;
+  }
+
+  /**
+   * Unlock input after dice are rolled
+   */
+  unlockInput(): void {
+    this.isInputLocked = false;
+  }
+
+  /**
    * Disable all interactivity (used when game ends)
    */
   disableInteractivity(): void {
@@ -1343,10 +1416,6 @@ export class ScorecardPanel {
     // Stop all tweens
     this.gauntletPulseTweens.forEach(tween => tween.stop());
     this.gauntletPulseTweens.clear();
-    if (this.outerGlowTween) {
-      this.outerGlowTween.stop();
-      this.outerGlowTween = null;
-    }
     this.flashTweens.forEach(tween => {
       if (tween.isPlaying()) tween.stop();
     });

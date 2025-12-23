@@ -346,7 +346,7 @@ export const SIZES = {
 // =============================================================================
 
 export const FONTS = {
-  FAMILY: 'Arial',
+  FAMILY: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial',
   SIZE_TIMER: '56px',       // 56px - countdown timer
   SIZE_MENU_TITLE: '52px',  // 52px - menu title
   SIZE_TITLE: '48px',       // 48px - large headings
@@ -390,10 +390,12 @@ export {
   getScaledSizes,
   getScorecardLayout,
   getScaledFontSizes,
+  getPortraitLayout,
   scaleValue,
   type ViewportMetrics,
   type ScaledSizes,
   type ScorecardLayout,
+  type PortraitLayout,
 } from './systems/responsive';
 
 // =============================================================================

@@ -1,25 +1,25 @@
 /**
- * Blessing of Expansion
- * Adds 3 new scoring categories: Two Pair, All Odd, All Even
- * Player can fill any 13 of 16 total categories
+ * Blessing of Abundance
+ * Adds 4 new scoring categories: Two Pair, All Odd, All Even, Run of 4
+ * Player can fill any 13 of 17 total categories
  */
 
 import type { GameEventEmitter } from '../game-events';
 import { createLogger } from '../logger';
 import { BlessingManager } from './blessing-manager';
-import { BLESSING_CONFIGS, type Blessing, type ExpansionModeState } from './types';
+import { BLESSING_CONFIGS, type Blessing, type AbundanceModeState } from './types';
 
-const log = createLogger('BlessingOfExpansion');
+const log = createLogger('BlessingOfAbundance');
 
-export class BlessingOfExpansion implements Blessing<ExpansionModeState> {
-  readonly config = BLESSING_CONFIGS.expansion;
+export class BlessingOfAbundance implements Blessing<AbundanceModeState> {
+  readonly config = BLESSING_CONFIGS.abundance;
   private events: GameEventEmitter;
-  private state: ExpansionModeState;
+  private state: AbundanceModeState;
 
   constructor(events: GameEventEmitter) {
     this.events = events;
     this.state = {
-      type: 'expansion',
+      type: 'abundance',
       enabled: true, // Always enabled once chosen
     };
   }
@@ -31,11 +31,11 @@ export class BlessingOfExpansion implements Blessing<ExpansionModeState> {
   }
 
   onModeEnd(): void {
-    // Expansion has no per-mode cleanup
+    // Abundance has no per-mode cleanup
   }
 
   onNewHand(): void {
-    // Expansion has no per-hand state
+    // Abundance has no per-hand state
   }
 
   canUse(): boolean {
@@ -43,7 +43,7 @@ export class BlessingOfExpansion implements Blessing<ExpansionModeState> {
     return true;
   }
 
-  getState(): ExpansionModeState {
+  getState(): AbundanceModeState {
     return { ...this.state };
   }
 
@@ -58,4 +58,4 @@ export class BlessingOfExpansion implements Blessing<ExpansionModeState> {
 }
 
 // Register this blessing with the manager
-BlessingManager.registerBlessing('expansion', (events) => new BlessingOfExpansion(events));
+BlessingManager.registerBlessing('abundance', (events) => new BlessingOfAbundance(events));

@@ -16,6 +16,8 @@ export interface HeaderPanelConfig {
   compact?: boolean;
   /** Viewport metrics for responsive sizing */
   metrics?: ViewportMetrics;
+  /** Override compact height from layout calculation */
+  compactHeight?: number;
 }
 
 export class HeaderPanel {
@@ -24,7 +26,6 @@ export class HeaderPanel {
   private timerText: Phaser.GameObjects.Text | null = null;
   private timerGlow: Phaser.GameObjects.Text | null = null;
   private totalScoreText: Phaser.GameObjects.Text | null = null;
-  private glowTween: Phaser.Tweens.Tween | null = null;
 
   constructor(scene: Phaser.Scene, centerX: number, config: HeaderPanelConfig) {
     this.scene = scene;
@@ -34,7 +35,7 @@ export class HeaderPanel {
   }
 
   private build(centerX: number, config: HeaderPanelConfig): void {
-    const { currentMode, modeName, totalScore, timeRemaining, passThreshold, compact = false, metrics } = config;
+    const { currentMode, modeName, totalScore, timeRemaining, compact = false, metrics, compactHeight } = config;
 
     // Responsive sizing based on viewport
     const isMobile = metrics?.isMobile ?? false;
@@ -45,28 +46,19 @@ export class HeaderPanel {
     const baseWidth = compact ? 340 : 420;
     const panelWidth = Math.min(baseWidth, viewportWidth - 20);
 
-    // Panel height: much smaller on mobile
-    const panelHeight = isMobile ? (compact ? 70 : 85) : (compact ? 110 : 140);
+    // Panel height: use provided compactHeight if available, otherwise calculate
+    const panelHeight = compactHeight ?? (isMobile ? (compact ? 70 : 85) : (compact ? 110 : 140));
 
     const panelX = centerX - panelWidth / 2;
     const panelY = (metrics?.safeArea.top ?? 0) + 10;
 
-    // Font scaling for mobile
+    // Font scaling for mobile - bigger labels, tighter spacing
     const fontScale = Math.max(0.75, Math.min(1, scale));
-    const smallLabelSize = `${Math.round((isMobile ? 12 : 11) * fontScale)}px`;
-    const valueSize = `${Math.round((isMobile ? 32 : 24) * fontScale)}px`;
-    const timerSize = `${Math.round(isMobile ? 24 : 44)}px`;
-    const thresholdSize = `${Math.round((isMobile ? 13 : 14) * fontScale)}px`;
+    const labelSize = `${Math.round((isMobile ? 13 : 14) * fontScale)}px`;
+    const valueSize = `${Math.round((isMobile ? 18 : 24) * fontScale)}px`;
+    const timerSize = `${Math.round(isMobile ? 20 : 44)}px`;
 
     this.container.setPosition(panelX, panelY);
-
-    // Panel background with glow effect
-    const outerGlow = this.scene.add.rectangle(
-      panelWidth / 2, panelHeight / 2,
-      panelWidth + 12, panelHeight + 12,
-      PALETTE.purple[500], 0.08
-    );
-    this.container.add(outerGlow);
 
     const panelBg = this.scene.add.rectangle(
       panelWidth / 2, panelHeight / 2,
@@ -99,16 +91,16 @@ export class HeaderPanel {
     // === SIDE COLUMNS: Curse # (left) | Run Total (right) ===
     const sideInset = Math.max(40, panelWidth * 0.12); // Proportional side columns
 
-    // On mobile, center the side sections vertically; on desktop use top positioning
+    // Tighter vertical spacing - labels and values closer together
     const sideCenterY = isMobile ? panelHeight / 2 : 25;
-    const labelOffset = isMobile ? -14 : -8;
-    const valueOffset = isMobile ? 10 : 12;
+    const labelOffset = isMobile ? -10 : -8;
+    const valueOffset = isMobile ? 8 : 12;
 
     // Left: Curse number
     const curseLabel = createText(this.scene, sideInset, sideCenterY + labelOffset, 'CURSE', {
-      fontSize: smallLabelSize,
+      fontSize: labelSize,
       fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_SECONDARY,
+      color: COLORS.TEXT_PRIMARY,
       fontStyle: 'bold',
     });
     curseLabel.setOrigin(0.5, 0.5);
@@ -123,11 +115,9 @@ export class HeaderPanel {
     curseNum.setOrigin(0.5, 0.5);
     this.container.add(curseNum);
 
-    // Center: Mode title (top on mobile)
-    const topY = isMobile ? 16 : 25;
-    const titleFontSize = isMobile ? `${Math.round(14 * fontScale)}px` : FONTS.SIZE_SUBHEADING;
-    const title = createText(this.scene, panelWidth / 2, topY, modeName, {
-      fontSize: titleFontSize,
+    // Center: Mode name (label) + Timer (value) - same vertical layout as sides
+    const title = createText(this.scene, panelWidth / 2, sideCenterY + labelOffset, modeName.toUpperCase(), {
+      fontSize: labelSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
       fontStyle: 'bold',
@@ -135,11 +125,32 @@ export class HeaderPanel {
     title.setOrigin(0.5, 0.5);
     this.container.add(title);
 
+    // Timer as the "value" in center column
+    this.timerGlow = createText(this.scene, panelWidth / 2, sideCenterY + valueOffset, this.formatTime(timeRemaining), {
+      fontSize: timerSize,
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TIMER_GLOW_SAFE,
+      fontStyle: 'bold',
+    });
+    this.timerGlow.setOrigin(0.5, 0.5);
+    this.timerGlow.setAlpha(0.25);
+    this.timerGlow.setBlendMode(Phaser.BlendModes.ADD);
+    this.container.add(this.timerGlow);
+
+    this.timerText = createText(this.scene, panelWidth / 2, sideCenterY + valueOffset, this.formatTime(timeRemaining), {
+      fontSize: timerSize,
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TIMER_SAFE,
+      fontStyle: 'bold',
+    });
+    this.timerText.setOrigin(0.5, 0.5);
+    this.container.add(this.timerText);
+
     // Right: Run total
     const totalLabel = createText(this.scene, panelWidth - sideInset, sideCenterY + labelOffset, 'TOTAL', {
-      fontSize: smallLabelSize,
+      fontSize: labelSize,
       fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_SECONDARY,
+      color: COLORS.TEXT_PRIMARY,
       fontStyle: 'bold',
     });
     totalLabel.setOrigin(0.5, 0.5);
@@ -153,49 +164,6 @@ export class HeaderPanel {
     });
     this.totalScoreText.setOrigin(0.5, 0.5);
     this.container.add(this.totalScoreText);
-
-    // === MIDDLE: Timer ===
-    const timerY = isMobile ? 38 : 70;
-    this.timerGlow = createText(this.scene, panelWidth / 2, timerY, this.formatTime(timeRemaining), {
-      fontSize: timerSize,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TIMER_GLOW_SAFE,
-      fontStyle: 'bold',
-    });
-    this.timerGlow.setOrigin(0.5, 0.5);
-    this.timerGlow.setAlpha(0.25);
-    this.timerGlow.setBlendMode(Phaser.BlendModes.ADD);
-    this.container.add(this.timerGlow);
-
-    this.timerText = createText(this.scene, panelWidth / 2, timerY, this.formatTime(timeRemaining), {
-      fontSize: timerSize,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TIMER_SAFE,
-      fontStyle: 'bold',
-    });
-    this.timerText.setOrigin(0.5, 0.5);
-    this.container.add(this.timerText);
-
-    // === BOTTOM ROW: Threshold (centered) ===
-    const bottomY = isMobile ? panelHeight - 12 : 115;
-
-    const thresholdText = createText(this.scene, panelWidth / 2, bottomY, `Need ${passThreshold}+ to advance`, {
-      fontSize: thresholdSize,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_WARNING,
-    });
-    thresholdText.setOrigin(0.5, 0.5);
-    this.container.add(thresholdText);
-
-    // Glow pulse
-    this.glowTween = this.scene.tweens.add({
-      targets: outerGlow,
-      alpha: 0.15,
-      duration: SIZES.ANIM_PULSE_SLOW,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
   }
 
   updateTimer(timeRemaining: number, color?: string): void {
@@ -240,10 +208,6 @@ export class HeaderPanel {
   }
 
   destroy(): void {
-    if (this.glowTween) {
-      this.glowTween.stop();
-      this.glowTween = null;
-    }
     this.container.destroy();
   }
 }

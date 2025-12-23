@@ -10,15 +10,13 @@ import {
   DIFFICULTY_LIST,
   FONTS,
   SIZES,
-  PALETTE,
   COLORS,
   getViewportMetrics,
 } from '@/config';
 import { resetGameProgression, debugSetMode, type GameMode } from '@/systems/game-progression';
 import { resetBlessingManager, debugSetBlessing } from '@/systems/blessings';
 import { createLogger } from '@/systems/logger';
-import { getSaveManager } from '@/systems/save-manager';
-import { DifficultyButton, FlickeringTitle, SpookyBackground } from '@/ui/menu';
+import { DifficultyButton, FlickeringTitle, HighScoresPanel, SpookyBackground } from '@/ui/menu';
 import { createText } from '@/ui/ui-utils';
 
 const log = createLogger('MenuScene');
@@ -50,7 +48,7 @@ export class MenuScene extends Phaser.Scene {
 
   preload(): void {
     log.log('Preloading menu music...');
-    this.load.audio('menu-music', 'sounds/menu.mp3');
+    this.load.audio('menu-music', 'sounds/menu.ogg');
 
     this.load.on('filecomplete-audio-menu-music', () => {
       log.log('Menu music loaded successfully');
@@ -82,6 +80,8 @@ export class MenuScene extends Phaser.Scene {
         if (!this.sound.locked) {
           this.menuMusic.play();
           log.log('Menu music started');
+          // Start background preloading gameplay tracks
+          this.preloadGameplayTracks();
         }
       }
     };
@@ -94,13 +94,15 @@ export class MenuScene extends Phaser.Scene {
         if (this.menuMusic && !this.menuMusic.isPlaying) {
           this.menuMusic.play();
           log.log('Menu music started after unlock');
+          // Start background preloading gameplay tracks
+          this.preloadGameplayTracks();
         }
       };
       this.sound.once('unlocked', this.boundOnAudioUnlocked);
     }
 
     if (!this.cache.audio.exists('menu-music')) {
-      this.load.audio('menu-music', 'sounds/menu.mp3');
+      this.load.audio('menu-music', 'sounds/menu.ogg');
       this.load.once('complete', playMenuMusic);
       this.load.start();
     } else {
@@ -193,16 +195,16 @@ export class MenuScene extends Phaser.Scene {
     // High Scores Panel - centered on mobile, left-aligned on desktop
     if (isMobile) {
       const lastButtonY = buttonStartY + buttonSpacing * 2;
-      this.createHighScoresPanel((width - 170) / 2, lastButtonY + 90);
+      new HighScoresPanel(this, { x: (width - 170) / 2, y: lastButtonY + 70 });
     } else {
-      this.createHighScoresPanel(20, height - 180);
+      new HighScoresPanel(this, { x: 20, y: height - 210 });
     }
 
     // Mode info - positioned just below last button
     const lastButtonY = buttonStartY + buttonSpacing * 2;
     const modeInfoY = isMobile
-      ? lastButtonY + 65  // Below last button, above high scores
-      : lastButtonY + 80; // Right under buttons on desktop
+      ? lastButtonY + 53  // Below last button, above high scores
+      : lastButtonY + 68; // Right under buttons on desktop
     const modeInfoSize = isMobile ? FONTS.SIZE_LABEL : FONTS.SIZE_BODY;
     const modeInfoText = isMobile ? 'Score 250+ each curse' : '4 Curses await... Score 250+ to survive each';
 
@@ -242,9 +244,9 @@ export class MenuScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
 
-    // Version - at very bottom with safe area
-    const versionY = height - 15 - metrics.safeArea.bottom;
-    const credit = createText(this,width / 2, versionY, 'v1.0', {
+    // Version - centered, below title
+    const versionY = isMobile ? 95 : 115;
+    const credit = createText(this, width / 2, versionY, 'v1.0.0', {
       fontSize: FONTS.SIZE_TINY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.MENU_VERSION,
@@ -298,189 +300,6 @@ export class MenuScene extends Phaser.Scene {
     });
   }
 
-  private createHighScoresPanel(x: number, y: number): void {
-    const saveManager = getSaveManager();
-    const highScores = saveManager.getHighScores();
-
-    const hasData = highScores.bestRunTotal > 0 ||
-      highScores.byDifficulty.chill > 0 ||
-      highScores.byDifficulty.normal > 0 ||
-      highScores.byDifficulty.intense > 0;
-
-    const panelWidth = 170;
-    const panelHeight = hasData ? 155 : 70;
-    const panelDepth = 100; // Ensure panel renders above vignette and background elements
-    const centerX = x + panelWidth / 2;
-    const centerY = y + panelHeight / 2;
-
-    // Outer glow (matches difficulty button style)
-    const outerGlow = this.add.rectangle(centerX, centerY, panelWidth + 16, panelHeight + 16, 0x000000, 0);
-    outerGlow.setStrokeStyle(SIZES.GLOW_STROKE_MEDIUM, PALETTE.purple[500], 0.15);
-    outerGlow.setDepth(panelDepth);
-
-    // Pulse animation for glow
-    this.tweens.add({
-      targets: outerGlow,
-      alpha: 0.25,
-      duration: SIZES.ANIM_PULSE,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-
-    // Background shadow
-    const bgShadow = this.add.rectangle(centerX + 3, centerY + 3, panelWidth, panelHeight, PALETTE.neutral[900], 0.5);
-    bgShadow.setDepth(panelDepth);
-
-    // Main background
-    const bg = this.add.rectangle(centerX, centerY, panelWidth, panelHeight, PALETTE.purple[900], 0.95);
-    bg.setStrokeStyle(SIZES.PANEL_BORDER_WIDTH, PALETTE.purple[500], 0.7);
-    bg.setDepth(panelDepth);
-
-    // Corner accents (matching difficulty button style)
-    const cornerSize = 10;
-    const corners = [
-      { cx: x + 5, cy: y + 5, ax: 1, ay: 1 },           // top-left
-      { cx: x + panelWidth - 5, cy: y + 5, ax: -1, ay: 1 },  // top-right
-      { cx: x + panelWidth - 5, cy: y + panelHeight - 5, ax: -1, ay: -1 }, // bottom-right
-      { cx: x + 5, cy: y + panelHeight - 5, ax: 1, ay: -1 }, // bottom-left
-    ];
-
-    corners.forEach(corner => {
-      const accent = this.add.graphics();
-      accent.lineStyle(2, PALETTE.purple[400], 0.6);
-      accent.beginPath();
-      accent.moveTo(corner.cx, corner.cy + corner.ay * cornerSize);
-      accent.lineTo(corner.cx, corner.cy);
-      accent.lineTo(corner.cx + corner.ax * cornerSize, corner.cy);
-      accent.strokePath();
-      accent.setDepth(panelDepth + 1);
-    });
-
-    // Header
-    const header = createText(this,centerX, y + 18, 'HIGH SCORES', {
-      fontSize: FONTS.SIZE_SMALL,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_ACCENT,
-      fontStyle: 'bold',
-    });
-    header.setOrigin(0.5, 0.5);
-    header.setDepth(panelDepth + 1);
-
-    // Show "No scores yet" if empty
-    if (!hasData) {
-      const emptyText = createText(this,centerX, y + 45, 'No scores yet', {
-        fontSize: FONTS.SIZE_TINY,
-        fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_MUTED,
-      });
-      emptyText.setOrigin(0.5, 0.5);
-      emptyText.setDepth(panelDepth + 1);
-      return;
-    }
-
-    let currentY = y + 42;
-
-    // Best Run section (if any completed runs)
-    if (highScores.bestRunTotal > 0) {
-      // Section header
-      const fullRunHeader = createText(this,x + 10, currentY, '4-Curse Run', {
-        fontSize: FONTS.SIZE_TINY,
-        fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_MUTED,
-      });
-      fullRunHeader.setOrigin(0, 0.5);
-      fullRunHeader.setDepth(panelDepth + 1);
-
-      currentY += 16;
-
-      const bestRunLabel = createText(this,x + 14, currentY, 'Best Total:', {
-        fontSize: FONTS.SIZE_TINY,
-        fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_SECONDARY,
-      });
-      bestRunLabel.setOrigin(0, 0.5);
-      bestRunLabel.setDepth(panelDepth + 1);
-
-      const bestRunValue = createText(this,x + panelWidth - 10, currentY, highScores.bestRunTotal.toString(), {
-        fontSize: FONTS.SIZE_TINY,
-        fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_WARNING,
-        fontStyle: 'bold',
-      });
-      bestRunValue.setOrigin(1, 0.5);
-      bestRunValue.setDepth(panelDepth + 1);
-
-      currentY += 15;
-
-      // Runs completed
-      const runsLabel = createText(this,x + 14, currentY, 'Completed:', {
-        fontSize: FONTS.SIZE_TINY,
-        fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_SECONDARY,
-      });
-      runsLabel.setOrigin(0, 0.5);
-      runsLabel.setDepth(panelDepth + 1);
-
-      const runsValue = createText(this,x + panelWidth - 10, currentY, `${highScores.runsCompleted}x`, {
-        fontSize: FONTS.SIZE_TINY,
-        fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_SECONDARY,
-      });
-      runsValue.setOrigin(1, 0.5);
-      runsValue.setDepth(panelDepth + 1);
-
-      currentY += 20;
-    }
-
-    // Per-difficulty high scores (single curse best)
-    const hasDiffScores = highScores.byDifficulty.chill > 0 ||
-      highScores.byDifficulty.normal > 0 ||
-      highScores.byDifficulty.intense > 0;
-
-    if (hasDiffScores) {
-      // Section header
-      const curseHeader = createText(this,x + 10, currentY, 'Best Single Curse', {
-        fontSize: FONTS.SIZE_TINY,
-        fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_MUTED,
-      });
-      curseHeader.setOrigin(0, 0.5);
-      curseHeader.setDepth(panelDepth + 1);
-
-      currentY += 16;
-
-      const difficulties: { key: Difficulty; label: string; color: string }[] = [
-        { key: 'chill', label: 'Chill', color: DIFFICULTIES.chill.color },
-        { key: 'normal', label: 'Normal', color: DIFFICULTIES.normal.color },
-        { key: 'intense', label: 'Intense', color: DIFFICULTIES.intense.color },
-      ];
-
-      for (const diff of difficulties) {
-        const score = highScores.byDifficulty[diff.key];
-        if (score > 0) {
-          const diffLabel = createText(this,x + 14, currentY, diff.label + ':', {
-            fontSize: FONTS.SIZE_TINY,
-            fontFamily: FONTS.FAMILY,
-            color: diff.color,
-          });
-          diffLabel.setOrigin(0, 0.5);
-          diffLabel.setDepth(panelDepth + 1);
-
-          const diffValue = createText(this,x + panelWidth - 10, currentY, score.toString(), {
-            fontSize: FONTS.SIZE_TINY,
-            fontFamily: FONTS.FAMILY,
-            color: COLORS.TEXT_PRIMARY,
-          });
-          diffValue.setOrigin(1, 0.5);
-          diffValue.setDepth(panelDepth + 1);
-
-          currentY += 15;
-        }
-      }
-    }
-  }
-
   private startGame(difficulty: Difficulty): void {
     // Reset game progression and blessings for a fresh run
     resetGameProgression();
@@ -525,11 +344,40 @@ export class MenuScene extends Phaser.Scene {
 
     // Enable expansion blessing for modes 2-4
     if (data.debugEnableExpansion) {
-      debugSetBlessing('expansion');
+      debugSetBlessing('abundance');
     }
 
     // Start game immediately without fanfare
     this.scene.start('GameplayScene', { difficulty: 'normal' });
+  }
+
+  /**
+   * Background preload gameplay tracks while user is on menu
+   * By the time they click a difficulty, tracks are likely cached
+   */
+  private preloadGameplayTracks(): void {
+    const tracks = ['sounds/chill.ogg', 'sounds/normal.ogg', 'sounds/intense.ogg'];
+
+    log.log('Background preloading gameplay tracks...');
+
+    tracks.forEach((track, index) => {
+      const key = `music-${track.split('/')[1].replace('.ogg', '')}`;
+
+      // Skip if already cached
+      if (this.cache.audio.exists(key)) {
+        log.log(`Already cached: ${key}`);
+        return;
+      }
+
+      // Stagger loads to not compete with menu music
+      this.time.delayedCall(500 + index * 1000, () => {
+        if (this.scene.isActive()) {
+          this.load.audio(key, track);
+          this.load.start();
+          log.log(`Preloading: ${key}`);
+        }
+      });
+    });
   }
 
   private onShutdown(): void {

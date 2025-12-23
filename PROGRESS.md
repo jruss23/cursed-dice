@@ -1,12 +1,12 @@
 # Cursed Dice - Development Progress & Best Practices Review
 
-## Last Updated: December 20, 2025 (Evening)
+## Last Updated: December 22, 2025
 
 ---
 
 ## Phaser 3 Best Practices Adherence Score
 
-### **Overall Score: 9.6 / 10** (excluding Testing)
+### **Overall Score: 9.7 / 10** (excluding Testing)
 
 ---
 
@@ -14,12 +14,12 @@
 
 | Category | Score | Notes |
 |----------|-------|-------|
-| **Project Structure** | 9/10 | Clean separation: `scenes/`, `systems/`, `ui/`. Barrel exports. UI components extracted to `ui/menu/`, `ui/gameplay/` |
+| **Project Structure** | 10/10 | Clean separation: `scenes/`, `systems/`, `ui/`. All major UI extracted to `ui/menu/`, `ui/gameplay/` |
 | **TypeScript Integration** | 10/10 | Strict mode. Zero `any` types. Proper interfaces & types. Path aliases (`@/`) |
 | **Scene Management** | 9/10 | Proper `init()`, `create()`, `shutdown()` lifecycle. Scene data passing. Smooth transitions |
 | **Performance** | 9/10 | Tweens cleanup. Fixed drift bugs. Logger utility. Object pooling for particles |
-| **Code Organization** | 9/10 | Event-driven architecture. Singleton managers. UI components extracted. Consistent styling |
-| **Asset Management** | 10/10 | Pre-processed audio via ffmpeg. Audio test page for A/B testing. Proper preloading |
+| **Code Organization** | 10/10 | Event-driven architecture. Singleton managers. All UI components extracted. Consistent patterns |
+| **Asset Management** | 10/10 | Pre-processed audio via ffmpeg. Audio crackling fixed. Proper preloading |
 | **State Management** | 9/10 | `GameProgressionManager` + `BlessingManager` singletons. `SaveManager` for localStorage |
 | **Input Handling** | 9/10 | Centralized InputManager. Keyboard bindings. Prepared for customization |
 | **Error Handling** | 9/10 | Global error handlers. Logger utility. Systems log state changes and errors |
@@ -55,7 +55,63 @@
 
 ---
 
-## Recent Session Work (Dec 20, 2025 - Evening)
+## Recent Session Work (Dec 22, 2025 - Evening)
+
+### Sixth Blessing Implementation
+- [x] Full implementation of "The Sixth" blessing - roll 6 dice, score with best 5
+- [x] 3 charges per run, activates mid-hand for a "panic reroll" option
+- [x] 6th die rolls immediately when activated, animates in smoothly
+- [x] Scorecard evaluates all 6 choose 5 combinations for optimal scoring
+- [x] Button integrated into dice controls panel with 3-column layout
+
+### Dice Controls Panel Refactor
+- [x] Clean 3-column layout: [Blessing] | [Rerolls] | [Roll]
+- [x] Equal column widths (120px mobile, 130px desktop)
+- [x] Content centered in each column with proper dividers
+- [x] Blessing button: gold theme, shows "+1🎲 (3/3)" charges
+- [x] Active state: transparent background to show it's been used
+
+### Mobile Layout Improvements
+- [x] Viewport-relative positioning using `scene.scale.gameSize`
+- [x] Percentage-based layout with min/max constraints
+- [x] Fixed 100px overflow on iPhone Safari with browser chrome
+- [x] Responsive header, dice, and scorecard zones
+
+### Blessing System Architecture
+- [x] `BlessingManager` singleton for blessing state across run
+- [x] Event-driven communication (`blessing:sixth:activated`, etc.)
+- [x] `SixthBlessingButton` UI component with proper state management
+- [x] Blessing choice panel shows all 4 blessings
+
+---
+
+## Previous Session Work (Dec 22, 2025 - Earlier)
+
+### Audio System Polish
+- [x] Fixed audio crackling in chill.mp3 tracks
+- [x] Keep track: 12kHz lowpass, removed chorus effect (was causing crackle)
+- [x] Beware track: Lowered 1 octave (pitch=0.5) for deeper sound
+- [x] Final stitch with validated audio quality
+
+### Visual Polish - Removed Panel Glows
+- [x] Removed `outerGlow` rectangles from ALL gameplay panels
+- [x] Affected: dice-manager, pause-menu, scorecard-panel, header-panel, blessing-choice-panel, end-screen-overlay
+- [x] Only difficulty buttons retain pulsing glow effect (as intended)
+
+### Code Quality - Component Extraction
+- [x] Extracted `HighScoresPanel` to `src/ui/menu/high-scores-panel.ts`
+- [x] MenuScene reduced from ~535 lines to 369 lines
+- [x] Panel supports `depth` config for render ordering
+- [x] Added to `@/ui/menu` barrel export
+
+### Text Rendering
+- [x] All panels use `createText()` helper with DPR fix
+- [x] `resolution: devicePixelRatio` + `padding: { x: 4, y: 4 }`
+- [x] Crisp AND smooth text on retina displays
+
+---
+
+## Previous Session Work (Dec 20, 2025 - Evening)
 
 ### Audio System Overhaul
 - [x] Replaced Tone.js with pre-processed audio files via ffmpeg
@@ -98,7 +154,7 @@
 - [x] Dice position drift after roll animations
 - [x] Reroll button burning rerolls when all dice locked
 - [x] Container.setInteractive warning
-- [x] Gauntlet mode showing 4 categories instead of 1
+- [x] Gauntlet mode showing correct number of available categories (3)
 
 ### Features Implemented
 - [x] Mode 2 curse follows highest value die
@@ -106,7 +162,7 @@
 - [x] Green checkmark for user-held dice, purple skull for cursed dice
 - [x] Scorecard hover brings row to top
 - [x] Red X for locked categories
-- [x] Gauntlet single category pulses green
+- [x] Gauntlet available categories pulse green (3 at a time)
 
 ### Systems Added
 - [x] `src/systems/logger.ts` - Dev/prod logging utility
@@ -127,13 +183,13 @@
 - **Available**: Normal row
 - **Locked**: Gray background + red X
 - **Scored**: Dimmed/filled
-- **Gauntlet available**: Pulsing green text + green background
+- **Gauntlet available**: Pulsing green text + green background (3 categories at a time)
 
 ### Panel Styling Pattern
-1. Outer glow (PALETTE.purple[500], low alpha)
-2. Background (PALETTE.purple[700-900], high alpha)
-3. Border stroke (PALETTE.purple[500])
-4. Corner accents (4 L-shaped corners)
+1. Background (PALETTE.purple[700-900], high alpha)
+2. Border stroke (PALETTE.purple[500])
+3. Corner accents (4 L-shaped corners)
+4. Shadow (offset rectangle, low alpha)
 
 ---
 
@@ -157,6 +213,11 @@ src/
 │   ├── save-manager.ts     # localStorage persistence
 │   ├── scorecard.ts        # Yahtzee scoring logic
 │   └── blessings/          # Blessing system
+│       ├── index.ts            # Barrel export + BlessingManager
+│       ├── types.ts            # Blessing interfaces & configs
+│       ├── blessing-manager.ts # Singleton manager
+│       ├── blessing-expansion.ts # Abundance blessing
+│       └── blessing-sixth.ts   # The Sixth blessing
 └── ui/
     ├── blessing-choice-panel.ts
     ├── pause-menu.ts
@@ -165,23 +226,26 @@ src/
     ├── gameplay/           # In-game UI components
     │   ├── debug-panel.ts
     │   ├── end-screen-overlay.ts
-    │   └── header-panel.ts
+    │   ├── header-panel.ts
+    │   └── sixth-blessing-button.ts
     └── menu/               # Menu UI components
+        ├── index.ts            # Barrel export
         ├── difficulty-button.ts
         ├── flickering-title.ts
+        ├── high-scores-panel.ts
         └── spooky-background.ts
 ```
 
 ---
 
-## Game Modes
+## Game Modes (Curses)
 
-| Mode | Name | Mechanic |
-|------|------|----------|
-| 1 | THE AWAKENING | Standard Yahtzee - fill all categories |
-| 2 | SHACKLED DIE | Highest value die becomes cursed after each score |
+| Curse | Name | Mechanic |
+|-------|------|----------|
+| 1 | THE AWAKENING | Standard Yahtzee - fill all 13 categories |
+| 2 | SHACKLED DIE | Highest value die becomes cursed after each score (locked, can't reroll) |
 | 3 | SEALED PATHS | 3 random categories locked, new locks after each score |
-| 4 | THE GAUNTLET | Only 1 category available at a time |
+| 4 | THE GAUNTLET | Only 3 categories available at a time |
 
 ---
 
@@ -204,16 +268,17 @@ assets/sounds/
 
 ## Next Steps (Suggested)
 
-### Immediate
-1. [ ] Add vitest + first unit tests for scorecard.ts
-2. [ ] Add sound effects (dice roll, score, UI clicks)
+### Immediate - Blessings
+1. [ ] Implement Foresight blessing (preview next roll, 3 charges)
+2. [ ] Implement Sanctuary blessing (bank/restore dice, 1 use)
 
-### Soon
-3. [ ] Implement object pooling for particle effects
-4. [ ] Create BaseScene abstract class
-5. [ ] Mobile touch controls optimization
+### Soon - Polish
+3. [ ] Add sound effects (dice roll, score, UI clicks)
+4. [ ] Tutorial scene with coach marks
 
 ### Later
+5. [ ] Create BaseScene abstract class
 6. [ ] Texture atlases for sprites
-7. [ ] Accessibility options
-8. [ ] Leaderboard / cloud saves
+7. [ ] Add vitest + unit tests
+8. [ ] Accessibility options
+9. [ ] Leaderboard / cloud saves

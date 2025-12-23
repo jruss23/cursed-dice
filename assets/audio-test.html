@@ -11,7 +11,7 @@
       background: #1a1a2e;
       color: #eee;
       padding: 20px;
-      max-width: 1400px;
+      max-width: 1200px;
       margin: 0 auto;
     }
     h1 { color: #a855f7; margin-bottom: 10px; }
@@ -19,7 +19,6 @@
     h3 { color: #f59e0b; margin: 0 0 15px 0; }
     .section { background: #252540; padding: 20px; border-radius: 8px; margin: 15px 0; }
 
-    /* Base files row */
     .base-files {
       display: flex;
       gap: 20px;
@@ -35,13 +34,15 @@
       margin-bottom: 8px;
     }
 
-    /* 3 column mode layout */
     .modes-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
+      gap: 15px;
     }
     @media (max-width: 900px) {
+      .modes-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 600px) {
       .modes-grid { grid-template-columns: 1fr; }
     }
     .mode-col {
@@ -106,31 +107,27 @@
 </head>
 <body>
   <h1>Audio Test Page</h1>
-  <p>Test and compare audio files before stitching.</p>
+  <p>Game audio files for Cursed Dice.</p>
 
-  <!-- Warning Siren -->
-  <h2>Warning Siren (Time Alerts)</h2>
+  <!-- Chill Mode Comparison -->
+  <h2>🔊 Chill Mode: Final Version</h2>
   <div class="section">
-    <p style="font-size: 12px; color: #888; margin-bottom: 15px;">
-      Plays at 60s, 30s, and 10s remaining. Base sound is a police siren - we transform it to be lower and spookier.
-    </p>
     <div class="base-files">
       <div class="base-file">
-        <label>Original Siren</label>
-        <audio controls src="sounds/Police_signal.wav"></audio>
-        <small style="display: block; margin-top: 4px; color: #888;">Raw file (obnoxious!)</small>
+        <label style="color: #06b6d4;">✅ chill.mp3 (Final)</label>
+        <audio controls src="sounds/final/chill.mp3"></audio>
+        <small style="display: block; margin-top: 4px; color: #888;">4 min - HQ processing, no crackling</small>
       </div>
-      <div class="base-file">
-        <label>Processed (In-Game)</label>
-        <audio controls src="sounds/siren_warning.wav"></audio>
-        <small style="display: block; margin-top: 4px; color: #888;">
-          3 octaves down, 3.2x speed (ffmpeg)
-        </small>
-      </div>
+    </div>
+    <div class="effects-note" style="margin-top: 15px;">
+      <strong>Processing:</strong> SoXR resampling, 48kHz internal, rubberband pitchq=quality, 12kHz lowpass (Keep), 14kHz lowpass (Beware/Battling), limiter, dithering<br>
+      <strong>Keep:</strong> 4 steps down, no chorus, reverb<br>
+      <strong>Beware:</strong> 1 octave down, chorus, reverb<br>
+      <strong>Battling:</strong> 4 steps down, chorus, reverb, +50% volume
     </div>
   </div>
 
-  <!-- Base Source Files -->
+  <!-- Source Files -->
   <h2>Source Files</h2>
   <div class="section">
     <div class="base-files">
@@ -153,6 +150,22 @@
     </div>
   </div>
 
+  <!-- Warning Siren -->
+  <h2>Warning Siren</h2>
+  <div class="section">
+    <div class="base-files">
+      <div class="base-file">
+        <label>Original Siren</label>
+        <audio controls src="sounds/Police_signal.wav"></audio>
+      </div>
+      <div class="base-file">
+        <label>Processed (In-Game)</label>
+        <audio controls src="sounds/siren_warning.wav"></audio>
+        <small style="display: block; margin-top: 4px; color: #888;">3 octaves down, 3.2x speed</small>
+      </div>
+    </div>
+  </div>
+
   <!-- Menu Music -->
   <h2>Menu Music</h2>
   <div class="section">
@@ -162,54 +175,42 @@
         <audio controls src="sounds/test-sources/menu_original.mp3"></audio>
       </div>
       <div class="base-file">
-        <label>Processed <small>4 steps down, chorus, reverb</small></label>
-        <audio controls src="sounds/test-sources/menu_processed.mp3"></audio>
-      </div>
-      <div class="base-file">
         <label>In Game</label>
         <audio controls src="sounds/menu.mp3"></audio>
+        <small style="display: block; margin-top: 4px; color: #888;">4 steps down, chorus, reverb</small>
       </div>
     </div>
   </div>
 
-  <!-- Modes Grid -->
-  <h2>Processed by Mode</h2>
+  <!-- All Modes -->
+  <h2>All Modes</h2>
   <div class="section">
     <div class="modes-grid">
 
-      <!-- Chill Mode -->
       <div class="mode-col chill">
-        <h3 class="chill">Chill Mode</h3>
-
+        <h3 class="chill">Chill (4 min)</h3>
         <div class="audio-item">
           <label>Keep <small>2 min</small></label>
-          <audio controls src="sounds/test-sources/chill_keep.mp3"></audio>
+          <audio controls src="sounds/final/chill_keep.mp3"></audio>
         </div>
         <div class="audio-item">
-          <label>Beware <small>1 min, 6 steps down, slower</small></label>
-          <audio controls src="sounds/test-sources/chill_beware.mp3"></audio>
+          <label>Beware <small>1 min</small></label>
+          <audio controls src="sounds/final/chill_beware.mp3"></audio>
         </div>
         <div class="audio-item">
-          <label>Battling <small>1 min, +50% vol</small></label>
-          <audio controls src="sounds/test-sources/chill_battling.mp3"></audio>
+          <label>Battling <small>1 min</small></label>
+          <audio controls src="sounds/final/chill_battling.mp3"></audio>
         </div>
-
         <div class="final-output">
           <div class="audio-item">
-            <label>chill.mp3 <small>4 min total</small></label>
-            <audio controls src="sounds/chill.mp3"></audio>
+            <label>chill.mp3</label>
+            <audio controls src="sounds/final/chill.mp3"></audio>
           </div>
-        </div>
-
-        <div class="effects-note">
-          Base: 4 steps down, normal speed, chorus, reverb
         </div>
       </div>
 
-      <!-- Normal Mode -->
       <div class="mode-col normal">
-        <h3 class="normal">Normal Mode</h3>
-
+        <h3 class="normal">Normal (3 min)</h3>
         <div class="audio-item">
           <label>Keep <small>1 min</small></label>
           <audio controls src="sounds/test-sources/normal_keep.mp3"></audio>
@@ -222,23 +223,17 @@
           <label>Battling <small>1 min</small></label>
           <audio controls src="sounds/test-sources/normal_battling.mp3"></audio>
         </div>
-
         <div class="final-output">
           <div class="audio-item">
-            <label>normal.mp3 <small>3 min total</small></label>
+            <label>normal.mp3</label>
             <audio controls src="sounds/normal.mp3"></audio>
           </div>
         </div>
-
-        <div class="effects-note">
-          Base effects + 15% faster
-        </div>
+        <div class="effects-note">Base + 15% faster</div>
       </div>
 
-      <!-- Intense Mode -->
       <div class="mode-col intense">
-        <h3 class="intense">Intense Mode</h3>
-
+        <h3 class="intense">Intense (2 min)</h3>
         <div class="audio-item">
           <label>Keep <small>30 sec</small></label>
           <audio controls src="sounds/test-sources/intense_keep.mp3"></audio>
@@ -251,17 +246,13 @@
           <label>Battling <small>1 min</small></label>
           <audio controls src="sounds/test-sources/intense_battling.mp3"></audio>
         </div>
-
         <div class="final-output">
           <div class="audio-item">
-            <label>intense.mp3 <small>2 min total</small></label>
+            <label>intense.mp3</label>
             <audio controls src="sounds/intense.mp3"></audio>
           </div>
         </div>
-
-        <div class="effects-note">
-          Base effects + 30% faster
-        </div>
+        <div class="effects-note">Base + 30% faster</div>
       </div>
 
     </div>
@@ -270,7 +261,6 @@
   <script>
     const allAudio = document.querySelectorAll('audio');
 
-    // Only allow one audio to play at a time
     allAudio.forEach(audio => {
       audio.addEventListener('play', () => {
         allAudio.forEach(other => {
@@ -279,7 +269,6 @@
       });
     });
 
-    // Show duration status
     allAudio.forEach(audio => {
       audio.addEventListener('error', () => {
         const item = audio.closest('.audio-item, .base-file');

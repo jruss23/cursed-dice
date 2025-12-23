@@ -2,27 +2,38 @@
 
 A fast-paced, music-driven dice game with progressive cursed mechanics. Race against the soundtrack to fill your scorecard before time runs out!
 
-## Game Modes
+## Game Modes (Curses)
 
-Complete all 4 modes to win. Score 250+ in each mode to advance. Fail any mode and you start over from the beginning!
+Complete all 4 curses to win. Score 250+ in each curse to advance. Fail any curse and you start over from the beginning!
 
-### Mode 1: Classic Sprint
+### Curse 1: THE AWAKENING
 Standard dice game - fill all 13 categories in any order before time runs out.
 
-### Mode 2: Cursed Dice
-One die is cursed each turn - it's locked and you can't reroll it. The cursed die changes position after each score.
+### Curse 2: SHACKLED DIE
+Your highest value die becomes cursed after each score. Cursed dice are locked and can't be rerolled.
 
-### Mode 3: Cursed Categories (3 Locked)
-3 random categories are locked and unavailable each turn. After scoring, 3 new random categories become locked.
+### Curse 3: SEALED PATHS
+3 random categories are locked and unavailable. After scoring, 3 new random categories become locked.
 
-### Mode 4: Final Challenge
-Only 1 category is available at a time. Score what you can with what you get!
+### Curse 4: THE GAUNTLET
+Only 3 categories are available at a time. Score what you can with what you get!
+
+## Blessings
+
+After completing each curse, choose a blessing to help you in the next round. Each blessing can only be chosen once per run!
+
+| Blessing | Effect |
+|----------|--------|
+| **Abundance** | Unlocks 4 bonus categories (All Even, All Odd, Pairs, No Pairs). Fill any 13 of 17 total. |
+| **Foresight** | Preview your next roll before committing. Costs 1 reroll, 3 charges total. |
+| **Sanctuary** | Bank your current dice to restore later. One use per run. |
+| **The Sixth** | Roll 6 dice instead of 5 - scoring uses the best 5. 3 charges total. |
 
 ## Difficulty Levels
 
-- **Chill**: 4 minutes per mode
-- **Normal**: 3 minutes per mode
-- **Intense**: 2 minutes per mode (music speeds up as time runs out!)
+- **Chill**: 4 minutes per curse
+- **Normal**: 3 minutes per curse
+- **Intense**: 2 minutes per curse
 
 ## How to Play
 

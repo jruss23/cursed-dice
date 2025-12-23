@@ -13,6 +13,8 @@ import { PALETTE, FONTS, COLORS } from '@/config';
 /**
  * Create crisp text on retina displays
  * Always use this instead of scene.add.text() directly
+ *
+ * Column 5 approach: resolution: DPR with padding for crisp + smooth text
  */
 export function createText(
   scene: Phaser.Scene,
@@ -21,8 +23,12 @@ export function createText(
   content: string,
   style: Phaser.Types.GameObjects.Text.TextStyle
 ): Phaser.GameObjects.Text {
-  const text = scene.add.text(x, y, content, style);
-  text.setResolution(window.devicePixelRatio * 2);
+  const dpr = window.devicePixelRatio || 1;
+  const text = scene.add.text(x, y, content, {
+    ...style,
+    resolution: dpr,
+    padding: { x: 4, y: 4 },
+  });
   return text;
 }
 

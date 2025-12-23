@@ -70,14 +70,6 @@ export class EndScreenOverlay {
   ): void {
     const { passed, isRunComplete, showBlessingChoice, modeScore, totalScore, currentMode, completed, passThreshold } = config;
 
-    // Panel background with glow
-    const outerGlow = this.scene.add.rectangle(
-      panelWidth / 2, panelHeight / 2,
-      panelWidth + SIZES.PANEL_GLOW_SIZE, panelHeight + SIZES.PANEL_GLOW_SIZE,
-      PALETTE.purple[500], 0.1
-    );
-    this.panel.add(outerGlow);
-
     const panelBg = this.scene.add.rectangle(
       panelWidth / 2, panelHeight / 2,
       panelWidth, panelHeight,
@@ -139,16 +131,6 @@ export class EndScreenOverlay {
     // Buttons section
     this.buildButtons(panelWidth, isRunComplete, passed, showBlessingChoice, callbacks);
 
-    // Glow pulse animation
-    const glowTween = this.scene.tweens.add({
-      targets: outerGlow,
-      alpha: 0.2,
-      duration: SIZES.ANIM_PULSE,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-    this.tweens.push(glowTween);
   }
 
   private addCornerAccents(panelWidth: number, panelHeight: number): void {

@@ -15,7 +15,7 @@ export interface BlessingChoiceCallbacks {
 }
 
 // Which blessings are currently implemented
-const IMPLEMENTED_BLESSINGS: Set<BlessingId> = new Set(['expansion']);
+const IMPLEMENTED_BLESSINGS: Set<BlessingId> = new Set(['abundance', 'sixth']);
 
 export class BlessingChoicePanel {
   private scene: Phaser.Scene;
@@ -53,14 +53,6 @@ export class BlessingChoicePanel {
     // Main panel - full screen on mobile, constrained on desktop
     const panelWidth = isMobile ? width - 20 : Math.min(920, width - 40);
     const panelHeight = isMobile ? height - 20 : Math.min(580, height - 40);
-
-    // Panel background with glow
-    const outerGlow = this.scene.add.rectangle(
-      width / 2, height / 2,
-      panelWidth + 16, panelHeight + 16,
-      PALETTE.purple[500], 0.12
-    );
-    this.container.add(outerGlow);
 
     const panelBg = this.scene.add.rectangle(
       width / 2, height / 2,
@@ -134,10 +126,10 @@ export class BlessingChoicePanel {
     curseTitle.setOrigin(0.5, 0.5);
     this.container.add(curseTitle);
 
-    // Row 2: Description (with extra spacing - "double return")
+    // Row 2: Description - larger on mobile for readability
     const row2Y = curseBoxY + (isMobile ? 14 : 12);
-    const curseDesc = createText(this.scene,width / 2, row2Y, nextCurse.description, {
-      fontSize: isMobile ? FONTS.SIZE_MICRO : FONTS.SIZE_TINY,
+    const curseDesc = createText(this.scene, width / 2, row2Y, nextCurse.description, {
+      fontSize: isMobile ? FONTS.SIZE_SMALL : FONTS.SIZE_TINY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_WARNING,
     });
@@ -145,14 +137,14 @@ export class BlessingChoicePanel {
     this.container.add(curseDesc);
 
     // Cards area - vertical on mobile, horizontal on desktop
-    const blessingIds: BlessingId[] = ['expansion', 'sacrifice', 'insurance'];
+    const blessingIds: BlessingId[] = ['abundance', 'foresight', 'sanctuary', 'sixth'];
 
     if (isMobile) {
-      // Mobile: 3 rows, 1 column - horizontal cards with full info
-      const cardWidth = panelWidth - 30;
-      const cardHeight = 170;
-      const cardSpacing = 8;
-      const cardsStartY = curseBoxY + curseBoxHeight / 2 + 18;
+      // Mobile: 4 compact rows - sized for readable text
+      const cardWidth = panelWidth - 20;
+      const cardHeight = 82;
+      const cardSpacing = 5;
+      const cardsStartY = curseBoxY + curseBoxHeight / 2 + 10;
 
       blessingIds.forEach((id, index) => {
         const cardX = (width - cardWidth) / 2;
@@ -161,12 +153,12 @@ export class BlessingChoicePanel {
         this.createBlessingCardMobile(cardX, cardY, cardWidth, cardHeight, id, isImplemented);
       });
     } else {
-      // Desktop: 1 row, 3 columns
+      // Desktop: 1 row, 4 columns
       const cardAreaY = curseBoxY + curseBoxHeight / 2 + 25;
-      const cardWidth = 270;
+      const cardWidth = 210;
       const cardHeight = 320;
-      const cardSpacing = 20;
-      const totalCardsWidth = cardWidth * 3 + cardSpacing * 2;
+      const cardSpacing = 15;
+      const totalCardsWidth = cardWidth * 4 + cardSpacing * 3;
       const cardsStartX = (width - totalCardsWidth) / 2;
 
       blessingIds.forEach((id, index) => {
@@ -179,16 +171,6 @@ export class BlessingChoicePanel {
     // Continue button (disabled until blessing selected)
     const buttonY = height / 2 + panelHeight / 2 - 45;
     this.createContinueButton(width / 2, buttonY);
-
-    // Glow pulse animation
-    this.scene.tweens.add({
-      targets: outerGlow,
-      alpha: 0.2,
-      duration: SIZES.ANIM_PULSE,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
 
     // Entrance animation
     this.container.setAlpha(0);
@@ -358,7 +340,7 @@ export class BlessingChoicePanel {
     }
   }
 
-  /** Mobile-optimized horizontal card layout */
+  /** Mobile-optimized compact card layout */
   private createBlessingCardMobile(
     x: number,
     y: number,
@@ -384,51 +366,28 @@ export class BlessingChoicePanel {
     // Card glow (hidden by default)
     const cardGlow = this.scene.add.rectangle(
       cardWidth / 2, cardHeight / 2,
-      cardWidth + 6, cardHeight + 6,
+      cardWidth + 4, cardHeight + 4,
       PALETTE.green[500], 0
     );
     card.add(cardGlow);
     card.sendToBack(cardGlow);
 
-    // Horizontal layout: Icon on left | Vertically centered text content
-    const iconX = 45;
-    const textStartX = 80;
+    // Compact layout: Icon | Name + Subtitle | Coming Soon badge (if needed)
+    const iconX = 32;
+    const textStartX = 60;
+    const centerY = cardHeight / 2;
 
-    // Calculate content height to center vertically
-    const lineHeights = {
-      name: 22,
-      subtitle: 18,
-      description: 16,
-      benefit: 16,
-      badge: 24,
-      spacing: 6,
-    };
-
-    const maxBenefits = Math.min(2, config.benefits.length);
-    let totalContentHeight = lineHeights.name + lineHeights.spacing +
-                             lineHeights.subtitle + lineHeights.spacing +
-                             lineHeights.description + lineHeights.spacing +
-                             (maxBenefits * lineHeights.benefit) + ((maxBenefits - 1) * 4);
-
-    if (!isImplemented) {
-      totalContentHeight += lineHeights.spacing + lineHeights.badge;
-    }
-
-    // Start Y position to center content
-    const startY = (cardHeight - totalContentHeight) / 2;
-    let currentY = startY;
-
-    // Icon (centered vertically in card)
-    const icon = createText(this.scene,iconX, cardHeight / 2, config.icon, {
-      fontSize: FONTS.SIZE_BLESSING_SM,
+    // Icon (centered vertically)
+    const icon = createText(this.scene, iconX, centerY, config.icon, {
+      fontSize: FONTS.SIZE_LARGE,
       fontFamily: FONTS.FAMILY,
     });
     icon.setOrigin(0.5, 0.5);
     if (!isImplemented) icon.setAlpha(0.5);
     card.add(icon);
 
-    // Name
-    const name = createText(this.scene,textStartX, currentY + lineHeights.name / 2, config.name, {
+    // Name (top line) - larger for mobile readability
+    const name = createText(this.scene, textStartX, centerY - 14, config.name.replace('Blessing of ', ''), {
       fontSize: FONTS.SIZE_SUBHEADING,
       fontFamily: FONTS.FAMILY,
       color: isImplemented ? COLORS.TEXT_PRIMARY : COLORS.TEXT_MUTED,
@@ -436,55 +395,34 @@ export class BlessingChoicePanel {
     });
     name.setOrigin(0, 0.5);
     card.add(name);
-    currentY += lineHeights.name + lineHeights.spacing;
 
-    // Subtitle
-    const subtitle = createText(this.scene,textStartX, currentY + lineHeights.subtitle / 2, config.subtitle, {
+    // Subtitle - simpler for disabled cards to avoid overlap with badge
+    const subtitleText = isImplemented
+      ? `${config.subtitle} — ${config.description}`
+      : config.subtitle;
+    const subtitleWidth = isImplemented ? cardWidth - textStartX - 15 : cardWidth - textStartX - 75;
+    const subtitle = createText(this.scene, textStartX, centerY + 14, subtitleText, {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
-      color: isImplemented ? COLORS.TEXT_ACCENT : COLORS.TEXT_DISABLED,
+      color: isImplemented ? COLORS.TEXT_SECONDARY : COLORS.TEXT_DISABLED,
+      wordWrap: { width: subtitleWidth },
     });
     subtitle.setOrigin(0, 0.5);
     card.add(subtitle);
-    currentY += lineHeights.subtitle + lineHeights.spacing;
 
-    // Description
-    const desc = createText(this.scene,textStartX, currentY + lineHeights.description / 2, config.description, {
-      fontSize: FONTS.SIZE_MICRO,
-      fontFamily: FONTS.FAMILY,
-      color: isImplemented ? COLORS.TEXT_SECONDARY : COLORS.TEXT_DISABLED,
-      wordWrap: { width: cardWidth - textStartX - 25 },
-    });
-    desc.setOrigin(0, 0.5);
-    card.add(desc);
-    currentY += lineHeights.description + lineHeights.spacing;
-
-    // Benefits
-    for (let i = 0; i < maxBenefits; i++) {
-      const benefit = createText(this.scene,textStartX, currentY + lineHeights.benefit / 2, `+ ${config.benefits[i]}`, {
-        fontSize: FONTS.SIZE_MICRO,
-        fontFamily: FONTS.FAMILY,
-        color: isImplemented ? COLORS.TEXT_SUCCESS : COLORS.TEXT_DISABLED,
-      });
-      benefit.setOrigin(0, 0.5);
-      card.add(benefit);
-      currentY += lineHeights.benefit + (i < maxBenefits - 1 ? 4 : 0);
-    }
-
-    // "Coming Soon" badge at bottom of content for unimplemented
+    // "Coming Soon" badge on right for unimplemented
     if (!isImplemented) {
-      currentY += lineHeights.spacing;
-      const badgeY = currentY + lineHeights.badge / 2;
+      const badgeX = cardWidth - 35;
       const comingSoonBg = this.scene.add.rectangle(
-        cardWidth / 2, badgeY,
-        100, 20,
+        badgeX, centerY,
+        50, 20,
         PALETTE.neutral[700], 0.9
       );
       comingSoonBg.setStrokeStyle(1, PALETTE.neutral[500], 0.5);
       card.add(comingSoonBg);
 
-      const comingSoon = createText(this.scene,cardWidth / 2, badgeY, 'COMING SOON', {
-        fontSize: FONTS.SIZE_MICRO,
+      const comingSoon = createText(this.scene, badgeX, centerY, 'SOON', {
+        fontSize: FONTS.SIZE_NANO,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_MUTED,
         fontStyle: 'bold',

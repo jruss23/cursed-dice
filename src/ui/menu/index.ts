@@ -5,4 +5,5 @@
 
 export { DifficultyButton, type DifficultyButtonCallbacks } from './difficulty-button';
 export { FlickeringTitle } from './flickering-title';
+export { HighScoresPanel, type HighScoresPanelConfig } from './high-scores-panel';
 export { SpookyBackground } from './spooky-background';

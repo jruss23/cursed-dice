@@ -13,7 +13,7 @@ import type { BlessingId } from './blessings/types';
 
 export interface GameEvents {
   // Dice events
-  'dice:rolled': { values: number[]; isInitial: boolean };
+  'dice:rolled': { values: number[]; isInitial: boolean; sixthDieActive?: boolean };
   'dice:locked': { index: number; locked: boolean };
   'dice:unlockAll': void;
 
@@ -47,6 +47,9 @@ export interface GameEvents {
   'blessing:insurance:restored': { dice: number[] };
   'blessing:insurance:reset': void;
   'blessing:sacrifice:reset': { charges: number };
+  'blessing:sixth:activated': { chargesRemaining: number };
+  'blessing:sixth:deactivated': void;
+  'blessing:sixth:reset': { charges: number };
 
   // Mode mechanics events
   'mode:gauntlet': boolean;

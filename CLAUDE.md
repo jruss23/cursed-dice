@@ -6,20 +6,21 @@ Phaser 3 + TypeScript dice game. Single-page game with MenuScene and GameplaySce
 ## Code Conventions
 
 ### Text Creation
-**Always use a `createText()` helper method** - never call `this.scene.add.text()` directly.
-The helper must apply high-DPI resolution fix:
+**Always use the `createText()` helper** from `@/ui/ui-utils` - never call `scene.add.text()` directly.
+The helper applies retina-optimized settings (resolution: DPR + padding for smooth anti-aliased edges):
 
 ```typescript
-private createText(
-  x: number,
-  y: number,
-  content: string,
-  style: Phaser.Types.GameObjects.Text.TextStyle
-): Phaser.GameObjects.Text {
-  const text = this.scene.add.text(x, y, content, style);
-  text.setResolution(window.devicePixelRatio * 2);
-  return text;
-}
+import { createText } from '@/ui/ui-utils';
+
+// Good - uses optimized settings
+const label = createText(this, x, y, 'Hello', {
+  fontSize: FONTS.SIZE_BODY,
+  fontFamily: FONTS.FAMILY,
+  color: COLORS.TEXT_PRIMARY,
+});
+
+// Bad - bypasses retina fix
+const text = this.add.text(x, y, 'Hello', style);
 ```
 
 ### Colors and Fonts
@@ -130,7 +131,7 @@ src/
 
 ## Common Pitfalls
 
-1. **Blurry text** - Forgot `setResolution(window.devicePixelRatio * 2)`
+1. **Blurry text** - Used `scene.add.text()` instead of `createText()` helper
 2. **Memory leaks** - Forgot to remove event listeners in destroy()
 3. **Hardcoded values** - Use config constants instead
 4. **Giant scenes** - Extract UI components to separate files

@@ -145,7 +145,7 @@ export class DebugController {
 
     for (const categoryId of upperCategories) {
       const perfectDice = this.getPerfectDiceForCategory(categoryId);
-      const result = scorecard.score(categoryId, perfectDice);
+      const result = scorecard.debugOverwriteScore(categoryId, perfectDice);
       if (result >= 0) {
         scored++;
       }
@@ -196,7 +196,7 @@ export class DebugController {
 
     // Enable expansion blessing for modes 2-4
     if (mode >= 2) {
-      debugSetBlessing('expansion');
+      debugSetBlessing('abundance');
     }
 
     // Restart the scene with current difficulty

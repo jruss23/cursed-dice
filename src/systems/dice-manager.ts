@@ -21,6 +21,7 @@ export interface DiceState {
   locked: boolean[];
   rerollsLeft: number;
   cursedIndex: number; // Mode 2: which die is permanently locked this turn (-1 = none)
+  sixthDieActive: boolean; // Sixth Blessing: 6th die is in play
 }
 
 interface DiceSprite {
@@ -73,6 +74,10 @@ export class DiceManager {
   private rollButton: Phaser.GameObjects.Container | null = null;
   private rerollText: Phaser.GameObjects.Text | null = null;
   private enabled: boolean = true;
+  private controlsPanelHeight: number = 84;
+
+  // Layout info for repositioning dice
+  private layoutCenterX: number = 0;
 
   // Current size configuration (responsive)
   private sizeConfig: DiceSizeConfig = {
@@ -98,6 +103,7 @@ export class DiceManager {
       locked: Array(GAME_RULES.DICE_COUNT).fill(false),
       rerollsLeft: GAME_RULES.REROLLS_PER_TURN,
       cursedIndex: -1,
+      sixthDieActive: false,
     };
   }
 
@@ -106,9 +112,183 @@ export class DiceManager {
    * Clears cursed die - will be set again by GameplayScene after roll
    */
   reset(): void {
+    // Deactivate 6th die if it was active
+    if (this.state.sixthDieActive) {
+      this.deactivateSixthDie();
+    }
+
     this.state = this.createInitialState();
+    // Re-add 6th die state (createInitialState only creates 5)
+    if (this.sprites.length > GAME_RULES.DICE_COUNT) {
+      this.state.values.push(1);
+      this.state.locked.push(false);
+    }
     this.updateDisplay();
     this.events.emit('dice:unlockAll');
+  }
+
+  /**
+   * Activate the 6th die (Sixth Blessing)
+   * Shows the 6th die, repositions all dice, and rolls the 6th die immediately
+   * This allows it to be used mid-hand as a "panic reroll" when out of rerolls
+   */
+  activateSixthDie(): void {
+    if (this.state.sixthDieActive) return;
+    if (this.sprites.length <= GAME_RULES.DICE_COUNT) return;
+
+    log.log('Activating 6th die');
+    this.state.sixthDieActive = true;
+
+    // Reposition all 6 dice to be centered
+    const diceCount = 6;
+    const diceAreaWidth = (diceCount - 1) * this.sizeConfig.spacing;
+    const startX = this.layoutCenterX - diceAreaWidth / 2;
+
+    for (let i = 0; i < diceCount; i++) {
+      const sprite = this.sprites[i];
+      const newX = startX + i * this.sizeConfig.spacing;
+
+      // Animate to new position
+      this.scene.tweens.add({
+        targets: sprite.container,
+        x: newX,
+        duration: 200,
+        ease: 'Back.easeOut',
+      });
+      sprite.originalX = newX;
+    }
+
+    // Show and animate in the 6th die
+    const sixthDie = this.sprites[GAME_RULES.DICE_COUNT];
+    sixthDie.container.setVisible(true);
+    this.scene.tweens.add({
+      targets: sixthDie.container,
+      alpha: 1,
+      duration: 300,
+      ease: 'Cubic.easeOut',
+    });
+
+    // Roll the 6th die immediately with a fresh random value
+    const newValue = Phaser.Math.Between(1, 6);
+    this.state.values[GAME_RULES.DICE_COUNT] = newValue;
+    this.state.locked[GAME_RULES.DICE_COUNT] = false;
+
+    log.log(`6th die rolled: ${newValue}`);
+
+    // Animate the 6th die roll
+    this.animateSingleDieRoll(GAME_RULES.DICE_COUNT);
+  }
+
+  /**
+   * Animate a single die roll (used for 6th die activation)
+   * Value should already be set in state before calling
+   */
+  private animateSingleDieRoll(index: number): void {
+    const sprite = this.sprites[index];
+    if (!sprite) return;
+
+    const rollDuration = SIZES.ROLL_DURATION_MS * 0.7; // Slightly faster for single die
+
+    // Hide pips during animation
+    sprite.pipsGraphics.setVisible(false);
+
+    // Add glow during roll
+    sprite.glowGraphics.clear();
+    sprite.glowGraphics.fillStyle(PALETTE.gold[400], 0.4);
+    sprite.glowGraphics.fillCircle(0, 0, SIZES.DICE_SIZE * 0.8);
+
+    // Animate glow pulse
+    this.scene.tweens.add({
+      targets: sprite.glowGraphics,
+      alpha: 0,
+      duration: rollDuration,
+      ease: 'Quad.easeIn',
+    });
+
+    // Tumble rotation
+    const rotations = Phaser.Math.Between(2, 3) * 360;
+    this.scene.tweens.add({
+      targets: [sprite.bg, sprite.innerBg, sprite.shine, sprite.pipsGraphics],
+      angle: rotations,
+      duration: rollDuration * 0.8,
+      ease: 'Cubic.easeOut',
+    });
+
+    // Bounce effect
+    this.scene.tweens.add({
+      targets: sprite.container,
+      y: sprite.originalY - 30,
+      duration: rollDuration * 0.4,
+      ease: 'Quad.easeOut',
+      yoyo: true,
+    });
+
+    // Set final value after animation
+    this.scene.time.delayedCall(rollDuration, () => {
+      sprite.pipsGraphics.setVisible(true);
+      sprite.bg.setAngle(0);
+      sprite.innerBg.setAngle(0);
+      sprite.shine.setAngle(0);
+      sprite.pipsGraphics.setAngle(0);
+
+      this.updateDieDisplay(index);
+
+      // Emit event so scorecard updates with new 6-dice values
+      this.events.emit('dice:rolled', {
+        values: this.getValues(),
+        isInitial: false,
+        sixthDieActive: true
+      });
+    });
+  }
+
+  /**
+   * Deactivate the 6th die (after scoring)
+   * Hides the 6th die and repositions back to 5 dice layout
+   */
+  deactivateSixthDie(): void {
+    if (!this.state.sixthDieActive) return;
+    if (this.sprites.length <= GAME_RULES.DICE_COUNT) return;
+
+    log.log('Deactivating 6th die');
+    this.state.sixthDieActive = false;
+
+    // Hide the 6th die
+    const sixthDie = this.sprites[GAME_RULES.DICE_COUNT];
+    this.scene.tweens.add({
+      targets: sixthDie.container,
+      alpha: 0,
+      duration: 200,
+      ease: 'Cubic.easeIn',
+      onComplete: () => {
+        sixthDie.container.setVisible(false);
+      },
+    });
+
+    // Reposition back to 5 dice centered
+    const diceCount = GAME_RULES.DICE_COUNT;
+    const diceAreaWidth = (diceCount - 1) * this.sizeConfig.spacing;
+    const startX = this.layoutCenterX - diceAreaWidth / 2;
+
+    for (let i = 0; i < diceCount; i++) {
+      const sprite = this.sprites[i];
+      const newX = startX + i * this.sizeConfig.spacing;
+
+      this.scene.tweens.add({
+        targets: sprite.container,
+        x: newX,
+        duration: 200,
+        ease: 'Back.easeOut',
+      });
+      sprite.originalX = newX;
+    }
+  }
+
+  /**
+   * Check if 6th die is currently active
+   */
+  isSixthDieActive(): boolean {
+    return this.state.sixthDieActive;
   }
 
   /**
@@ -158,9 +338,15 @@ export class DiceManager {
 
   /**
    * Get current dice values
+   * Returns 5 values normally, 6 values when Sixth Blessing is active
    */
   getValues(): number[] {
-    return [...this.state.values];
+    if (this.state.sixthDieActive) {
+      // Return all 6 dice values
+      return [...this.state.values].slice(0, 6);
+    }
+    // Return only the first 5 dice
+    return [...this.state.values].slice(0, GAME_RULES.DICE_COUNT);
   }
 
   /**
@@ -203,11 +389,16 @@ export class DiceManager {
   /**
    * Create the dice UI at the specified position
    * @param scaledSizes Optional scaled sizes for responsive layout
+   * @param isUltraCompact Whether to use ultra-compact mode for very short screens
    */
-  createUI(centerX: number, centerY: number, scaledSizes?: ScaledSizes): void {
+  createUI(centerX: number, centerY: number, scaledSizes?: ScaledSizes, isUltraCompact?: boolean): void {
+    // Store layout info for repositioning
+    this.layoutCenterX = centerX;
+
     // Get viewport metrics for responsive adjustments
     const metrics = getViewportMetrics(this.scene);
     const isMobile = metrics.isMobile;
+    const ultraCompact = isUltraCompact ?? false;
 
     // Apply scaled sizes if provided
     if (scaledSizes) {
@@ -222,8 +413,8 @@ export class DiceManager {
     const diceAreaWidth = (GAME_RULES.DICE_COUNT - 1) * this.sizeConfig.spacing;
     const startX = centerX - diceAreaWidth / 2;
 
-    // Pulsing tip text above dice - tighter on mobile
-    const tipOffset = isMobile ? 45 : 70;
+    // Pulsing tip text above dice - tighter on mobile, even tighter in ultra-compact
+    const tipOffset = ultraCompact ? 32 : (isMobile ? 38 : 70);
     const tipText = createText(this.scene, centerX, centerY - tipOffset, 'Tap dice to lock', {
       fontSize: isMobile ? FONTS.SIZE_MICRO : FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
@@ -231,48 +422,86 @@ export class DiceManager {
     });
     tipText.setOrigin(0.5, 0.5);
 
-    // Pulsing animation
-    this.scene.tweens.add({
-      targets: tipText,
-      alpha: 0.3,
-      duration: SIZES.ANIM_PULSE,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-
-    // Create dice sprites
+    // Create dice sprites (5 normal + 1 hidden 6th for blessing)
     for (let i = 0; i < GAME_RULES.DICE_COUNT; i++) {
       const x = startX + i * this.sizeConfig.spacing;
       this.sprites.push(this.createDieSprite(x, centerY, i));
     }
 
+    // Create 6th die sprite (hidden until Sixth Blessing activates)
+    // Position it at the end, will be repositioned when activated
+    const sixthX = startX + GAME_RULES.DICE_COUNT * this.sizeConfig.spacing;
+    const sixthDie = this.createDieSprite(sixthX, centerY, GAME_RULES.DICE_COUNT);
+    sixthDie.container.setVisible(false);
+    sixthDie.container.setAlpha(0);
+    this.sprites.push(sixthDie);
+
+    // Extend state arrays for 6th die
+    this.state.values.push(1);
+    this.state.locked.push(false);
+
     // Create controls panel below dice - leave room for lock icons/checkmarks
+    // Ultra-compact: 75px to minimize vertical space
     // Mobile: 85px gives space for icons while keeping scorecard visible
-    const controlsOffset = isMobile ? 99 : 140;
-    this.createControlsPanel(centerX, centerY + controlsOffset, isMobile);
+    const controlsOffset = ultraCompact ? 75 : (isMobile ? 85 : 140);
+    this.createControlsPanel(centerX, centerY + controlsOffset, isMobile, ultraCompact, this.includeBlessingSlot);
+  }
+
+  // Flag to include blessing slot in controls panel
+  private includeBlessingSlot: boolean = false;
+
+  /**
+   * Enable the blessing slot in the controls panel (must be called before createUI)
+   */
+  enableBlessingSlot(): void {
+    this.includeBlessingSlot = true;
+  }
+
+  // Store button height for external access
+  private rollButtonHeight: number = 32;
+
+  /**
+   * Get the position and height for the blessing button within the controls panel
+   * Returns null if blessing slot is not enabled
+   */
+  getBlessingButtonPosition(): { x: number; y: number; height: number } | null {
+    if (!this.includeBlessingSlot || !this.rollButton) return null;
+
+    // Button is positioned in the left slot of the controls panel
+    // The panel container is stored in rollButton, get its position
+    const panelX = this.rollButton.x;
+    const panelY = this.rollButton.y;
+
+    // Column-based layout: blessing button is centered in column 0
+    // Column width is 120px on mobile, 130px on desktop
+    const colWidth = 120; // Use mobile width as default since that's the primary use case
+    const colCenter = colWidth / 2;
+    return {
+      x: panelX + colCenter,
+      y: panelY + this.controlsPanelHeight / 2,
+      height: this.rollButtonHeight,
+    };
   }
 
   /**
    * Create the controls panel with rerolls and roll button
+   * Uses a clean column-based layout with equal columns and centered content
+   * @param includeBlessingSlot If true, adds a 3rd column for the blessing button
    */
-  private createControlsPanel(centerX: number, centerY: number, isMobile: boolean = false): void {
-    const panelWidth = isMobile ? 280 : 260;
-    const panelHeight = isMobile ? 60 : 84; // mobile +18px, desktop +14px taller
+  private createControlsPanel(centerX: number, centerY: number, isMobile: boolean = false, ultraCompact: boolean = false, includeBlessingSlot: boolean = false): void {
+    // Column-based layout: divide panel into equal columns
+    const numCols = includeBlessingSlot ? 3 : 2;
+    const colWidth = isMobile ? 120 : 130;
+    const panelWidth = numCols * colWidth;
+    const panelHeight = ultraCompact ? 50 : (isMobile ? 60 : 84);
     const panelX = centerX - panelWidth / 2;
     const panelY = centerY - panelHeight / 2;
 
+    // Store for external access
+    this.controlsPanelHeight = panelHeight;
+
     // Panel container
     const panel = this.scene.add.container(panelX, panelY);
-
-    // Panel background with glow (stroked outline like difficulty buttons)
-    const outerGlow = this.scene.add.rectangle(
-      panelWidth / 2, panelHeight / 2,
-      panelWidth + 16, panelHeight + 16,
-      0x000000, 0
-    );
-    outerGlow.setStrokeStyle(SIZES.GLOW_STROKE_MEDIUM, PALETTE.purple[500], 0.1);
-    panel.add(outerGlow);
 
     const panelBg = this.scene.add.rectangle(
       panelWidth / 2, panelHeight / 2,
@@ -303,23 +532,41 @@ export class DiceManager {
       panel.add(accent);
     });
 
-    // Two-column layout: Rerolls (left) | Roll button (right)
-    const leftColX = isMobile ? 55 : 65;
-    const rightColX = panelWidth - (isMobile ? 70 : 75);
     const rowY = panelHeight / 2;
+    const dividerPadding = ultraCompact ? 10 : (isMobile ? 16 : 24);
 
-    // Rerolls display (left column) - horizontal on mobile
+    // Calculate column centers
+    // With blessing: [Blessing] | [Rerolls] | [Roll]
+    // Without:       [Rerolls] | [Roll]
+    const getColCenter = (colIndex: number) => colWidth * colIndex + colWidth / 2;
+
+    const rerollsColX = includeBlessingSlot ? getColCenter(1) : getColCenter(0);
+    const rollColX = includeBlessingSlot ? getColCenter(2) : getColCenter(1);
+
+    // Add dividers between columns
+    for (let i = 1; i < numCols; i++) {
+      const dividerX = i * colWidth;
+      const divider = this.scene.add.rectangle(
+        dividerX, rowY, 1, panelHeight - dividerPadding, PALETTE.purple[500], 0.35
+      );
+      panel.add(divider);
+    }
+
+    // Rerolls display - centered in its column
     if (isMobile) {
       // Compact horizontal layout: "REROLLS: 2"
-      const rerollsLabel = createText(this.scene, leftColX - 25, rowY, 'REROLLS:', {
-        fontSize: FONTS.SIZE_TINY,
+      // Offset meeting point right to visually center the combined text
+      const meetPoint = rerollsColX + 34;
+      const rerollsLabel = createText(this.scene, meetPoint, rowY, 'REROLLS: ', {
+        fontSize: FONTS.SIZE_SMALL,
         fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_SECONDARY,
+        color: COLORS.TEXT_PRIMARY,
+        fontStyle: 'bold',
       });
-      rerollsLabel.setOrigin(0, 0.5);
+      rerollsLabel.setOrigin(1, 0.5);
       panel.add(rerollsLabel);
 
-      this.rerollText = createText(this.scene, leftColX + 45, rowY, `${this.state.rerollsLeft}`, {
+      this.rerollText = createText(this.scene, meetPoint, rowY, `${this.state.rerollsLeft}`, {
         fontSize: FONTS.SIZE_BODY,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_SUCCESS,
@@ -328,16 +575,17 @@ export class DiceManager {
       this.rerollText.setOrigin(0, 0.5);
       panel.add(this.rerollText);
     } else {
-      // Desktop: stacked vertical layout
-      const rerollsLabel = createText(this.scene, leftColX, rowY - 12, 'REROLLS', {
-        fontSize: FONTS.SIZE_TINY,
+      // Desktop: stacked vertical layout - both centered
+      const rerollsLabel = createText(this.scene, rerollsColX, rowY - 12, 'REROLLS', {
+        fontSize: FONTS.SIZE_SMALL,
         fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_SECONDARY,
+        color: COLORS.TEXT_PRIMARY,
+        fontStyle: 'bold',
       });
       rerollsLabel.setOrigin(0.5, 0.5);
       panel.add(rerollsLabel);
 
-      this.rerollText = createText(this.scene, leftColX, rowY + 12, `${this.state.rerollsLeft}`, {
+      this.rerollText = createText(this.scene, rerollsColX, rowY + 12, `${this.state.rerollsLeft}`, {
         fontSize: FONTS.SIZE_HEADING,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_SUCCESS,
@@ -347,23 +595,20 @@ export class DiceManager {
       panel.add(this.rerollText);
     }
 
-    // Vertical divider
-    const divider = this.scene.add.rectangle(panelWidth / 2, rowY, 1, panelHeight - (isMobile ? 16 : 24), PALETTE.purple[500], 0.3);
-    panel.add(divider);
-
-    // Roll button (right column) - 32px on mobile to match scorecard touch targets
+    // Roll button - centered in its column
     const btnWidth = isMobile ? 100 : 110;
-    const btnHeight = isMobile ? 32 : 44;
+    const btnHeight = ultraCompact ? 28 : (isMobile ? 32 : 44);
+    this.rollButtonHeight = btnHeight; // Store for blessing button to match
 
     const btnGlow = this.scene.add.rectangle(
-      rightColX, rowY,
+      rollColX, rowY,
       btnWidth + 10, btnHeight + 8,
       PALETTE.green[500], 0.12
     );
     panel.add(btnGlow);
 
     const rollBtn = this.scene.add.rectangle(
-      rightColX, rowY,
+      rollColX, rowY,
       btnWidth, btnHeight,
       PALETTE.green[700], 0.95
     );
@@ -371,7 +616,7 @@ export class DiceManager {
     rollBtn.setInteractive({ useHandCursor: true });
     panel.add(rollBtn);
 
-    const rollText = createText(this.scene, rightColX, rowY, 'ROLL', {
+    const rollText = createText(this.scene, rollColX, rowY, 'ROLL', {
       fontSize: isMobile ? FONTS.SIZE_LABEL : FONTS.SIZE_BODY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SUCCESS,
@@ -400,15 +645,6 @@ export class DiceManager {
     this.rollButton.setData('bg', rollBtn);
     this.rollButton.setData('glow', btnGlow);
 
-    // Glow pulse animation (matches scorecard style)
-    this.scene.tweens.add({
-      targets: outerGlow,
-      alpha: 0.15,
-      duration: 2000,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
   }
 
   private createDieSprite(x: number, y: number, index: number): DiceSprite {
@@ -443,7 +679,7 @@ export class DiceManager {
     container.add(pipsGraphics);
 
     // Lock indicator text (for cursed dice)
-    const lockIndicator = createText(this.scene, 0, size / 2 + 22, '', {
+    const lockIndicator = createText(this.scene, 0, size / 2 + 16, '', {
       fontSize: FONTS.SIZE_TINY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_MUTED,
@@ -454,7 +690,7 @@ export class DiceManager {
 
     // Hold icon graphic (for user-held dice) - green checkmark
     const lockIcon = this.scene.add.graphics();
-    const iconY = size / 2 + 22;
+    const iconY = size / 2 + 16;
     const checkColor = PALETTE.green[400];
     lockIcon.lineStyle(3, checkColor, 1);
     lockIcon.beginPath();
@@ -597,14 +833,16 @@ export class DiceManager {
       this.state.rerollsLeft--;
     }
 
-    log.log(`Rolling dice (initial: ${initial}, rerolls left: ${this.state.rerollsLeft})`);
+    log.log(`Rolling dice (initial: ${initial}, rerolls left: ${this.state.rerollsLeft}, sixthDieActive: ${this.state.sixthDieActive})`);
 
     // Update rerolls text immediately
     this.updateRerollText();
 
-    // Generate final values
+    // Generate final values - include 6th die if active
+    const diceCount = this.state.sixthDieActive ? 6 : GAME_RULES.DICE_COUNT;
     const finalValues: number[] = [];
-    for (let i = 0; i < GAME_RULES.DICE_COUNT; i++) {
+
+    for (let i = 0; i < diceCount; i++) {
       if (!this.state.locked[i] || initial) {
         finalValues[i] = Phaser.Math.Between(1, 6);
       } else {
@@ -618,8 +856,9 @@ export class DiceManager {
 
   private animateRoll(initial: boolean, finalValues: number[]): void {
     const rollDuration = SIZES.ROLL_DURATION_MS;
+    const diceCount = this.state.sixthDieActive ? 6 : GAME_RULES.DICE_COUNT;
 
-    for (let i = 0; i < GAME_RULES.DICE_COUNT; i++) {
+    for (let i = 0; i < diceCount; i++) {
       if (!this.state.locked[i] || initial) {
         const sprite = this.sprites[i];
         const delay = i * 50; // Stagger the dice
@@ -714,7 +953,7 @@ export class DiceManager {
 
     // Set final values after animation
     this.scene.time.delayedCall(rollDuration + 100, () => {
-      for (let i = 0; i < GAME_RULES.DICE_COUNT; i++) {
+      for (let i = 0; i < diceCount; i++) {
         if (!this.state.locked[i] || initial) {
           const sprite = this.sprites[i];
           this.state.values[i] = finalValues[i];
@@ -732,11 +971,12 @@ export class DiceManager {
       }
 
       if (initial) {
-        this.state.locked = Array(GAME_RULES.DICE_COUNT).fill(false);
+        // Reset locked state - include 6th die if active
+        this.state.locked = Array(diceCount).fill(false);
       }
 
       this.updateDisplay();
-      this.events.emit('dice:rolled', { values: this.getValues(), isInitial: initial });
+      this.events.emit('dice:rolled', { values: this.getValues(), isInitial: initial, sixthDieActive: this.state.sixthDieActive });
     });
   }
 
@@ -823,7 +1063,8 @@ export class DiceManager {
   // ===========================================================================
 
   private updateDisplay(): void {
-    for (let i = 0; i < GAME_RULES.DICE_COUNT; i++) {
+    const diceCount = this.state.sixthDieActive ? 6 : GAME_RULES.DICE_COUNT;
+    for (let i = 0; i < diceCount; i++) {
       this.updateDieDisplay(i);
     }
     this.updateRerollText();
