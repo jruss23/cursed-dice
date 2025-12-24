@@ -1,11 +1,10 @@
 /**
  * Dice Commands
- * Commands for dice-related actions
+ * Commands for dice-related actions (supports undo)
  */
 
 import type { Command } from './types';
 import type { DiceManager } from '@/systems/dice-manager';
-import type { GameEventEmitter } from '@/systems/game-events';
 
 // =============================================================================
 // ROLL DICE COMMAND
@@ -13,10 +12,13 @@ import type { GameEventEmitter } from '@/systems/game-events';
 
 export interface RollDiceCommandDeps {
   diceManager: DiceManager;
-  events: GameEventEmitter;
   isInitialRoll: boolean;
 }
 
+/**
+ * Command to roll dice
+ * Note: Undo is not supported for rolls (RNG cannot be reversed)
+ */
 export class RollDiceCommand implements Command {
   readonly name = 'RollDice';
 
@@ -38,44 +40,53 @@ export class RollDiceCommand implements Command {
     const { diceManager, isInitialRoll } = this.deps;
     diceManager.roll(isInitialRoll);
   }
+
+  // Note: Undo for rolls is not practical - RNG cannot be reversed
 }
 
 // =============================================================================
 // TOGGLE DICE LOCK COMMAND
-// Note: This command is for future use when DiceManager exposes public lock methods
 // =============================================================================
 
 export interface ToggleDiceLockCommandDeps {
   diceManager: DiceManager;
-  events: GameEventEmitter;
   diceIndex: number;
 }
 
 /**
  * Command to toggle dice lock state
- * Currently a placeholder - lock toggling is handled internally by DiceManager
+ * Supports undo (just toggles again)
  */
 export class ToggleDiceLockCommand implements Command {
   readonly name = 'ToggleDiceLock';
-  private readonly diceIndex: number;
+  private wasLocked: boolean = false;
 
-  constructor(deps: ToggleDiceLockCommandDeps) {
-    this.diceIndex = deps.diceIndex;
-  }
+  constructor(private deps: ToggleDiceLockCommandDeps) {}
 
   canExecute(): boolean {
-    // DiceManager handles lock validation internally
-    return true;
+    const { diceManager, diceIndex } = this.deps;
+    return diceManager.canToggleLock(diceIndex);
   }
 
   execute(): void {
-    // Lock toggling is currently handled by DiceManager's internal click handlers
-    // This command exists for future refactoring where we want explicit command control
-    console.warn(`ToggleDiceLockCommand: Use DiceManager click handlers for dice ${this.diceIndex}`);
+    if (!this.canExecute()) return;
+
+    const { diceManager, diceIndex } = this.deps;
+
+    // Store previous state for undo
+    this.wasLocked = diceManager.getState().locked[diceIndex];
+
+    // Toggle the lock
+    diceManager.toggleDiceLock(diceIndex);
   }
 
   undo(): void {
-    // Would toggle again to undo
+    const { diceManager, diceIndex } = this.deps;
+    // Toggle back to previous state
+    const currentlyLocked = diceManager.getState().locked[diceIndex];
+    if (currentlyLocked !== this.wasLocked) {
+      diceManager.toggleDiceLock(diceIndex);
+    }
   }
 }
 
@@ -85,16 +96,14 @@ export class ToggleDiceLockCommand implements Command {
 
 export function createRollDiceCommand(
   diceManager: DiceManager,
-  events: GameEventEmitter,
   isInitialRoll: boolean
 ): RollDiceCommand {
-  return new RollDiceCommand({ diceManager, events, isInitialRoll });
+  return new RollDiceCommand({ diceManager, isInitialRoll });
 }
 
 export function createToggleDiceLockCommand(
   diceManager: DiceManager,
-  events: GameEventEmitter,
   diceIndex: number
 ): ToggleDiceLockCommand {
-  return new ToggleDiceLockCommand({ diceManager, events, diceIndex });
+  return new ToggleDiceLockCommand({ diceManager, diceIndex });
 }

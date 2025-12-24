@@ -10,6 +10,9 @@ import { createText } from '@/ui/ui-utils';
 import { GameEventEmitter } from './game-events';
 import { createLogger } from './logger';
 import { DiceControls } from '@/ui/dice';
+import { Services } from './services';
+import { RollDiceCommand, ToggleDiceLockCommand } from './commands';
+import type { CommandInvoker } from './commands';
 import type {
   DiceAllowedActions,
   DiceForcedState,
@@ -559,7 +562,7 @@ export class DiceManager implements TutorialControllableDice {
       ultraCompact,
       includeBlessingSlot: this.includeBlessingSlot,
       initialRerolls: this.state.rerollsLeft,
-      onRoll: () => this.roll(false),
+      onRoll: () => this.executeRoll(false),
     });
   }
 
@@ -653,7 +656,7 @@ export class DiceManager implements TutorialControllableDice {
 
     // Make interactive
     bg.setInteractive({ useHandCursor: true });
-    bg.on('pointerdown', () => this.toggleLock(index));
+    bg.on('pointerdown', () => this.onDieClicked(index));
     bg.on('pointerover', () => {
       if (!this.state.locked[index] && this.enabled) {
         // Hover lift effect
@@ -711,18 +714,38 @@ export class DiceManager implements TutorialControllableDice {
   // ===========================================================================
 
   /**
-   * Toggle lock state for a die
+   * Check if a die can be toggled (for command validation)
    */
-  private toggleLock(index: number): void {
+  canToggleLock(index: number): boolean {
+    if (!this.enabled) return false;
+    if (index === this.state.cursedIndex) return false;
+    if (this.lockableIndices !== null && !this.lockableIndices.includes(index)) return false;
+    return true;
+  }
+
+  /**
+   * Toggle lock state for a die (public API for commands)
+   * For direct calls, use onDieClicked() which handles visual feedback
+   */
+  toggleDiceLock(index: number): void {
+    this.state.locked[index] = !this.state.locked[index];
+    this.updateDieDisplay(index);
+    this.updateRollButton();
+    this.events.emit('dice:locked', { index, locked: this.state.locked[index] });
+  }
+
+  /**
+   * Handle die click - validates and executes via command pattern
+   */
+  private onDieClicked(index: number): void {
     if (!this.enabled) {
-      log.debug('toggleLock rejected: dice disabled');
+      log.debug('onDieClicked rejected: dice disabled');
       return;
     }
 
-    // Can't unlock a cursed die
+    // Can't unlock a cursed die - show visual feedback
     if (index === this.state.cursedIndex) {
-      log.debug(`toggleLock rejected: die ${index} is cursed`);
-      // Visual feedback - flash red
+      log.debug(`onDieClicked rejected: die ${index} is cursed`);
       const sprite = this.sprites[index];
       if (sprite) {
         this.scene.tweens.add({
@@ -746,7 +769,7 @@ export class DiceManager implements TutorialControllableDice {
       }
 
       if (!allowed) {
-        log.debug(`toggleLock rejected: die ${index} not in lockable indices`);
+        log.debug(`onDieClicked rejected: die ${index} not in lockable indices`);
         // Visual feedback - subtle shake
         const sprite = this.sprites[index];
         if (sprite) {
@@ -766,14 +789,33 @@ export class DiceManager implements TutorialControllableDice {
       }
     }
 
-    this.state.locked[index] = !this.state.locked[index];
-    this.updateDieDisplay(index);
-    this.updateRollButton(); // Update button state based on holdable dice
-    this.events.emit('dice:locked', { index, locked: this.state.locked[index] });
+    // Execute via command pattern
+    const commandInvoker = Services.tryGet<CommandInvoker>('commandInvoker');
+    if (commandInvoker) {
+      const command = new ToggleDiceLockCommand({ diceManager: this, diceIndex: index });
+      commandInvoker.execute(command);
+    } else {
+      // Fallback to direct execution if no invoker registered
+      this.toggleDiceLock(index);
+    }
   }
 
   /**
-   * Roll the dice
+   * Execute roll via command pattern (for UI button clicks)
+   */
+  executeRoll(initial: boolean): void {
+    const commandInvoker = Services.tryGet<CommandInvoker>('commandInvoker');
+    if (commandInvoker) {
+      const command = new RollDiceCommand({ diceManager: this, isInitialRoll: initial });
+      commandInvoker.execute(command);
+    } else {
+      // Fallback to direct execution
+      this.roll(initial);
+    }
+  }
+
+  /**
+   * Roll the dice (internal implementation)
    */
   roll(initial: boolean): void {
     // Initial roll should always work, even if dice are disabled
