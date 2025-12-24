@@ -48,7 +48,7 @@
 | **Command Pattern** | ✅ 100% | All commands wired up: `ScoreCategoryCommand`, `RollDiceCommand`, `ToggleDiceLockCommand` |
 | **Base UI Components** | 60% | `BasePanel` + `BaseButton` used by `PauseMenu`. Exception: `DebugPanel` (intentionally different styling) |
 | **Object Pooling** | ✅ Sufficient | `ParticlePool` for score effects. Dice sprites are persistent (no pooling needed) |
-| **BaseScene Abstract** | ✅ Created | `BaseScene` class available. Existing scenes can migrate incrementally |
+| **BaseScene Abstract** | ✅ 100% | `BaseScene` class created. `MenuScene` and `GameplayScene` now extend it |
 
 ### Not Implemented
 
@@ -89,14 +89,9 @@ Dice commands (`RollDiceCommand`, `ToggleDiceLockCommand`) are now wired up via 
 
 **Note**: Not all panels need BasePanel. Use it for standard purple-themed modal panels.
 
-### 4. Missing BaseScene (Low Priority)
-**Problem**: Scene setup code duplicated between MenuScene and GameplayScene
-**Examples**:
-- Camera fade in/out
-- Audio initialization pattern
-- Resize handling setup
-
-**Fix**: Create abstract `BaseScene` with common lifecycle methods
+### 4. ~~Missing BaseScene~~ ✅ RESOLVED (Dec 23, 2025)
+`BaseScene` abstract class created and both `MenuScene` and `GameplayScene` now extend it.
+Provides: registerShutdown(), fadeIn/fadeOut/transitionTo(), setupResizeListener(), getMetrics().
 
 ---
 
