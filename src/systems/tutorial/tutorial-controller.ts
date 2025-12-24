@@ -345,6 +345,10 @@ export class TutorialController {
 
     const currentStep = this.steps[this.currentStepIndex];
     if (currentStep.advanceOn === 'roll') {
+      // IMPORTANT: Disable dice immediately to prevent race condition
+      // where user could roll again before next step's onEnter sets up forced values
+      this.dice.setEnabled(false);
+
       this.scene.time.delayedCall(SIZES.ROLL_DURATION_MS + 200, () => {
         if (this.steps[this.currentStepIndex].id === currentStep.id) {
           this.advanceStep();
