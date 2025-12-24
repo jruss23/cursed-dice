@@ -4,7 +4,7 @@
  * All values are computed based on viewport and scorecard state
  */
 
-import type { CategoryId, Category } from '@/systems/scorecard';
+import type { Category } from '@/systems/scorecard';
 import type { LayoutConfig, RowLayout, ScorecardLayoutMode } from './layout-config';
 
 // =============================================================================
@@ -253,6 +253,15 @@ function calculateTwoColumnLayout(input: LayoutInput, needsCompact: boolean): La
     rows,
     hasSpecialSection: input.hasSpecialSection,
     needsCompactLayout: needsCompact,
+    rowStyle: {
+      namePaddingLeft: 8,
+      labelPaddingLeft: 6,
+      scoreOriginX: 1,
+      useShortNames: true,
+      showTotalDivider: false,
+      potentialOffsetFromRight: 45,
+      scoreOffsetFromRight: 12,
+    },
   };
 }
 
@@ -391,72 +400,15 @@ function calculateSingleColumnLayout(input: LayoutInput): LayoutConfig {
     rows,
     hasSpecialSection: input.hasSpecialSection,
     needsCompactLayout: false,
+    rowStyle: {
+      namePaddingLeft: 14,
+      labelPaddingLeft: 14,
+      scoreOriginX: 0.5,
+      useShortNames: false,
+      showTotalDivider: true,
+      potentialOffsetFromRight: 85,
+      scoreOffsetFromRight: 32,
+    },
   };
 }
 
-// =============================================================================
-// ROW POSITIONING HELPERS
-// =============================================================================
-
-/**
- * Get name text X position for a row
- */
-export function getNameTextX(row: RowLayout, isTwoColumn: boolean): number {
-  return row.x + (isTwoColumn ? 8 : 14);
-}
-
-/**
- * Get potential text X position for a row
- */
-export function getPotentialTextX(row: RowLayout, panelWidth: number, isTwoColumn: boolean): number {
-  if (isTwoColumn) {
-    return row.x + row.width - 45;
-  }
-  // Single-column: relative to panel right edge
-  return panelWidth - row.x - 85;
-}
-
-/**
- * Get score text X position for a row
- */
-export function getScoreTextX(row: RowLayout, panelWidth: number, isTwoColumn: boolean): number {
-  if (isTwoColumn) {
-    return row.x + row.width - 12;
-  }
-  // Single-column: relative to panel right edge
-  return panelWidth - row.x - 32;
-}
-
-// =============================================================================
-// SHORT NAMES
-// =============================================================================
-
-const SHORT_NAMES: Record<string, string> = {
-  ones: '1s',
-  twos: '2s',
-  threes: '3s',
-  fours: '4s',
-  fives: '5s',
-  sixes: '6s',
-  threeOfAKind: '3 of Kind',
-  fourOfAKind: '4 of Kind',
-  fullHouse: 'Full House',
-  smallStraight: 'Sm Straight',
-  largeStraight: 'Lg Straight',
-  fiveDice: '5 Dice!',
-  chance: 'Chance',
-  twoPair: 'Two Pair',
-  allOdd: 'All Odd',
-  allEven: 'All Even',
-  allHigh: 'All High',
-};
-
-/**
- * Get display name for a category
- */
-export function getCategoryDisplayName(id: CategoryId, fullName: string, isTwoColumn: boolean): string {
-  if (isTwoColumn) {
-    return SHORT_NAMES[id] || fullName;
-  }
-  return fullName;
-}

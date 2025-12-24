@@ -112,11 +112,6 @@ export class ScorecardPanel implements TutorialControllableScorecard {
   private onLockedCategories: (locked: Set<CategoryId>) => void;
   private onBlessingExpansion: () => void;
 
-  // Convenience getter for two-column check
-  private get isTwoColumn(): boolean {
-    return this.layoutConfig?.mode === 'two-column';
-  }
-
   /**
    * Compute layout configuration using the modular layout calculator
    */
@@ -292,7 +287,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     this.container.add(panelBg);
 
     // Inner highlight bar at top
-    const highlightHeight = this.isTwoColumn ? 10 : (this.isCompact ? 8 : 10);
+    const highlightHeight = this.layoutConfig.mode === 'two-column' ? 10 : (this.isCompact ? 8 : 10);
     const innerHighlight = this.scene.add.rectangle(
       width / 2, highlightHeight / 2 + 3,
       width - 20, highlightHeight,
@@ -332,7 +327,6 @@ export class ScorecardPanel implements TutorialControllableScorecard {
    */
   private buildContentUnified(): void {
     const lc = this.layoutConfig;
-    const isTwoCol = lc.mode === 'two-column';
 
     // Title (not in rows array)
     const title = createText(this.scene, lc.width / 2, lc.titleY, 'SCORECARD', {
@@ -360,25 +354,25 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     for (const row of lc.rows) {
       switch (row.section) {
         case 'header':
-          this.renderHeader(row, isTwoCol);
+          this.renderHeader(row);
           break;
         case 'upper':
         case 'lower':
         case 'special':
-          this.renderCategoryRow(row, isTwoCol);
+          this.renderCategoryRow(row);
           break;
         case 'bonus':
-          this.renderBonusRow(row, isTwoCol);
+          this.renderBonusRow(row);
           break;
         case 'total':
-          this.renderTotalRow(row, isTwoCol);
+          this.renderTotalRow(row);
           break;
       }
     }
   }
 
   /** Render a section header */
-  private renderHeader(row: RowLayout, _isTwoCol: boolean): void {
+  private renderHeader(row: RowLayout): void {
     const section = row.label === 'UPPER' || row.label === 'UPPER SECTION' ? 'upper'
       : row.label === 'LOWER' || row.label === 'LOWER SECTION' ? 'lower'
       : 'special';
@@ -433,13 +427,14 @@ export class ScorecardPanel implements TutorialControllableScorecard {
   }
 
   /** Render a category row (upper, lower, or special section) */
-  private renderCategoryRow(row: RowLayout, isTwoCol: boolean): void {
+  private renderCategoryRow(row: RowLayout): void {
     if (!row.categoryId) return;
 
     const category = this.scorecard.getCategory(row.categoryId);
     if (!category) return;
 
     const rowColor = this.getRowColorFromLayout(row);
+    const style = this.layoutConfig.rowStyle;
 
     // Background
     const background = this.scene.add.rectangle(row.x, row.y, row.width, row.height, rowColor);
@@ -447,10 +442,10 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     this.container.add(background);
 
     // Category name
-    const displayName = isTwoCol
+    const displayName = style.useShortNames
       ? this.getShortCategoryName(row.categoryId)
       : category.name;
-    const nameX = row.x + (isTwoCol ? 8 : 14);
+    const nameX = row.x + style.namePaddingLeft;
     const nameText = createText(this.scene, nameX, row.y + row.height / 2, displayName, {
       fontSize: this.layoutConfig.fontSize,
       fontFamily: FONTS.FAMILY,
@@ -460,9 +455,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     this.container.add(nameText);
 
     // Potential text
-    const potentialX = isTwoCol
-      ? row.x + row.width - 45
-      : this.layoutConfig.width - row.x - 85;
+    const potentialX = row.x + row.width - style.potentialOffsetFromRight;
     const potentialText = createText(this.scene, potentialX, row.y + row.height / 2, '', {
       fontSize: this.layoutConfig.smallFontSize,
       fontFamily: FONTS.FAMILY,
@@ -476,16 +469,14 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     this.container.add(lockIcon);
 
     // Score text
-    const scoreX = isTwoCol
-      ? row.x + row.width - 12
-      : this.layoutConfig.width - row.x - 32;
+    const scoreX = row.x + row.width - style.scoreOffsetFromRight;
     const scoreText = createText(this.scene, scoreX, row.y + row.height / 2, '', {
       fontSize: this.layoutConfig.scoreFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
       fontStyle: 'bold',
     });
-    scoreText.setOrigin(isTwoCol ? 1 : 0.5, 0.5);
+    scoreText.setOrigin(style.scoreOriginX, 0.5);
     this.container.add(scoreText);
 
     // Hit area
@@ -556,13 +547,15 @@ export class ScorecardPanel implements TutorialControllableScorecard {
   }
 
   /** Render bonus row */
-  private renderBonusRow(row: RowLayout, isTwoCol: boolean): void {
+  private renderBonusRow(row: RowLayout): void {
+    const style = this.layoutConfig.rowStyle;
+
     const background = this.scene.add.rectangle(row.x, row.y, row.width, row.height, PALETTE.gold[800], 0.3);
     background.setOrigin(0, 0);
     this.container.add(background);
 
     // Label with progress
-    const labelX = row.x + (isTwoCol ? 6 : 14);
+    const labelX = row.x + style.labelPaddingLeft;
     this.bonusProgressText = createText(this.scene, labelX, row.y + row.height / 2, 'Upper (0) >= 63', {
       fontSize: this.layoutConfig.smallFontSize,
       fontFamily: FONTS.FAMILY,
@@ -572,23 +565,23 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     this.container.add(this.bonusProgressText);
 
     // Bonus earned text
-    const bonusX = isTwoCol
-      ? row.x + row.width - 12
-      : this.layoutConfig.width - row.x - 32;
+    const bonusX = row.x + row.width - style.scoreOffsetFromRight;
     this.bonusText = createText(this.scene, bonusX, row.y + row.height / 2, '+0', {
       fontSize: this.layoutConfig.scoreFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_MUTED,
       fontStyle: 'bold',
     });
-    this.bonusText.setOrigin(isTwoCol ? 1 : 0.5, 0.5);
+    this.bonusText.setOrigin(style.scoreOriginX, 0.5);
     this.container.add(this.bonusText);
   }
 
   /** Render total row */
-  private renderTotalRow(row: RowLayout, isTwoCol: boolean): void {
-    // Divider line above (for single-column)
-    if (!isTwoCol) {
+  private renderTotalRow(row: RowLayout): void {
+    const style = this.layoutConfig.rowStyle;
+
+    // Divider line above (for single-column only)
+    if (style.showTotalDivider) {
       const divider = this.scene.add.rectangle(row.x, row.y - 1, row.width, 1, PALETTE.purple[500], 0.5);
       divider.setOrigin(0, 0);
       this.container.add(divider);
@@ -599,7 +592,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     this.container.add(background);
 
     // Total label with threshold
-    const labelX = row.x + (isTwoCol ? 6 : 14);
+    const labelX = row.x + style.labelPaddingLeft;
     const thresholdLabel = createText(this.scene, labelX, row.y + row.height / 2, `TOTAL (${this.passThreshold}+ to pass)`, {
       fontSize: this.layoutConfig.smallFontSize,
       fontFamily: FONTS.FAMILY,
@@ -620,16 +613,14 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     }
 
     // Total score
-    const totalX = isTwoCol
-      ? row.x + row.width - 12
-      : this.layoutConfig.width - row.x - 32;
+    const totalX = row.x + row.width - style.scoreOffsetFromRight;
     this.totalText = createText(this.scene, totalX, row.y + row.height / 2, '0', {
       fontSize: this.layoutConfig.scoreFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SUCCESS,
       fontStyle: 'bold',
     });
-    this.totalText.setOrigin(isTwoCol ? 1 : 0.5, 0.5);
+    this.totalText.setOrigin(style.scoreOriginX, 0.5);
     this.container.add(this.totalText);
   }
 

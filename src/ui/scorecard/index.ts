@@ -8,6 +8,7 @@ export type {
   ScorecardLayoutMode,
   RowLayout,
   LayoutConfig,
+  RowStyleConfig,
   RowDisplayState,
   BonusDisplayState,
   TotalDisplayState,
@@ -18,10 +19,6 @@ export type {
 export {
   calculateLayout,
   determineLayoutMode,
-  getNameTextX,
-  getPotentialTextX,
-  getScoreTextX,
-  getCategoryDisplayName,
   type LayoutInput,
 } from './layout-calculator';
 
