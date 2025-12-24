@@ -17,9 +17,7 @@
 import {
   type Difficulty,
   DIFFICULTIES,
-  FONTS,
   SIZES,
-  PALETTE,
   COLORS,
   DEV,
   RESPONSIVE,
@@ -53,11 +51,18 @@ import { Services, getProgression, getSave } from '@/systems/services';
 import { PauseMenu } from '@/ui/pause-menu';
 import { HeaderPanel, DebugPanel, EndScreenOverlay } from '@/ui/gameplay';
 import { ParticlePool } from '@/systems/particle-pool';
-import { createText } from '@/ui/ui-utils';
 import { DebugController } from '@/systems/debug-controller';
 import { SixthBlessing } from '@/systems/blessings/blessing-sixth';
 import { BaseScene } from './BaseScene';
-import { BlessingIntegration } from './gameplay';
+import {
+  BlessingIntegration,
+  createAnimatedBackground,
+  createDebugPanel,
+  createHeaderPanel,
+  createControlButtons,
+  createSelectPrompt,
+  showScoreEffect,
+} from './gameplay';
 
 export class GameplayScene extends BaseScene {
   // Core systems (created fresh each game)
@@ -317,7 +322,7 @@ export class GameplayScene extends BaseScene {
     this.cameras.main.fadeIn(SIZES.FADE_DURATION_MS, 0, 0, 0);
 
     // Animated background
-    this.createAnimatedBackground(width, height);
+    createAnimatedBackground(this, width, height);
 
     // Create debug controller (used by DebugPanel)
     if (DEV.IS_DEVELOPMENT) {
@@ -371,19 +376,19 @@ export class GameplayScene extends BaseScene {
     const playAreaCenterX = leftMargin + (scorecardX - leftMargin) / 2;
 
     // Debug panel (only in debug mode)
-    if (DEV.IS_DEVELOPMENT && this.debugController) {
-      this.debugPanel = new DebugPanel(this, height, {
-        onSkipTime: () => this.debugController!.skipTime(),
-        onSkipStage: () => this.debugController!.skipStage(),
-        onClearData: () => this.debugController!.clearData(),
-        onPerfectUpper: () => this.debugController!.perfectUpper(),
-        onSkipToMode: (mode: number) => this.debugController!.skipToMode(mode),
+    if (this.debugController) {
+      this.debugPanel = createDebugPanel({
+        scene: this,
+        height,
         currentMode: this.currentMode,
+        debugController: this.debugController,
       });
     }
 
     // Header panel
-    this.headerPanel = new HeaderPanel(this, playAreaCenterX, {
+    this.headerPanel = createHeaderPanel({
+      scene: this,
+      centerX: playAreaCenterX,
       currentMode: this.currentMode,
       modeName: this.modeConfig.name,
       totalScore,
@@ -399,13 +404,8 @@ export class GameplayScene extends BaseScene {
 
     // Select prompt - positioned above scorecard panel
     const promptPadding = 12;
-    this.selectPrompt = createText(this, scorecardX + scorecardWidth / 2, promptPadding, 'Click a category to score', {
-      fontSize: FONTS.SIZE_SMALL,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_SUCCESS,
-    });
+    this.selectPrompt = createSelectPrompt(this, scorecardX + scorecardWidth / 2, promptPadding);
     this.selectPrompt.setOrigin(0.5, 0);
-    this.addPulseAnimation(this.selectPrompt);
 
     // Scorecard panel - below the prompt
     const promptHeight = 14;
@@ -416,8 +416,8 @@ export class GameplayScene extends BaseScene {
       passThreshold: PASS_THRESHOLD,
     });
 
-    // QUIT button - bottom left corner
-    this.createQuitButton(height);
+    // Control buttons (PAUSE/QUIT) - bottom left corner
+    this.createControlButtonsUI(height);
   }
 
   /**
@@ -432,15 +432,13 @@ export class GameplayScene extends BaseScene {
   ): void {
     const centerX = width / 2;
 
-    // Debug panel (only in debug mode) - positioned differently
-    if (DEV.IS_DEVELOPMENT && this.debugController) {
-      this.debugPanel = new DebugPanel(this, height, {
-        onSkipTime: () => this.debugController!.skipTime(),
-        onSkipStage: () => this.debugController!.skipStage(),
-        onClearData: () => this.debugController!.clearData(),
-        onPerfectUpper: () => this.debugController!.perfectUpper(),
-        onSkipToMode: (mode: number) => this.debugController!.skipToMode(mode),
+    // Debug panel (only in debug mode)
+    if (this.debugController) {
+      this.debugPanel = createDebugPanel({
+        scene: this,
+        height,
         currentMode: this.currentMode,
+        debugController: this.debugController,
       });
     }
 
@@ -449,7 +447,9 @@ export class GameplayScene extends BaseScene {
     const layout = getPortraitLayout(this);
 
     // Header panel (compact for portrait)
-    this.headerPanel = new HeaderPanel(this, centerX, {
+    this.headerPanel = createHeaderPanel({
+      scene: this,
+      centerX,
       currentMode: this.currentMode,
       modeName: this.modeConfig.name,
       totalScore,
@@ -478,127 +478,31 @@ export class GameplayScene extends BaseScene {
     // Select prompt - only show on tablet/desktop, not needed on mobile (self-evident)
     if (!metrics.isMobile) {
       const promptY = layout.scorecardY - 22;
-      this.selectPrompt = createText(this, centerX, promptY, 'Tap a category to score', {
-        fontSize: FONTS.SIZE_SMALL,
-        fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_SUCCESS,
-      });
+      this.selectPrompt = createSelectPrompt(this, centerX, promptY, 'Tap a category to score');
       this.selectPrompt.setOrigin(0.5, 0.5);
-      this.addPulseAnimation(this.selectPrompt);
     }
 
-    // QUIT button - bottom left corner
-    this.createQuitButton(height);
+    // Control buttons (PAUSE/QUIT) - bottom left corner
+    this.createControlButtonsUI(height);
   }
 
   /**
    * Create PAUSE and QUIT buttons in bottom left corner
    */
-  private createQuitButton(height: number): void {
-    const btnWidth = 70;
-    const btnHeight = 32; // Match 32px touch targets
-    const btnY = height - 6; // Closer to corner
-
-    // PAUSE button (left)
-    const pauseX = 6; // Closer to corner
-    const pauseBg = this.add.rectangle(pauseX, btnY, btnWidth, btnHeight, PALETTE.purple[700], 0.9);
-    pauseBg.setOrigin(0, 1);
-    pauseBg.setStrokeStyle(2, PALETTE.purple[500], 0.8);
-    pauseBg.setInteractive({ useHandCursor: true });
-
-    const pauseText = createText(this, pauseX + btnWidth / 2, btnY - btnHeight / 2, 'PAUSE', {
-      fontSize: FONTS.SIZE_SMALL,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_ACCENT,
-      fontStyle: 'bold',
-    });
-    pauseText.setOrigin(0.5, 0.5);
-
-    pauseBg.on('pointerover', () => {
-      pauseBg.setFillStyle(PALETTE.purple[600], 1);
-      pauseBg.setStrokeStyle(2, PALETTE.purple[400], 1);
-    });
-    pauseBg.on('pointerout', () => {
-      pauseBg.setFillStyle(PALETTE.purple[700], 0.9);
-      pauseBg.setStrokeStyle(2, PALETTE.purple[500], 0.8);
-    });
-    pauseBg.on('pointerdown', () => this.pauseGame());
-
-    // QUIT button (right of pause)
-    const quitX = pauseX + btnWidth + 4; // Reduced gap from 10 to 4
-    const quitBg = this.add.rectangle(quitX, btnY, btnWidth, btnHeight, PALETTE.red[800], 0.9);
-    quitBg.setOrigin(0, 1);
-    quitBg.setStrokeStyle(2, PALETTE.red[500], 0.8);
-    quitBg.setInteractive({ useHandCursor: true });
-
-    const quitText = createText(this, quitX + btnWidth / 2, btnY - btnHeight / 2, 'QUIT', {
-      fontSize: FONTS.SIZE_SMALL,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_DANGER,
-      fontStyle: 'bold',
-    });
-    quitText.setOrigin(0.5, 0.5);
-
-    quitBg.on('pointerover', () => {
-      quitBg.setFillStyle(PALETTE.red[700], 1);
-      quitBg.setStrokeStyle(2, PALETTE.red[400], 1);
-      quitText.setColor('#ffffff');
-    });
-    quitBg.on('pointerout', () => {
-      quitBg.setFillStyle(PALETTE.red[800], 0.9);
-      quitBg.setStrokeStyle(2, PALETTE.red[500], 0.8);
-      quitText.setColor(COLORS.TEXT_DANGER);
-    });
-    quitBg.on('pointerdown', () => this.returnToMenu());
-
-    // Create pause menu (centered on screen)
-    const { width: screenWidth, height: screenHeight } = this.cameras.main;
-    this.pauseMenu = new PauseMenu(this, {
-      x: screenWidth / 2,
-      y: screenHeight / 2,
-      callbacks: {
-        onResume: () => this.resumeGame(),
-        onQuit: () => this.returnToMenu(),
-      },
+  private createControlButtonsUI(height: number): void {
+    const result = createControlButtons({
+      scene: this,
+      height,
+      stateMachine: this.stateMachine,
+      diceManager: this.diceManager,
+      debugController: this.debugController,
+      onPause: () => this.pauseGame(),
+      onResume: () => this.resumeGame(),
+      onQuit: () => this.returnToMenu(),
     });
 
-    // Setup centralized input handling
-    this.inputManager = new InputManager(this);
-
-    // Bind game actions
-    this.inputManager.bind('roll', () => {
-      if (this.stateMachine.isPlayable()) {
-        this.diceManager?.roll(false);
-      }
-    });
-
-    this.inputManager.bind('pause', () => {
-      if (this.stateMachine.is('paused')) {
-        this.resumeGame();
-      } else if (this.stateMachine.isPlayable()) {
-        this.pauseGame();
-      }
-    });
-
-    // Debug keys (only in development)
-    if (DEV.IS_DEVELOPMENT && this.debugController) {
-      this.inputManager.bind('debugTime', () => this.debugController!.skipTime());
-      this.inputManager.bind('debugStage', () => this.debugController!.skipStage());
-    }
-  }
-
-  /**
-   * Helper to add pulse animation
-   */
-  private addPulseAnimation(target: Phaser.GameObjects.GameObject): void {
-    this.tweens.add({
-      targets: target,
-      alpha: 0.3,
-      duration: SIZES.ANIM_PULSE,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
+    this.pauseMenu = result.pauseMenu;
+    this.inputManager = result.inputManager;
   }
 
   /**
@@ -643,41 +547,6 @@ export class GameplayScene extends BaseScene {
     }
   }
 
-  private createAnimatedBackground(width: number, height: number): void {
-    // Dark gradient base
-    const bg = this.add.graphics();
-    bg.fillGradientStyle(0x0a0a1a, 0x0a0a1a, 0x0a1a2a, 0x1a0a2a, 1);
-    bg.fillRect(0, 0, width, height);
-
-    // Subtle ambient particles
-    for (let i = 0; i < 20; i++) {
-      const x = Phaser.Math.Between(0, width);
-      const y = Phaser.Math.Between(0, height);
-      const size = Phaser.Math.Between(2, 6);
-
-      const particle = this.add.circle(x, y, size, 0x4a4a8a, 0.1);
-
-      this.tweens.add({
-        targets: particle,
-        y: y + Phaser.Math.Between(-50, 50),
-        alpha: Phaser.Math.FloatBetween(0.05, 0.15),
-        duration: Phaser.Math.Between(4000, 8000),
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-        delay: Phaser.Math.Between(0, 3000),
-      });
-    }
-
-    // Corner vignettes
-    const vignette = this.add.graphics();
-    vignette.fillStyle(0x000000, 0.3);
-    vignette.fillCircle(0, 0, 200);
-    vignette.fillCircle(width, 0, 200);
-    vignette.fillCircle(0, height, 200);
-    vignette.fillCircle(width, height, 200);
-    vignette.setBlendMode(Phaser.BlendModes.MULTIPLY);
-  }
 
   // ===========================================================================
   // GAME LOGIC
@@ -865,7 +734,7 @@ export class GameplayScene extends BaseScene {
     }
 
     // Celebration effect!
-    this.showScoreEffect(points);
+    this.showScoreEffectUI(points);
 
     // Update display
     this.scorecardPanel?.updateDisplay();
@@ -894,106 +763,16 @@ export class GameplayScene extends BaseScene {
     });
   }
 
-  private showScoreEffect(points: number): void {
-    const centerX = this.diceCenterX;
-    const centerY = 290;
-
-    // Determine color and size based on score quality
-    let color: string = COLORS.TEXT_SUCCESS;
-    let glowColor: string = '#22aa44';
-    let size: string = '48px';
-    if (points >= 50) {
-      color = COLORS.TEXT_WARNING; // Five Dice! - gold
-      glowColor = '#ffaa00';
-      size = '72px';
-    } else if (points >= 30) {
-      color = COLORS.TEXT_ACCENT; // Great - purple accent
-      glowColor = '#aa66ff';
-      size = '56px';
-    } else if (points >= 15) {
-      color = COLORS.TEXT_SUCCESS; // Good - green
-      glowColor = '#22aa44';
-      size = '48px';
-    } else if (points === 0) {
-      color = COLORS.TEXT_MUTED; // Zero - muted
-      glowColor = '#666666';
-      size = '36px';
-    }
-
-    // Glow layer behind text
-    const scoreGlow = createText(this, centerX, centerY, `+${points}`, {
-      fontSize: size,
-      fontFamily: FONTS.FAMILY,
-      color: glowColor,
-      fontStyle: 'bold',
-    });
-    scoreGlow.setOrigin(0.5, 0.5);
-    scoreGlow.setAlpha(0);
-    scoreGlow.setBlendMode(Phaser.BlendModes.ADD);
-    scoreGlow.setScale(1.1);
-
-    // Main score text
-    const scoreText = createText(this, centerX, centerY, `+${points}`, {
-      fontSize: size,
-      fontFamily: FONTS.FAMILY,
-      color: color,
-      fontStyle: 'bold',
-    });
-    scoreText.setOrigin(0.5, 0.5);
-    scoreText.setAlpha(0);
-
-    const targets = [scoreText, scoreGlow];
-
-    // Animate in with punch effect
-    this.tweens.add({
-      targets,
-      y: centerY - 60,
-      alpha: 1,
-      scaleX: 1.3,
-      scaleY: 1.3,
-      duration: 250,
-      ease: 'Back.easeOut',
-      onComplete: () => {
-        // Settle to normal scale
-        this.tweens.add({
-          targets,
-          scaleX: 1,
-          scaleY: 1,
-          duration: 150,
-          ease: 'Quad.easeOut',
-          onComplete: () => {
-            // Hold for a moment, then fade out
-            this.tweens.add({
-              targets,
-              y: centerY - 120,
-              alpha: 0,
-              duration: 500,
-              delay: 600, // Linger for 600ms before fading
-              ease: 'Quad.easeIn',
-              onComplete: () => {
-                scoreText.destroy();
-                scoreGlow.destroy();
-              },
-            });
-          },
-        });
+  private showScoreEffectUI(points: number): void {
+    showScoreEffect({
+      scene: this,
+      centerX: this.diceCenterX,
+      centerY: 290,
+      points,
+      onParticles: (x, y, count, color) => {
+        this.particlePool?.emit(x, y, count, color);
       },
     });
-
-    // Particle burst for good scores
-    if (points >= 15) {
-      this.createScoreParticles(centerX, centerY - 40, points >= 50 ? 20 : points >= 30 ? 12 : 6, color);
-    }
-
-    // Screen flash for Five Dice (5 of a kind)
-    if (points >= 50) {
-      this.cameras.main.flash(300, 255, 220, 100);
-    }
-  }
-
-  private createScoreParticles(x: number, y: number, count: number, color: string): void {
-    const colorNum = Phaser.Display.Color.HexStringToColor(color).color;
-    this.particlePool?.emit(x, y, count, colorNum);
   }
 
   // ===========================================================================
