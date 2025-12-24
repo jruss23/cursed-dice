@@ -9,3 +9,4 @@ export { EndScreenOverlay, type EndScreenConfig, type EndScreenCallbacks } from 
 export { SixthBlessingButton, type SixthBlessingButtonConfig } from './sixth-blessing-button';
 export { ForesightBlessingButton, type ForesightBlessingButtonConfig } from './foresight-blessing-button';
 export { ForesightPreviewPanel, type ForesightPreviewConfig } from './foresight-preview-panel';
+export { SanctuaryBlessingButton, type SanctuaryBlessingButtonConfig } from './sanctuary-blessing-button';

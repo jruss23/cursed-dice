@@ -10,4 +10,4 @@ export * from './blessing-manager';
 import './blessing-expansion';
 import './blessing-sixth';
 import './blessing-foresight';
-// import './blessing-sanctuary';  // TODO: Sanctuary blessing
+import './blessing-sanctuary';

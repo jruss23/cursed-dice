@@ -8,8 +8,10 @@ import Phaser from 'phaser';
 import { SixthBlessingButton } from '@/ui/gameplay/sixth-blessing-button';
 import { ForesightBlessingButton } from '@/ui/gameplay/foresight-blessing-button';
 import { ForesightPreviewPanel } from '@/ui/gameplay/foresight-preview-panel';
+import { SanctuaryBlessingButton } from '@/ui/gameplay/sanctuary-blessing-button';
 import { SixthBlessing } from '@/systems/blessings/blessing-sixth';
 import { ForesightBlessing } from '@/systems/blessings/blessing-foresight';
+import { SanctuaryBlessing } from '@/systems/blessings/blessing-sanctuary';
 import type { BlessingManager } from '@/systems/blessings';
 import type { GameEventEmitter } from '@/systems/game-events';
 import type { DiceManager } from '@/systems/dice-manager';
@@ -41,6 +43,7 @@ export class BlessingIntegration {
   private sixthBlessingButton: SixthBlessingButton | null = null;
   private foresightBlessingButton: ForesightBlessingButton | null = null;
   private foresightPreviewPanel: ForesightPreviewPanel | null = null;
+  private sanctuaryBlessingButton: SanctuaryBlessingButton | null = null;
 
   constructor(config: BlessingIntegrationConfig) {
     this.scene = config.scene;
@@ -61,6 +64,8 @@ export class BlessingIntegration {
       this.setupSixthBlessing();
     } else if (blessingId === 'foresight') {
       this.setupForesightBlessing(config);
+    } else if (blessingId === 'sanctuary') {
+      this.setupSanctuaryBlessing();
     }
   }
 
@@ -190,6 +195,57 @@ export class BlessingIntegration {
     this.diceManager.setEnabled(true);
   }
 
+  private setupSanctuaryBlessing(): void {
+    const blessing = this.blessingManager.getActiveBlessing() as SanctuaryBlessing | null;
+    if (!blessing) return;
+
+    log.log('Setting up Sanctuary Blessing integration');
+
+    const pos = this.diceManager.getBlessingButtonPosition();
+    if (!pos) {
+      log.warn('Could not get blessing button position');
+      return;
+    }
+
+    this.sanctuaryBlessingButton = new SanctuaryBlessingButton(
+      this.scene,
+      this.events,
+      {
+        x: pos.x,
+        y: pos.y,
+        height: pos.height,
+        onBank: () => this.handleSanctuaryBank(blessing),
+        onRestore: () => this.handleSanctuaryRestore(blessing),
+        canBank: () => blessing.canBankDice(),
+        canRestore: () => blessing.canRestoreDice(),
+        getBankedValues: () => blessing.getBankedValues(),
+      }
+    );
+  }
+
+  private handleSanctuaryBank(blessing: SanctuaryBlessing): boolean {
+    const diceState = this.diceManager.getState();
+    // Only bank the first 5 dice (ignore 6th die if active)
+    const values = diceState.values.slice(0, 5);
+    const locked = diceState.locked.slice(0, 5);
+
+    const success = blessing.bank(values, locked);
+    if (success) {
+      log.log('Dice banked:', values);
+    }
+    return success;
+  }
+
+  private handleSanctuaryRestore(blessing: SanctuaryBlessing): boolean {
+    const bankedState = blessing.restore();
+    if (!bankedState) return false;
+
+    // Apply the banked values and locked states
+    this.diceManager.restoreFromSanctuary(bankedState.values, bankedState.locked);
+    log.log('Dice restored:', bankedState.values);
+    return true;
+  }
+
   destroy(): void {
     if (this.sixthBlessingButton) {
       this.sixthBlessingButton.destroy();
@@ -204,6 +260,11 @@ export class BlessingIntegration {
     if (this.foresightPreviewPanel) {
       this.foresightPreviewPanel.destroy();
       this.foresightPreviewPanel = null;
+    }
+
+    if (this.sanctuaryBlessingButton) {
+      this.sanctuaryBlessingButton.destroy();
+      this.sanctuaryBlessingButton = null;
     }
   }
 }

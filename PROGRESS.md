@@ -175,6 +175,14 @@ src/
 
 **How it works**: Click button → spend 1 reroll + 1 charge → see preview → accept or reject
 
+### Sanctuary Blessing - COMPLETE
+- [x] Created `SanctuaryBlessing` class with bank/restore mechanics
+- [x] Created `SanctuaryBlessingButton` UI with gold (bank) / green (restore) theme
+- [x] Integrated with `BlessingIntegration` and `DiceManager`
+- [x] Added `restoreFromSanctuary()` method to DiceManager
+
+**How it works**: Click BANK to save current dice → button changes to RESTORE → click RESTORE to get banked dice back with fresh rerolls
+
 ### Tutorial Polish
 - [x] Fixed highlight flash animation
 - [x] Added dark background to hint text
@@ -222,17 +230,16 @@ src/
 |----------|--------|-------|
 | Abundance | ✅ Complete | 4 bonus categories, pick 13 of 17 |
 | Foresight | ✅ Complete | Preview next roll, 3 charges |
-| Sanctuary | 🔲 TODO | Bank/restore dice, 1 use |
+| Sanctuary | ✅ Complete | Bank/restore dice, 1 use, gold/green theme |
 | The Sixth | ✅ Complete | 6th die, 3 charges |
+
+**All 4 blessings are now implemented!**
 
 ---
 
 ## Next Steps
 
-### Immediate
-1. [ ] Implement Sanctuary blessing (bank/restore dice)
-
-### Later - Polish
-2. [ ] Add vitest + unit tests for pure logic modules
-3. [ ] Performance profiling on mobile
-4. [ ] Sound effects and haptic feedback refinement
+### Polish
+1. [ ] Add vitest + unit tests for pure logic modules
+2. [ ] Performance profiling on mobile
+3. [ ] Sound effects and haptic feedback refinement

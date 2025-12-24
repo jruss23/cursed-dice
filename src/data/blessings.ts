@@ -63,7 +63,7 @@ export const BLESSINGS: Record<BlessingId, BlessingConfig> = {
     ],
     bestFor: 'Players who like risk/reward timing',
     charges: 1,
-    implemented: false,
+    implemented: true,
   },
   sixth: {
     id: 'sixth',

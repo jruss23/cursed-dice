@@ -192,6 +192,33 @@ export class DiceManager implements TutorialControllableDice {
   }
 
   /**
+   * Restore dice from Sanctuary blessing
+   * Sets dice to banked values with banked locked states, resets rerolls
+   */
+  restoreFromSanctuary(values: number[], locked: boolean[]): void {
+    log.log('Restoring from Sanctuary:', values, locked);
+
+    // Set values and locked states
+    for (let i = 0; i < GAME_RULES.DICE_COUNT; i++) {
+      this.state.values[i] = values[i];
+      this.state.locked[i] = locked[i];
+      this.updateDieDisplay(i);
+    }
+
+    // Reset rerolls to full
+    this.state.rerollsLeft = GAME_RULES.REROLLS_PER_TURN;
+    this.updateRerollText();
+    this.updateRollButton();
+
+    // Emit rolled event so scorecard updates
+    this.events.emit('dice:rolled', {
+      values: this.getValues(),
+      isInitial: false,
+      sixthDieActive: this.state.sixthDieActive
+    });
+  }
+
+  /**
    * Set which die is "cursed" (permanently locked) - Mode 2
    * @param index Die index (0-4), or -1 to clear
    */

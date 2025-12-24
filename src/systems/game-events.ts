@@ -41,6 +41,9 @@ export interface GameEvents {
   'blessing:foresight:rejected': void;
   'blessing:foresight:cleared': void;
   'blessing:foresight:reset': { charges: number };
+  'blessing:sanctuary:banked': { values: number[]; locked: boolean[] };
+  'blessing:sanctuary:restored': { values: number[]; locked: boolean[] };
+  'blessing:sanctuary:reset': { canBank: boolean; canRestore: boolean; bankedDice: number[] | null };
 
   // Mode mechanics events
   'mode:gauntlet': boolean;
