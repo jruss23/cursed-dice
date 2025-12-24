@@ -23,7 +23,6 @@ import { getSaveManager, type SaveManagerClass } from './save-manager';
 import { getGameProgression, type GameProgressionManager } from './game-progression';
 import type { GameStateMachine } from './state-machine';
 import type { GameEventEmitter } from './game-events';
-import type { CommandInvoker } from './commands';
 import type { Scorecard } from './scorecard';
 import type { AudioManager } from './audio-manager';
 
@@ -42,8 +41,7 @@ export type ServiceKey =
   | 'scorecard'
   | 'events'
   | 'stateMachine'
-  | 'diceManager'
-  | 'commandInvoker';
+  | 'diceManager';
 
 // =============================================================================
 // SERVICE REGISTRY
@@ -188,13 +186,6 @@ export function getScorecard(): Scorecard {
   return Services.get<Scorecard>('scorecard');
 }
 
-/**
- * Get the CommandInvoker service
- * @throws if not registered
- */
-export function getCommandInvoker(): CommandInvoker {
-  return Services.get<CommandInvoker>('commandInvoker');
-}
 
 // =============================================================================
 // INITIALIZATION

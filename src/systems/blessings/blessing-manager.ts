@@ -68,8 +68,6 @@ export class BlessingManager {
     this.state.chosenBlessingId = blessingId;
     this.state.hasChosen = true;
     this.activeBlessing = factory(events);
-
-    events.emit('blessing:chosen', { blessingId });
     log.log(`Chose blessing: ${blessingId}`);
   }
 

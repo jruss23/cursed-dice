@@ -10,9 +10,6 @@ import { createText } from '@/ui/ui-utils';
 import { GameEventEmitter } from './game-events';
 import { createLogger } from './logger';
 import { DiceControls } from '@/ui/dice';
-import { Services } from './services';
-import { RollDiceCommand, ToggleDiceLockCommand } from './commands';
-import type { CommandInvoker } from './commands';
 import type {
   DiceAllowedActions,
   DiceForcedState,
@@ -789,29 +786,15 @@ export class DiceManager implements TutorialControllableDice {
       }
     }
 
-    // Execute via command pattern
-    const commandInvoker = Services.tryGet<CommandInvoker>('commandInvoker');
-    if (commandInvoker) {
-      const command = new ToggleDiceLockCommand({ diceManager: this, diceIndex: index });
-      commandInvoker.execute(command);
-    } else {
-      // Fallback to direct execution if no invoker registered
-      this.toggleDiceLock(index);
-    }
+    // Execute lock toggle directly
+    this.toggleDiceLock(index);
   }
 
   /**
-   * Execute roll via command pattern (for UI button clicks)
+   * Execute roll (for UI button clicks)
    */
   executeRoll(initial: boolean): void {
-    const commandInvoker = Services.tryGet<CommandInvoker>('commandInvoker');
-    if (commandInvoker) {
-      const command = new RollDiceCommand({ diceManager: this, isInitialRoll: initial });
-      commandInvoker.execute(command);
-    } else {
-      // Fallback to direct execution
-      this.roll(initial);
-    }
+    this.roll(initial);
   }
 
   /**

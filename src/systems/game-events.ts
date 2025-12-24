@@ -5,7 +5,6 @@
 
 import Phaser from 'phaser';
 import type { CategoryId } from './scorecard';
-import type { BlessingId } from './blessings/types';
 
 // =============================================================================
 // EVENT TYPES
@@ -24,29 +23,16 @@ export interface GameEvents {
 
   // Timer events
   'timer:tick': { remaining: number; formatted: string };
-  'timer:warning': { remaining: number };
-  'timer:expired': void;
 
   // Game state events
-  'game:start': { difficulty: string };
-  'game:pause': void;
-  'game:resume': void;
   'game:end': { completed: boolean; score: number };
 
   // UI events
   'ui:categoryHover': { categoryId: CategoryId | null };
   'ui:menuRequested': void;
 
-  // Blessing events
-  'blessing:chosen': { blessingId: BlessingId };
+  // Blessing events (only implemented blessings)
   'blessing:expansion:enable': void;
-  'blessing:sacrifice:preview': { values: number[]; chargesRemaining: number };
-  'blessing:sacrifice:consumed': void;
-  'blessing:sacrifice:activated': { chargesRemaining: number };
-  'blessing:insurance:banked': { dice: number[] };
-  'blessing:insurance:restored': { dice: number[] };
-  'blessing:insurance:reset': void;
-  'blessing:sacrifice:reset': { charges: number };
   'blessing:sixth:activated': { chargesRemaining: number };
   'blessing:sixth:deactivated': void;
   'blessing:sixth:reset': { charges: number };

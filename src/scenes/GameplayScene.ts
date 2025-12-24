@@ -50,7 +50,6 @@ import { getModeMechanics, type ModeMechanicsManager } from '@/systems/mode-mech
 import { BlessingChoicePanel } from '@/ui/blessing-choice-panel';
 import { GameStateMachine } from '@/systems/state-machine';
 import { Services, getProgression, getSave } from '@/systems/services';
-import { CommandInvoker, ScoreCategoryCommand } from '@/systems/commands';
 import { PauseMenu } from '@/ui/pause-menu';
 import { HeaderPanel, DebugPanel, EndScreenOverlay } from '@/ui/gameplay';
 import { SixthBlessingButton } from '@/ui/gameplay/sixth-blessing-button';
@@ -71,7 +70,6 @@ export class GameplayScene extends BaseScene {
   private audioManager: AudioManager | null = null;
   private blessingManager!: BlessingManager;
   private stateMachine!: GameStateMachine;
-  private commandInvoker!: CommandInvoker;
 
   // UI components
   private scorecardPanel: ScorecardPanel | null = null;
@@ -142,9 +140,6 @@ export class GameplayScene extends BaseScene {
 
     // Create state machine
     this.stateMachine = new GameStateMachine();
-
-    // Create command invoker for undo support
-    this.commandInvoker = new CommandInvoker();
 
     // Create fresh instances for this game session
     this.scorecard = createScorecard();
@@ -259,7 +254,6 @@ export class GameplayScene extends BaseScene {
     Services.register('scorecard', this.scorecard);
     Services.register('events', this.gameEvents);
     Services.register('stateMachine', this.stateMachine);
-    Services.register('commandInvoker', this.commandInvoker);
   }
 
   private initialAspectRatio: number = 1;
@@ -1011,17 +1005,11 @@ export class GameplayScene extends BaseScene {
       return;
     }
 
-    // Use command pattern for scoring (enables undo)
-    const command = new ScoreCategoryCommand({
-      scorecard: this.scorecard,
-      categoryId,
-      dice,
-    });
+    // Score the category directly
+    const points = this.scorecard.score(categoryId, dice);
+    if (points < 0) return; // Category already filled or invalid
 
-    const points = this.commandInvoker.executeWithResult(command);
-    if (points === null || points < 0) return; // Command failed or category already filled
-
-    this.log.log(`Scored ${points} in ${categoryId} (history: ${this.commandInvoker.getHistorySize()})`);
+    this.log.log(`Scored ${points} in ${categoryId}`);
 
     // Deactivate Sixth Blessing if it was active (after scoring, not after rolling)
     if (this.diceManager.isSixthDieActive()) {
@@ -1372,16 +1360,10 @@ export class GameplayScene extends BaseScene {
       this.stateMachine.destroy();
     }
 
-    // Cleanup command invoker
-    if (this.commandInvoker) {
-      this.commandInvoker.destroy();
-    }
-
     // Unregister scene-scoped services (keep global services like save, progression)
     Services.unregister('scorecard');
     Services.unregister('events');
     Services.unregister('stateMachine');
-    Services.unregister('commandInvoker');
     Services.unregister('diceManager');
 
     // Remove event listeners explicitly before destroying emitter
