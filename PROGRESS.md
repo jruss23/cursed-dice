@@ -54,8 +54,13 @@
 
 | Pattern | Priority | Description |
 |---------|----------|-------------|
-| **Strategy Pattern** | P3 | Would improve responsive layout code (row renderers) |
 | **Observer Pattern** | N/A | Using EventBus instead - acceptable alternative |
+
+### Recently Completed
+
+| Pattern | Date | Notes |
+|---------|------|-------|
+| **RowStyleConfig Strategy** | Dec 23, 2025 | Mode-specific styling in LayoutConfig eliminates isTwoCol conditionals |
 
 ---
 
@@ -64,17 +69,17 @@
 ### 1. ~~Command Pattern Incomplete~~ ✅ RESOLVED (Dec 23, 2025)
 Dice commands (`RollDiceCommand`, `ToggleDiceLockCommand`) are now wired up via `DiceManager.executeRoll()` and Services.
 
-### 2. Scorecard Still Complex (Medium Priority)
-**Problem**: `scorecard-panel.ts` is ~1000 lines despite layout-calculator refactor and sizing getter removal
-**Root Cause**:
-- ~~Sizing getters still inline~~ ✅ RESOLVED - All sizing now via `layoutConfig`
-- Render methods have `isTwoCol` branches throughout
-- State and rendering coupled
+### 2. ~~Scorecard isTwoCol Branches~~ ✅ RESOLVED (Dec 23, 2025)
+**Problem**: Render methods had `isTwoCol` branches everywhere
+**Solution**: Added `RowStyleConfig` to `LayoutConfig` with mode-specific values:
+- `namePaddingLeft`, `labelPaddingLeft` - text positioning
+- `scoreOriginX` - alignment (1=right for two-col, 0.5=center for single)
+- `useShortNames` - whether to use abbreviated category names
+- `showTotalDivider` - single-column only divider line
+- `potentialOffsetFromRight`, `scoreOffsetFromRight` - score positioning
 
-**Fix Options**:
-1. ~~Move ALL sizing into `layout-calculator.ts`~~ ✅ DONE
-2. Extract `ScorecardRenderer` class that takes LayoutConfig
-3. Use Strategy pattern: `TwoColumnRenderer` vs `SingleColumnRenderer`
+Render methods now use `layoutConfig.rowStyle` instead of conditional logic.
+Removed 29 net lines while adding cleaner separation of concerns.
 
 ### 3. BasePanel Adoption (Low Priority) - Partially Resolved
 **Panels using BasePanel**:
@@ -103,27 +108,11 @@ The scorecard uses a **Layout Calculator** pattern:
 2. `buildContentUnified()` iterates `LayoutConfig.rows` array
 3. Same render methods for both layouts, just different positions
 
-### Remaining Complexity
+### Architecture ✅ Complete
 - ~~15+ sizing getters still in scorecard-panel.ts~~ ✅ RESOLVED
-- Font sizes and paddings now come from LayoutConfig
-- Row rendering has inline `isTwoCol` checks (could use Strategy pattern)
-
-### Recommended Improvement
-Move ALL styling/sizing into LayoutConfig:
-```typescript
-// layout-config.ts additions
-interface LayoutConfig {
-  // ...existing...
-  styles: {
-    nameTextPadding: number;
-    scoreTextAlign: 'left' | 'center' | 'right';
-    potentialTextX: number;
-    // etc.
-  }
-}
-```
-
-Then render methods become pure: `renderRow(row, styles)` with no conditionals.
+- ~~Row rendering has inline `isTwoCol` checks~~ ✅ RESOLVED via `RowStyleConfig`
+- Font sizes, paddings, and styling all come from `LayoutConfig`
+- Render methods are now pure: `renderRow(row)` reads `layoutConfig.rowStyle` with no conditionals
 
 ---
 
@@ -216,18 +205,18 @@ src/
 
 ## Refactor TODO List
 
-### High Priority
-- [ ] **Wire up dice commands** - RollDiceCommand and ToggleDiceLockCommand exist but unused
-- [ ] **Move sizing to LayoutConfig** - Eliminate inline getters from scorecard-panel.ts
+### ✅ Completed (Dec 23, 2025)
+- [x] **Wire up dice commands** - RollDiceCommand and ToggleDiceLockCommand via DiceManager
+- [x] **Move sizing to LayoutConfig** - All sizing now via `layoutConfig`
+- [x] **Create BaseScene abstract class** - MenuScene and GameplayScene extend it
+- [x] **RowStyleConfig strategy** - Eliminates isTwoCol conditionals in render methods
+- [x] **Migrate PauseMenu to BasePanel** - Uses BasePanel + BaseButton
+- [x] **Fix event leaks** - GameplayScene uses bound handlers with explicit cleanup
+- [x] **Add destroy() methods** - StateMachine and CommandInvoker now have proper cleanup
 
-### Medium Priority
-- [ ] **Migrate panels to BasePanel** - Start with simpler panels (PauseMenu, DebugPanel)
-- [ ] **Extract ScorecardRenderer** - Separate rendering from state/logic
-
-### Low Priority
-- [ ] **Create BaseScene abstract class** - Reduce scene duplication
-- [ ] **Strategy pattern for row rendering** - TwoColumnRowRenderer vs SingleColumnRowRenderer
-- [ ] **Object pooling for dice** - Currently re-created on scene restart
+### Low Priority (Remaining)
+- [ ] **Extract ScorecardRenderer** - Would separate rendering from state/logic (~1000 lines still)
+- [ ] **Add vitest + unit tests** - No testing framework yet
 
 ---
 
@@ -302,15 +291,11 @@ src/
 
 ## Next Steps (Suggested Priority)
 
-### Immediate - Code Quality
-1. [ ] Wire up dice commands (RollDiceCommand, ToggleDiceLockCommand)
-2. [ ] Move all sizing getters into LayoutConfig
-
 ### Soon - Blessings
-3. [ ] Implement Foresight blessing (preview next roll)
-4. [ ] Implement Sanctuary blessing (bank/restore dice)
+1. [ ] Implement Foresight blessing (preview next roll)
+2. [ ] Implement Sanctuary blessing (bank/restore dice)
 
-### Later - Architecture
-5. [ ] Create BaseScene abstract class
-6. [ ] Migrate panels to BasePanel
-7. [ ] Add vitest + unit tests
+### Later - Polish
+3. [ ] Add vitest + unit tests
+4. [ ] Performance profiling on mobile
+5. [ ] Sound effects and haptic feedback refinement
