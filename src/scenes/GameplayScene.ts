@@ -522,18 +522,18 @@ export class GameplayScene extends BaseScene {
     this.diceManager = new DiceManager(this, this.gameEvents);
     Services.register('diceManager', this.diceManager);
 
-    // If sixth or foresight blessing is chosen, enable the blessing slot in controls panel
+    // If a blessing with a button is chosen, enable the blessing slot in controls panel
     const chosenBlessing = this.blessingManager.getChosenBlessingId();
-    const hasSixthBlessing = chosenBlessing === 'sixth';
-    const hasForesightBlessing = chosenBlessing === 'foresight';
-    if (hasSixthBlessing || hasForesightBlessing) {
+    const blessingsWithButton: Array<typeof chosenBlessing> = ['sixth', 'foresight', 'sanctuary'];
+    const hasBlessingButton = chosenBlessing && blessingsWithButton.includes(chosenBlessing);
+    if (hasBlessingButton) {
       this.diceManager.enableBlessingSlot();
     }
 
     this.diceManager.createUI(centerX, diceY, scaledSizes, isUltraCompact);
 
-    // Set up blessing integration (handles sixth, foresight, etc.)
-    if (hasSixthBlessing || hasForesightBlessing) {
+    // Set up blessing integration (handles sixth, foresight, sanctuary)
+    if (hasBlessingButton) {
       this.blessingIntegration = new BlessingIntegration({
         scene: this,
         events: this.gameEvents,
