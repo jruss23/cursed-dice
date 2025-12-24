@@ -8,14 +8,17 @@ import { FONTS, PALETTE, COLORS, SIZES, getViewportMetrics } from '@/config';
 import { createText } from '@/ui/ui-utils';
 import { BLESSING_CONFIGS, type BlessingId } from '@/systems/blessings/types';
 import { MODE_CONFIGS } from '@/systems/game-progression';
+import { getImplementedBlessings } from '@/data/blessings';
 
 export interface BlessingChoiceCallbacks {
   onSelect: (blessingId: BlessingId) => void;
   onCancel?: () => void;
 }
 
-// Which blessings are currently implemented
-const IMPLEMENTED_BLESSINGS: Set<BlessingId> = new Set(['abundance', 'sixth']);
+// Which blessings are currently implemented (driven by data/blessings.ts)
+const IMPLEMENTED_BLESSINGS: Set<BlessingId> = new Set(
+  getImplementedBlessings().map(b => b.id)
+);
 
 export class BlessingChoicePanel {
   private scene: Phaser.Scene;
