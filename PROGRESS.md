@@ -47,13 +47,13 @@
 |---------|--------|-------|
 | **Command Pattern** | ✅ 100% | All commands wired up: `ScoreCategoryCommand`, `RollDiceCommand`, `ToggleDiceLockCommand` |
 | **Base UI Components** | 60% | `BasePanel` + `BaseButton` used by `PauseMenu`. Exception: `DebugPanel` (intentionally different styling) |
-| **Object Pooling** | 30% | Only `ParticlePool` for score effects. Dice sprites not pooled |
+| **Object Pooling** | ✅ Sufficient | `ParticlePool` for score effects. Dice sprites are persistent (no pooling needed) |
+| **BaseScene Abstract** | ✅ Created | `BaseScene` class available. Existing scenes can migrate incrementally |
 
 ### Not Implemented
 
 | Pattern | Priority | Description |
 |---------|----------|-------------|
-| **BaseScene Abstract** | P2 | MenuScene & GameplayScene have duplicated lifecycle code |
 | **Strategy Pattern** | P3 | Would improve responsive layout code (row renderers) |
 | **Observer Pattern** | N/A | Using EventBus instead - acceptable alternative |
 
