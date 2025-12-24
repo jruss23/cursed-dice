@@ -4,9 +4,9 @@
  */
 
 import Phaser from 'phaser';
-import { type Scorecard, type CategoryId, type Category } from '@/systems/scorecard';
+import { type Scorecard, type CategoryId } from '@/systems/scorecard';
 import { GameEventEmitter } from '@/systems/game-events';
-import { FONTS, SIZES, PALETTE, COLORS, type ScorecardLayout, RESPONSIVE } from '@/config';
+import { FONTS, SIZES, PALETTE, COLORS, type ScorecardLayout } from '@/config';
 import { createText } from '@/ui/ui-utils';
 import type {
   Bounds,
@@ -87,7 +87,6 @@ export class ScorecardPanel implements TutorialControllableScorecard {
   private layout: ScorecardLayout = 'single-column'; // Layout mode
   private gauntletPulseTweens: Map<CategoryId, Phaser.Tweens.Tween> = new Map(); // Pulsing effects by category
   private maxHeight: number | undefined; // Maximum height constraint from viewport
-  private calculatedRowHeight: number = RESPONSIVE.ROW_HEIGHT_MOBILE; // Dynamically calculated row height
   private passThreshold: number = 250; // Score threshold to display next to total
 
   // Tutorial mode controls
@@ -113,83 +112,9 @@ export class ScorecardPanel implements TutorialControllableScorecard {
   private onLockedCategories: (locked: Set<CategoryId>) => void;
   private onBlessingExpansion: () => void;
 
-  // Content bounds (set during build, used by row methods)
-  private contentBounds: { x: number; width: number } = { x: 0, width: 0 };
-
-  // Sizing helpers - adapt to layout mode
-  // "Compact mode" = two-column layout with special section enabled (17 categories)
-  private get needsCompactLayout(): boolean {
-    return this.layout === 'two-column' && this.scorecard.isSpecialSectionEnabled();
-  }
-  private get rowHeight(): number {
-    if (this.layout === 'two-column') return this.calculatedRowHeight; // Dynamic based on available height
-    return this.isCompact ? 22 : 24;
-  }
-  private get headerHeight(): number {
-    if (this.layout === 'two-column') {
-      return this.needsCompactLayout ? RESPONSIVE.COMPACT_HEADER_HEIGHT : 24;
-    }
-    return this.isCompact ? 18 : 20;
-  }
-  private get totalRowHeight(): number {
-    if (this.layout === 'two-column') {
-      return this.needsCompactLayout ? RESPONSIVE.COMPACT_TOTAL_HEIGHT : RESPONSIVE.ROW_HEIGHT_MOBILE;
-    }
-    return this.isCompact ? 22 : 24;
-  }
-  private get titleHeight(): number {
-    if (this.layout === 'two-column') {
-      return this.needsCompactLayout ? RESPONSIVE.COMPACT_TITLE_HEIGHT : 28;
-    }
-    return this.isCompact ? 24 : 28;
-  }
-  private get contentPadding(): number {
-    if (this.layout === 'two-column') {
-      return this.needsCompactLayout ? RESPONSIVE.COMPACT_CONTENT_PADDING : 6;
-    }
-    return 6;
-  }
-  private get dividerHeight(): number {
-    if (this.layout === 'two-column') {
-      return this.needsCompactLayout ? RESPONSIVE.COMPACT_DIVIDER_HEIGHT : 6;
-    }
-    return 6;
-  }
-  private get bottomPadding(): number {
-    if (this.layout === 'two-column') {
-      return this.needsCompactLayout ? RESPONSIVE.COMPACT_BOTTOM_PADDING : 8;
-    }
-    return 8;
-  }
-  private get titleGap(): number {
-    if (this.layout === 'two-column') {
-      return this.needsCompactLayout ? RESPONSIVE.COMPACT_TITLE_GAP : 2;
-    }
-    return 2;
-  }
-  private get fontSize(): string {
-    if (this.layout === 'two-column') return '15px'; // Bumped from 13px for readability
-    return this.isCompact ? '11px' : '12px';
-  }
-  private get smallFontSize(): string {
-    if (this.layout === 'two-column') return '13px'; // Bumped from 11px for readability
-    return this.isCompact ? '9px' : '10px';
-  }
-  private get scoreFontSize(): string {
-    if (this.layout === 'two-column') return '16px'; // Bumped from 14px for readability
-    return this.isCompact ? '12px' : '14px';
-  }
+  // Convenience getter for two-column check
   private get isTwoColumn(): boolean {
-    return this.layout === 'two-column';
-  }
-
-  /**
-   * Single source of truth for layout decision
-   * Two-column on screens < 900px wide
-   */
-  private determineLayout(): ScorecardLayout {
-    const { width } = this.scene.cameras.main;
-    return width < 900 ? 'two-column' : 'single-column';
+    return this.layoutConfig?.mode === 'two-column';
   }
 
   /**
@@ -210,106 +135,8 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     return calculateLayout(input);
   }
 
-  /**
-   * Calculate optimal row height based on available maxHeight
-   * Only applies to two-column layout
-   */
-  private calculateRowHeight(): void {
-    if (!this.isTwoColumn || this.maxHeight === undefined) {
-      this.calculatedRowHeight = RESPONSIVE.ROW_HEIGHT_MOBILE; // Default 36px
-      return;
-    }
-
-    // Calculate fixed overhead (non-row elements)
-    const padding = this.needsCompactLayout ? RESPONSIVE.COMPACT_CONTENT_PADDING : 6;
-    const title = this.needsCompactLayout ? RESPONSIVE.COMPACT_TITLE_HEIGHT : 28;
-    const gap = this.needsCompactLayout ? RESPONSIVE.COMPACT_TITLE_GAP : 2;
-    const header = this.needsCompactLayout ? RESPONSIVE.COMPACT_HEADER_HEIGHT : 24;
-    const total = this.needsCompactLayout ? RESPONSIVE.COMPACT_TOTAL_HEIGHT : RESPONSIVE.ROW_HEIGHT_MOBILE;
-    const bottom = this.needsCompactLayout ? RESPONSIVE.COMPACT_BOTTOM_PADDING : 8;
-    const divider = this.needsCompactLayout ? RESPONSIVE.COMPACT_DIVIDER_HEIGHT : 6;
-
-    // Fixed overhead for main layout
-    let fixedHeight = padding + title + gap + header + total + bottom;
-
-    // Number of rows needed
-    let numRows = 7; // Max of upper(6)+bonus or lower(7)
-
-    // If expansion is enabled, add its overhead
-    if (this.scorecard.isSpecialSectionEnabled()) {
-      fixedHeight += divider + header;
-      numRows += 2; // 2 rows for 2x2 grid
-    }
-
-    // Calculate available height for rows
-    const availableForRows = this.maxHeight - fixedHeight;
-    const idealRowHeight = Math.floor(availableForRows / numRows);
-
-    // Clamp between minimum touch target (28px) and normal (36px)
-    this.calculatedRowHeight = Math.max(28, Math.min(RESPONSIVE.ROW_HEIGHT_MOBILE, idealRowHeight));
-  }
-
-  /**
-   * Calculate the dynamic height based on layout and whether special section is enabled
-   */
-  private calculateHeight(): number {
-    // Use dynamic getters for all spacing values
-    const padding = this.contentPadding;
-    const title = this.titleHeight;
-    const gap = this.titleGap;
-    const divider = this.dividerHeight;
-    const bottom = this.bottomPadding;
-
-    if (this.isTwoColumn) {
-      // Two-column layout: Left has upper(6)+bonus, Right has lower(7)
-      // Special section (if enabled) spans full width, then Total at bottom
-      let height = padding + title + gap;
-      height += this.headerHeight; // Column headers
-      height += 7 * this.rowHeight; // 7 rows (max of lower section)
-      height += this.totalRowHeight; // Total row at bottom
-      height += bottom;
-
-      // Special section spans both columns at bottom (4 categories in 2x2 grid)
-      if (this.scorecard.isSpecialSectionEnabled()) {
-        height += divider;
-        height += this.headerHeight;
-        height += 2 * this.rowHeight; // 2 rows of 2 categories each
-      }
-      return height;
-    }
-
-    // Single-column layout (original)
-    const totalDividerHeight = 1;
-    let height = padding + title + gap;
-    height += this.headerHeight; // Upper section header
-    height += 6 * this.rowHeight; // 6 upper categories
-    height += this.rowHeight; // Bonus row
-    height += divider; // Divider between upper and lower
-    height += this.headerHeight; // Lower section header
-    height += 7 * this.rowHeight; // 7 lower categories
-    height += totalDividerHeight; // Line above total
-    height += this.totalRowHeight; // Total row
-    height += bottom;
-
-    // Add special section if enabled
-    if (this.scorecard.isSpecialSectionEnabled()) {
-      height += divider; // Divider before special
-      height += this.headerHeight; // Special section header
-      height += 4 * this.rowHeight; // 4 special categories
-    }
-
-    return height;
-  }
-
-  /**
-   * Calculate width based on layout
-   */
-  private calculateWidth(): number {
-    if (this.isTwoColumn) {
-      return RESPONSIVE.SCORECARD_WIDTH_TWO_COL; // 340px
-    }
-    return this.isCompact ? 300 : SIZES.SCORECARD_WIDTH;
-  }
+  // Note: calculateRowHeight(), calculateHeight(), calculateWidth() removed
+  // All sizing is now computed by layoutConfig via layout-calculator.ts
 
   constructor(
     scene: Phaser.Scene,
@@ -324,17 +151,14 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     this.maxHeight = config.maxHeight;
     this.passThreshold = config.passThreshold ?? 250;
 
-    // Determine layout based on viewport - single source of truth
-    this.layout = this.determineLayout();
-
     // Initialize modular state manager
     this.stateManager = createScorecardStateManager(scorecard, this.passThreshold);
 
-    // Calculate layout using the new modular layout calculator
+    // Calculate layout using the modular layout calculator (single source of truth)
     this.layoutConfig = this.computeLayoutConfig();
 
-    // Calculate optimal row height based on available space (must be before calculateHeight)
-    this.calculateRowHeight();
+    // Set layout mode from layoutConfig
+    this.layout = this.layoutConfig.mode === 'two-column' ? 'two-column' : 'single-column';
 
     // Initialize bound event handlers
     this.onDiceRolled = ({ values }) => {
@@ -346,14 +170,11 @@ export class ScorecardPanel implements TutorialControllableScorecard {
       this.rebuild();
     };
 
-    // Calculate dimensions based on layout mode
-    const dynamicWidth = config.width ?? this.calculateWidth();
-    const dynamicHeight = this.calculateHeight();
-
+    // Use dimensions from layoutConfig
     this.config = {
       ...config,
-      width: dynamicWidth,
-      height: dynamicHeight,
+      width: config.width ?? this.layoutConfig.width,
+      height: this.layoutConfig.height,
     };
     this.container = scene.add.container(config.x, config.y);
 
@@ -381,11 +202,11 @@ export class ScorecardPanel implements TutorialControllableScorecard {
    * Called when blessing of expansion adds 4 new categories
    */
   private rebuild(): void {
-    // Recalculate layout using single source of truth
-    this.layout = this.determineLayout();
-    this.layoutConfig = this.computeLayoutConfig(); // Recompute modular layout
-    this.calculateRowHeight(); // Recalculate row heights for new content
-    this.config.width = this.calculateWidth();
+    // Recompute layout (includes special section now)
+    this.layoutConfig = this.computeLayoutConfig();
+    this.layout = this.layoutConfig.mode === 'two-column' ? 'two-column' : 'single-column';
+    this.config.width = this.layoutConfig.width;
+    this.config.height = this.layoutConfig.height;
 
     // Stop all running tweens
     this.gauntletPulseTweens.forEach(tween => tween.stop());
@@ -405,10 +226,6 @@ export class ScorecardPanel implements TutorialControllableScorecard {
 
     // Destroy all children of the container
     this.container.removeAll(true);
-
-    // Recalculate height with special section now enabled
-    // Row heights are already calculated to fit within maxHeight
-    this.config.height = this.calculateHeight();
 
     // Rebuild UI
     this.build();
@@ -558,9 +375,6 @@ export class ScorecardPanel implements TutorialControllableScorecard {
           break;
       }
     }
-
-    // Store content bounds for other methods
-    this.contentBounds = { x: lc.contentX, width: lc.contentWidth };
   }
 
   /** Render a section header */
