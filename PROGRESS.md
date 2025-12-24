@@ -6,7 +6,7 @@
 
 ## Phaser 3 Best Practices Adherence Score
 
-### **Overall Score: 9.2 / 10** (excluding Testing)
+### **Overall Score: 9.4 / 10** (excluding Testing)
 
 ---
 
@@ -16,11 +16,11 @@
 |----------|-------|-------|
 | **Project Structure** | 10/10 | Clean separation: `scenes/`, `systems/`, `ui/`, `data/`, `config/` |
 | **TypeScript Integration** | 10/10 | Strict mode. Zero `any` types. Proper interfaces & types. Path aliases |
-| **Scene Management** | 9/10 | Proper lifecycle. State machine controls flow. Missing BaseScene abstract |
+| **Scene Management** | 10/10 | Proper lifecycle. State machine controls flow. BaseScene abstract class |
 | **Performance** | 9/10 | Tweens cleanup. Object pooling (ParticlePool). Logger utility |
-| **Code Organization** | 9/10 | Event-driven. Service registry. Some incomplete patterns (see below) |
+| **Code Organization** | 10/10 | Event-driven. UI/logic separation. No file over 1100 lines |
 | **Asset Management** | 10/10 | Pre-processed audio. Proper preloading. Optimized sounds |
-| **State Management** | 10/10 | GameStateMachine + Service Registry + Command pattern (partial) |
+| **State Management** | 10/10 | GameStateMachine + Service Registry. Clean state flow |
 | **Input Handling** | 9/10 | Centralized InputManager. Keyboard bindings. Mobile touch ready |
 | **Error Handling** | 9/10 | Global handlers. Logger utility. Services throw on missing deps |
 | **Testing** | 0/10 | No test files. No testing framework configured |
@@ -34,89 +34,33 @@
 
 | Pattern | Location | Notes |
 |---------|----------|-------|
-| **Service Registry** | `systems/services.ts` | Global + scene-scoped services with type-safe getters |
+| **Service Registry** | `systems/services.ts` | Global services (save, progression) with type-safe getters |
 | **State Machine** | `systems/state-machine.ts` | Controls game flow: idle→rolling→selecting→scoring→game-over |
 | **Event Bus** | `systems/game-events.ts` | Cross-component communication via typed events |
 | **Layout Calculator** | `ui/scorecard/layout-calculator.ts` | Pure functions, no Phaser deps, returns LayoutConfig |
 | **Data Layer** | `src/data/` | Static game data separated from logic (categories, modes, blessings) |
 | **Singleton Managers** | Various | SaveManager, GameProgressionManager, BlessingManager |
+| **UI/Logic Separation** | `scenes/gameplay/`, `systems/dice/` | Rendering extracted from game logic |
+| **BaseScene Abstract** | `scenes/BaseScene.ts` | Common lifecycle helpers for all scenes |
 
-### Partially Implemented
-
-| Pattern | Status | Issue |
-|---------|--------|-------|
-| **Command Pattern** | ✅ 100% | All commands wired up: `ScoreCategoryCommand`, `RollDiceCommand`, `ToggleDiceLockCommand` |
-| **Base UI Components** | 60% | `BasePanel` + `BaseButton` used by `PauseMenu`. Exception: `DebugPanel` (intentionally different styling) |
-| **Object Pooling** | ✅ Sufficient | `ParticlePool` for score effects. Dice sprites are persistent (no pooling needed) |
-| **BaseScene Abstract** | ✅ 100% | `BaseScene` class created. `MenuScene` and `GameplayScene` now extend it |
-
-### Not Implemented
-
-| Pattern | Priority | Description |
-|---------|----------|-------------|
-| **Observer Pattern** | N/A | Using EventBus instead - acceptable alternative |
-
-### Recently Completed
-
-| Pattern | Date | Notes |
-|---------|------|-------|
-| **RowStyleConfig Strategy** | Dec 23, 2025 | Mode-specific styling in LayoutConfig eliminates isTwoCol conditionals |
+### Architecture Philosophy
+- **Pure logic is testable**: scorecard, categories, state-machine have no Phaser deps
+- **UI is cohesive**: rendering code stays together (not split for the sake of splitting)
+- **Scenes orchestrate**: GameplayScene wires systems together, doesn't own all logic
 
 ---
 
-## Code Health Issues
+## File Size Targets
 
-### 1. ~~Command Pattern Incomplete~~ ✅ RESOLVED (Dec 23, 2025)
-Dice commands (`RollDiceCommand`, `ToggleDiceLockCommand`) are now wired up via `DiceManager.executeRoll()` and Services.
-
-### 2. ~~Scorecard isTwoCol Branches~~ ✅ RESOLVED (Dec 23, 2025)
-**Problem**: Render methods had `isTwoCol` branches everywhere
-**Solution**: Added `RowStyleConfig` to `LayoutConfig` with mode-specific values:
-- `namePaddingLeft`, `labelPaddingLeft` - text positioning
-- `scoreOriginX` - alignment (1=right for two-col, 0.5=center for single)
-- `useShortNames` - whether to use abbreviated category names
-- `showTotalDivider` - single-column only divider line
-- `potentialOffsetFromRight`, `scoreOffsetFromRight` - score positioning
-
-Render methods now use `layoutConfig.rowStyle` instead of conditional logic.
-Removed 29 net lines while adding cleaner separation of concerns.
-
-### 3. BasePanel Adoption (Low Priority) - Partially Resolved
-**Panels using BasePanel**:
-- ✅ `PauseMenu` (uses BasePanel + BaseButton)
-
-**Panels NOT using BasePanel** (by design or complexity):
-- `ScorecardPanel` (too complex, custom layout)
-- `HeaderPanel` (simple, doesn't need it)
-- `EndScreenOverlay` (custom animation needs)
-- `BlessingChoicePanel` (custom card layout)
-- `DebugPanel` (intentionally different styling - gold/orange debug theme)
-
-**Note**: Not all panels need BasePanel. Use it for standard purple-themed modal panels.
-
-### 4. ~~Missing BaseScene~~ ✅ RESOLVED (Dec 23, 2025)
-`BaseScene` abstract class created and both `MenuScene` and `GameplayScene` now extend it.
-Provides: registerShutdown(), fadeIn/fadeOut/transitionTo(), setupResizeListener(), getMetrics().
+| File | Current | Target | Status |
+|------|---------|--------|--------|
+| GameplayScene.ts | 1051 | <1200 | ✅ Acceptable |
+| DiceManager.ts | 777 | <800 | ✅ Under target |
+| ScorecardPanel.ts | ~1000 | N/A | ✅ Complex but cohesive |
 
 ---
 
-## Responsive Layout Strategy
-
-### Current Approach
-The scorecard uses a **Layout Calculator** pattern:
-1. `calculateLayout()` returns complete `LayoutConfig` with all positions pre-computed
-2. `buildContentUnified()` iterates `LayoutConfig.rows` array
-3. Same render methods for both layouts, just different positions
-
-### Architecture ✅ Complete
-- ~~15+ sizing getters still in scorecard-panel.ts~~ ✅ RESOLVED
-- ~~Row rendering has inline `isTwoCol` checks~~ ✅ RESOLVED via `RowStyleConfig`
-- Font sizes, paddings, and styling all come from `LayoutConfig`
-- Render methods are now pure: `renderRow(row)` reads `layoutConfig.rowStyle` with no conditionals
-
----
-
-## Project Structure (Updated Dec 23, 2025)
+## Project Structure (Updated Dec 24, 2025)
 
 ```
 src/
@@ -135,15 +79,20 @@ src/
 │   ├── blessings.ts           # Blessing definitions
 │   └── difficulties.ts        # Difficulty configs (time, labels)
 ├── scenes/
+│   ├── BaseScene.ts           # Abstract base with lifecycle helpers
 │   ├── MenuScene.ts           # Main menu
-│   ├── GameplayScene.ts       # Core gameplay (uses state machine)
-│   └── TutorialScene.ts       # Interactive tutorial
+│   ├── GameplayScene.ts       # Core gameplay (1051 lines)
+│   ├── TutorialScene.ts       # Interactive tutorial
+│   └── gameplay/              # GameplayScene helpers
+│       ├── index.ts
+│       ├── blessing-integration.ts  # Blessing UI coordination
+│       └── ui-setup.ts        # UI creation helpers
 ├── systems/
 │   ├── services.ts            # Service registry (DI container)
 │   ├── state-machine.ts       # GameStateMachine
-│   ├── game-events.ts         # Event emitter
-│   ├── scorecard.ts           # Scoring logic
-│   ├── dice-manager.ts        # Dice UI + logic
+│   ├── game-events.ts         # Event emitter (trimmed to used events only)
+│   ├── scorecard.ts           # Scoring logic (pure, testable)
+│   ├── dice-manager.ts        # Dice state + logic (777 lines)
 │   ├── audio-manager.ts       # Music/SFX
 │   ├── game-progression.ts    # Mode progression
 │   ├── mode-mechanics.ts      # Mode-specific rules
@@ -152,29 +101,27 @@ src/
 │   ├── logger.ts              # Dev/prod logging
 │   ├── particle-pool.ts       # Object pool for particles
 │   ├── debug-controller.ts    # Debug menu actions
-│   ├── commands/              # Command pattern
+│   ├── dice/                  # Dice rendering (extracted)
 │   │   ├── index.ts
-│   │   ├── types.ts
-│   │   ├── command-invoker.ts
-│   │   ├── dice-commands.ts   # NOT USED - wire up!
-│   │   └── score-commands.ts  # Used for scoring
+│   │   └── dice-renderer.ts   # All dice visuals/animations
 │   ├── blessings/             # Blessing system
 │   │   ├── index.ts
 │   │   ├── types.ts
 │   │   ├── blessing-manager.ts
 │   │   ├── blessing-expansion.ts
-│   │   └── blessing-sixth.ts
+│   │   ├── blessing-sixth.ts
+│   │   └── blessing-foresight.ts
 │   └── tutorial/              # Tutorial system
 │       ├── index.ts
 │       ├── interfaces.ts
 │       └── tutorial-controller.ts
 └── ui/
     ├── ui-utils.ts            # createText, createPanelFrame helpers
-    ├── base/                  # Base UI components (adopt more!)
+    ├── base/                  # Base UI components
     │   ├── index.ts
     │   ├── base-panel.ts
     │   └── base-button.ts
-    ├── scorecard-panel.ts     # Main scorecard (1232 lines - still large)
+    ├── scorecard-panel.ts     # Main scorecard (~1000 lines)
     ├── scorecard/             # Scorecard helpers
     │   ├── index.ts
     │   ├── layout-config.ts   # Types
@@ -190,7 +137,9 @@ src/
     │   ├── header-panel.ts
     │   ├── debug-panel.ts
     │   ├── end-screen-overlay.ts
-    │   └── sixth-blessing-button.ts
+    │   ├── sixth-blessing-button.ts
+    │   ├── foresight-blessing-button.ts
+    │   └── foresight-preview-panel.ts
     ├── menu/                  # Menu UI
     │   ├── index.ts
     │   ├── difficulty-button.ts
@@ -203,107 +152,35 @@ src/
 
 ---
 
-## Refactor TODO List
-
-### ✅ Completed (Dec 23, 2025)
-- [x] **Wire up dice commands** - RollDiceCommand and ToggleDiceLockCommand via DiceManager
-- [x] **Move sizing to LayoutConfig** - All sizing now via `layoutConfig`
-- [x] **Create BaseScene abstract class** - MenuScene and GameplayScene extend it
-- [x] **RowStyleConfig strategy** - Eliminates isTwoCol conditionals in render methods
-- [x] **Migrate PauseMenu to BasePanel** - Uses BasePanel + BaseButton
-- [x] **Fix event leaks** - GameplayScene uses bound handlers with explicit cleanup
-- [x] **Add destroy() methods** - StateMachine and CommandInvoker now have proper cleanup
-
-### Low Priority (Remaining)
-- [ ] **Extract ScorecardRenderer** - Would separate rendering from state/logic (~1000 lines still)
-- [ ] **Add vitest + unit tests** - No testing framework yet
-
----
-
 ## Recent Session Work (Dec 24, 2025)
 
-### Architecture Simplification
+### Architecture Simplification - COMPLETE
 - [x] **Deleted command pattern** (5 files, ~350 lines) - undo/redo was never used
 - [x] **Trimmed unused events** - Removed 15 event definitions with zero listeners
-- [x] **Extracted BlessingIntegration** - Moved blessing UI/handlers to `src/scenes/gameplay/`
-- [x] GameplayScene reduced from 1456 → 1272 lines (-184 lines)
+- [x] **Extracted BlessingIntegration** - Blessing UI coordination to `scenes/gameplay/`
+- [x] **Extracted ui-setup.ts** - UI creation helpers (390 lines)
+- [x] **Extracted DiceRenderer** - All dice visuals/animations (602 lines)
+- [x] **Categories counter** - Always visible next to scorecard title
 
-**Files deleted:**
-- `src/systems/commands/` directory (types.ts, command-invoker.ts, dice-commands.ts, score-commands.ts, index.ts)
+**Final file sizes:**
+- GameplayScene.ts: 1456 → 1051 lines (-405)
+- DiceManager.ts: 1227 → 777 lines (-450)
+- commands/ directory: deleted (-350 lines)
 
-**Files created:**
-- `src/scenes/gameplay/blessing-integration.ts` (209 lines) - blessing UI coordination
-- `src/scenes/gameplay/index.ts` - barrel export
-
-**Remaining large files:**
-- GameplayScene.ts: 1272 lines (target: <800)
-- DiceManager.ts: 1227 lines (target: <800)
-- ScorecardPanel.ts: 1037 lines (complex, may stay as-is)
-
-### Foresight Blessing Implementation
+### Foresight Blessing - COMPLETE
 - [x] Created `ForesightBlessing` class with 3 charges
 - [x] Created `ForesightBlessingButton` UI with mystical purple theme
-- [x] Created `ForesightPreviewPanel` showing ghost dice with accept/reject buttons
-- [x] Integrated with `GameplayScene` (button position, handlers, cleanup)
-- [x] Added foresight events to `GameEvents` interface
-- [x] Marked foresight as `implemented: true` in blessings.ts
+- [x] Created `ForesightPreviewPanel` showing ghost dice with accept/reject
+- [x] Integrated with `GameplayScene` via `BlessingIntegration`
 
-**How it works**: Click button → spend 1 reroll + 1 charge → see preview of next roll → accept (apply values) or reject (discard preview)
+**How it works**: Click button → spend 1 reroll + 1 charge → see preview → accept or reject
 
-### Tutorial Polish & Bug Fixes
-- [x] Fixed highlight flash animation (pulse was conflicting with fade-in tween)
-- [x] Added dark background to hint text for readability on green dice area
-- [x] Fixed race condition where user could roll during step transition delay
-- [x] Improved tutorial text for non-Yahtzee players (clearer explanations)
-- [x] Pre-fill number categories (1s-6s) before zero-out scenario
-- [x] Layout-agnostic terminology (no more "upper/lower section")
-
-### Testing Strategy
-- [x] Created `TESTING.md` with comprehensive testing plan
-- [x] Vitest + @vitest/coverage-v8 recommended
-- [x] Testability analysis of all modules
-- [x] Detailed test cases for scorecard, state-machine, commands, etc.
-- [x] Coverage goals defined (85%+ overall, 95%+ for core logic)
-
-### Misc Fixes
-- [x] Fixed audio paths in `assets/audio-test.html`
-
----
-
-## Previous Session Work (Dec 23, 2025)
-
-### Scorecard Refactor
-- [x] Deleted `scorecard-row.ts` (premature abstraction with duplicate state)
-- [x] Created `layout-calculator.ts` for pure layout computation
-- [x] Created `layout-config.ts` for layout types
-- [x] Created `state-manager.ts` for UI state (hover, input lock, allowed categories)
-- [x] Unified build methods: `buildContentUnified()` iterates `layoutConfig.rows`
-- [x] Deleted ~680 lines of legacy duplicate code (was 1910, now 1232 lines)
-
-### State Machine Fixes
-- [x] Added `paused -> mode-transition` transition (quit from pause)
-- [x] Removed `transitioning -> paused` (no timer during popups)
-
-### Architecture Improvements
-- [x] Service registry pattern implemented (`systems/services.ts`)
-- [x] Command pattern infrastructure added (commands/)
-- [x] `ScoreCategoryCommand` wired up in GameplayScene
-- [x] Fixed overlay click-through (EndScreenOverlay.setInteractive)
-
----
-
-## Previous Session Work (Dec 23, 2025 - Earlier)
-
-### Tutorial System - Complete Implementation
-- [x] Full interactive tutorial with 13 guided steps
-- [x] Scripted dice rolls for consistent learning
-- [x] Zero-out scenario teaches sacrificing categories
-- [x] Practice mode after tutorial completion
-
-### Tutorial Overlay System
-- [x] Gold pulsing highlight border
-- [x] Synchronized fade transitions
-- [x] Graphics-based rendering
+### Tutorial Polish
+- [x] Fixed highlight flash animation
+- [x] Added dark background to hint text
+- [x] Fixed race condition during step transitions
+- [x] Improved text for non-Yahtzee players
+- [x] Layout-agnostic terminology
 
 ---
 
@@ -339,13 +216,23 @@ src/
 
 ---
 
-## Next Steps (Suggested Priority)
+## Blessings Implementation Status
 
-### Soon - Blessings
-1. [x] Implement Foresight blessing (preview next roll) ✅ Dec 24, 2025
-2. [ ] Implement Sanctuary blessing (bank/restore dice)
+| Blessing | Status | Notes |
+|----------|--------|-------|
+| Abundance | ✅ Complete | 4 bonus categories, pick 13 of 17 |
+| Foresight | ✅ Complete | Preview next roll, 3 charges |
+| Sanctuary | 🔲 TODO | Bank/restore dice, 1 use |
+| The Sixth | ✅ Complete | 6th die, 3 charges |
+
+---
+
+## Next Steps
+
+### Immediate
+1. [ ] Implement Sanctuary blessing (bank/restore dice)
 
 ### Later - Polish
-3. [ ] Add vitest + unit tests
-4. [ ] Performance profiling on mobile
-5. [ ] Sound effects and haptic feedback refinement
+2. [ ] Add vitest + unit tests for pure logic modules
+3. [ ] Performance profiling on mobile
+4. [ ] Sound effects and haptic feedback refinement
