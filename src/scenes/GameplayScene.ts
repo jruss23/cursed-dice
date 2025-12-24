@@ -554,10 +554,15 @@ export class GameplayScene extends Phaser.Scene {
     });
     quitBg.on('pointerdown', () => this.returnToMenu());
 
-    // Create pause menu
+    // Create pause menu (centered on screen)
+    const { width: screenWidth, height: screenHeight } = this.cameras.main;
     this.pauseMenu = new PauseMenu(this, {
-      onResume: () => this.resumeGame(),
-      onQuit: () => this.returnToMenu(),
+      x: screenWidth / 2,
+      y: screenHeight / 2,
+      callbacks: {
+        onResume: () => this.resumeGame(),
+        onQuit: () => this.returnToMenu(),
+      },
     });
 
     // Setup centralized input handling
