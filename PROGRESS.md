@@ -23,7 +23,7 @@
 | **State Management** | 10/10 | GameStateMachine + Service Registry. Clean state flow |
 | **Input Handling** | 9/10 | Centralized InputManager. Keyboard bindings. Mobile touch ready |
 | **Error Handling** | 9/10 | Global handlers. Logger utility. Services throw on missing deps |
-| **Testing** | 0/10 | No test files. No testing framework configured |
+| **Testing** | 0/10 | No test files. Testing framework specified in TESTING.md |
 | **Build & Deployment** | 9/10 | Vite. TypeScript. ESLint + Prettier. Path aliases |
 
 ---
@@ -42,11 +42,20 @@
 | **Singleton Managers** | Various | SaveManager, GameProgressionManager, BlessingManager |
 | **UI/Logic Separation** | `scenes/gameplay/`, `systems/dice/` | Rendering extracted from game logic |
 | **BaseScene Abstract** | `scenes/BaseScene.ts` | Common lifecycle helpers for all scenes |
+| **Blessing Factory** | `systems/blessings/blessing-manager.ts` | Factory pattern with registration for extensibility |
+
+### Removed Patterns (Simplification)
+
+| Pattern | Reason for Removal |
+|---------|-------------------|
+| **Command Pattern** | Undo/redo was never used. Commands just wrapped simple method calls. ~350 lines deleted. |
+| **Per-Game Service Registration** | Per-game services were registered but never retrieved via `Services.get()`. Only global services (save, progression) remain registered. |
 
 ### Architecture Philosophy
 - **Pure logic is testable**: scorecard, categories, state-machine have no Phaser deps
 - **UI is cohesive**: rendering code stays together (not split for the sake of splitting)
 - **Scenes orchestrate**: GameplayScene wires systems together, doesn't own all logic
+- **Simplicity over patterns**: Only use patterns that solve real problems
 
 ---
 
@@ -54,9 +63,9 @@
 
 | File | Current | Target | Status |
 |------|---------|--------|--------|
-| GameplayScene.ts | 1051 | <1200 | ✅ Acceptable |
-| DiceManager.ts | 777 | <800 | ✅ Under target |
-| ScorecardPanel.ts | ~1000 | N/A | ✅ Complex but cohesive |
+| GameplayScene.ts | 1,051 | <1,200 | ✅ Under target |
+| DiceManager.ts | 865 | <900 | ✅ Under target |
+| ScorecardPanel.ts | 1,015 | N/A | ✅ Complex but cohesive |
 
 ---
 
@@ -81,7 +90,7 @@ src/
 ├── scenes/
 │   ├── BaseScene.ts           # Abstract base with lifecycle helpers
 │   ├── MenuScene.ts           # Main menu
-│   ├── GameplayScene.ts       # Core gameplay (1051 lines)
+│   ├── GameplayScene.ts       # Core gameplay (1,051 lines)
 │   ├── TutorialScene.ts       # Interactive tutorial
 │   └── gameplay/              # GameplayScene helpers
 │       ├── index.ts
@@ -92,7 +101,7 @@ src/
 │   ├── state-machine.ts       # GameStateMachine
 │   ├── game-events.ts         # Event emitter (trimmed to used events only)
 │   ├── scorecard.ts           # Scoring logic (pure, testable)
-│   ├── dice-manager.ts        # Dice state + logic (777 lines)
+│   ├── dice-manager.ts        # Dice state + logic (865 lines)
 │   ├── audio-manager.ts       # Music/SFX
 │   ├── game-progression.ts    # Mode progression
 │   ├── mode-mechanics.ts      # Mode-specific rules
@@ -108,9 +117,10 @@ src/
 │   │   ├── index.ts
 │   │   ├── types.ts
 │   │   ├── blessing-manager.ts
-│   │   ├── blessing-expansion.ts
-│   │   ├── blessing-sixth.ts
-│   │   └── blessing-foresight.ts
+│   │   ├── blessing-expansion.ts  # Abundance (4 extra categories)
+│   │   ├── blessing-sixth.ts      # The Sixth (6th die charges)
+│   │   ├── blessing-mercy.ts      # Mercy (hand reset)
+│   │   └── blessing-sanctuary.ts  # Sanctuary (bank/restore)
 │   └── tutorial/              # Tutorial system
 │       ├── index.ts
 │       ├── interfaces.ts
@@ -121,7 +131,7 @@ src/
     │   ├── index.ts
     │   ├── base-panel.ts
     │   └── base-button.ts
-    ├── scorecard-panel.ts     # Main scorecard (~1000 lines)
+    ├── scorecard-panel.ts     # Main scorecard (~1,015 lines)
     ├── scorecard/             # Scorecard helpers
     │   ├── index.ts
     │   ├── layout-config.ts   # Types
@@ -138,8 +148,8 @@ src/
     │   ├── debug-panel.ts
     │   ├── end-screen-overlay.ts
     │   ├── sixth-blessing-button.ts
-    │   ├── foresight-blessing-button.ts
-    │   └── foresight-preview-panel.ts
+    │   ├── mercy-blessing-button.ts
+    │   └── sanctuary-blessing-button.ts
     ├── menu/                  # Menu UI
     │   ├── index.ts
     │   ├── difficulty-button.ts
@@ -164,24 +174,23 @@ src/
 
 **Final file sizes:**
 - GameplayScene.ts: 1456 → 1051 lines (-405)
-- DiceManager.ts: 1227 → 777 lines (-450)
+- DiceManager.ts: 1227 → 865 lines (-362)
 - commands/ directory: deleted (-350 lines)
 
-### Foresight Blessing - COMPLETE
-- [x] Created `ForesightBlessing` class with 3 charges
-- [x] Created `ForesightBlessingButton` UI with mystical purple theme
-- [x] Created `ForesightPreviewPanel` showing ghost dice with accept/reject
-- [x] Integrated with `GameplayScene` via `BlessingIntegration`
+### Blessing Simplification - COMPLETE
+- [x] **Removed Foresight** - Too complex for time-pressure game (preview UX added cognitive load)
+- [x] **Added Mercy** - Simple one-click hand reset (new dice + fresh rerolls)
 
-**How it works**: Click button → spend 1 reroll + 1 charge → see preview → accept or reject
+**Design decision**: Foresight required multiple decisions per use (preview → accept/reject) which conflicts with the game's time pressure. Mercy is instant: click once, get a fresh start.
 
 ### Sanctuary Blessing - COMPLETE
 - [x] Created `SanctuaryBlessing` class with bank/restore mechanics
 - [x] Created `SanctuaryBlessingButton` UI with gold (bank) / green (restore) theme
 - [x] Integrated with `BlessingIntegration` and `DiceManager`
 - [x] Added `restoreFromSanctuary()` method to DiceManager
+- [x] Fixed balance: must take action before restore, double-dip protection
 
-**How it works**: Click BANK to save current dice → button changes to RESTORE → click RESTORE to get banked dice back with fresh rerolls
+**How it works**: BANK → BANKED (waiting) → BANKED (ready, green) → click to restore → SPENT
 
 ### Tutorial Polish
 - [x] Fixed highlight flash animation
@@ -211,6 +220,12 @@ src/
 3. Corner accents (4 L-shaped corners)
 4. Shadow (offset rectangle, low alpha)
 
+### Blessing Button Themes
+- **Abundance**: Purple (expansion theme)
+- **The Sixth**: Cyan/teal (mystical extra die)
+- **Mercy**: Gold (divine intervention)
+- **Sanctuary**: Gold → Green (bank → restore)
+
 ---
 
 ## Game Modes (Curses)
@@ -226,14 +241,57 @@ src/
 
 ## Blessings Implementation Status
 
-| Blessing | Status | Notes |
-|----------|--------|-------|
-| Abundance | ✅ Complete | 4 bonus categories, pick 13 of 17 |
-| Foresight | ✅ Complete | Preview next roll, 3 charges |
-| Sanctuary | ✅ Complete | Bank/restore dice, 1 use, gold/green theme |
-| The Sixth | ✅ Complete | 6th die, 3 charges |
+| Blessing | Status | Specialist Curse | Notes |
+|----------|--------|------------------|-------|
+| Abundance | ✅ Complete | Curse 3 | 4 bonus categories, pick 13 of 17 |
+| Mercy | ✅ Complete | Curse 4 | Reset hand completely, 1 use per curse |
+| Sanctuary | ✅ Complete | Curse 2 | Bank/restore dice, 1 use per curse |
+| The Sixth | ✅ Complete | General | 6th die, 3 charges per curse |
 
 **All 4 blessings are now implemented!**
+
+### Blessing Balance Analysis
+
+| Blessing | Curse 2 (Shackled) | Curse 3 (Sealed) | Curse 4 (Gauntlet) |
+|----------|-------------------|------------------|-------------------|
+| Abundance | Medium - more targets | **Strong** - 4 extra unlocked cats | Medium - more options |
+| Mercy | Medium - escape bad locks | Medium - fresh start | **Strong** - escape dead hands |
+| Sanctuary | **Strong** - preserve pre-curse dice | Medium - save good rolls | Medium - save good rolls |
+| The Sixth | Good - 6th die helps everywhere | Good - more scoring options | Good - flexibility |
+
+---
+
+## Architectural Decisions Log
+
+### 2024-12-24: Foresight → Mercy Replacement
+
+**Problem**: Foresight blessing (preview next roll with accept/reject) added complexity:
+- Required understanding the preview UI
+- Added decision points during time pressure
+- Felt like "more rerolls with extra steps"
+
+**Solution**: Replaced with Mercy (single-click hand reset):
+- Zero cognitive load
+- Instant effect
+- Clear use case: escape a dead hand
+
+**Trade-off**: Lost the "skill expression" of Foresight, but gained accessibility and flow.
+
+### 2024-12-24: Command Pattern Removal
+
+**Problem**: Command pattern (undo/redo) was implemented but never used:
+- Players don't expect undo in a time-pressure game
+- Added ~350 lines of abstraction
+
+**Solution**: Deleted entire `systems/commands/` directory. Scenes call manager methods directly.
+
+**Trade-off**: Can't add undo later without re-implementing. Acceptable since design intent is no-undo.
+
+### 2024-12-24: Per-Game Services Removal
+
+**Problem**: Services like `scorecard`, `events`, `stateMachine` were registered but never retrieved via `Services.get()`.
+
+**Solution**: Keep only truly global services (save, progression). Scene-local services are just private properties.
 
 ---
 
@@ -243,3 +301,8 @@ src/
 1. [ ] Add vitest + unit tests for pure logic modules
 2. [ ] Performance profiling on mobile
 3. [ ] Sound effects and haptic feedback refinement
+
+### Testing Priority
+1. `data/categories.ts` - Scoring functions (highest value)
+2. `systems/scorecard.ts` - Scorecard state & scoring
+3. `systems/state-machine.ts` - Game flow

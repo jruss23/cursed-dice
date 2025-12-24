@@ -200,6 +200,47 @@ export class DiceRenderer {
     sprite.lockIndicator.setText('');
     sprite.lockIcon.setVisible(!isCursed && isLocked);
     sprite.cursedIcon.setVisible(isCursed);
+
+    // Clear any preview glow
+    sprite.glowGraphics.clear();
+  }
+
+  /**
+   * Update die visual for foresight preview mode (purple mystical glow)
+   */
+  updateDieVisualPreview(
+    sprite: DiceSprite,
+    value: number,
+    isLocked: boolean
+  ): void {
+    const size = this.sizeConfig.size;
+
+    if (isLocked) {
+      // Locked dice show dimmed - they won't change
+      sprite.bg.setFillStyle(PALETTE.neutral[700], 0.6);
+      sprite.bg.setStrokeStyle(SIZES.DICE_BORDER_WIDTH, PALETTE.neutral[500], 0.6);
+      sprite.innerBg.setFillStyle(PALETTE.neutral[700], 0.6);
+      this.drawPips(sprite.pipsGraphics, value, COLORS.DICE_PIP);
+      sprite.pipsGraphics.setAlpha(0.5);
+      sprite.glowGraphics.clear();
+    } else {
+      // Preview dice show purple mystical theme
+      sprite.bg.setFillStyle(PALETTE.purple[600]);
+      sprite.bg.setStrokeStyle(3, PALETTE.purple[400]);
+      sprite.innerBg.setFillStyle(PALETTE.purple[700]);
+      this.drawPips(sprite.pipsGraphics, value, 0xffffff);
+      sprite.pipsGraphics.setAlpha(1);
+
+      // Draw purple glow
+      sprite.glowGraphics.clear();
+      sprite.glowGraphics.fillStyle(PALETTE.purple[400], 0.3);
+      sprite.glowGraphics.fillRoundedRect(-size / 2 - 8, -size / 2 - 8, size + 16, size + 16, 12);
+    }
+
+    // Hide icons in preview
+    sprite.lockIndicator.setText('');
+    sprite.lockIcon.setVisible(false);
+    sprite.cursedIcon.setVisible(false);
   }
 
   /**

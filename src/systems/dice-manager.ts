@@ -193,21 +193,19 @@ export class DiceManager implements TutorialControllableDice {
 
   /**
    * Restore dice from Sanctuary blessing
-   * Sets dice to banked values with banked locked states, resets rerolls
+   * Only changes dice values - rerolls stay exactly as they were
    */
-  restoreFromSanctuary(values: number[], locked: boolean[]): void {
-    log.log('Restoring from Sanctuary:', values, locked);
+  restoreFromSanctuary(values: number[], _locked: boolean[]): void {
+    log.log('Restoring from Sanctuary:', values, 'rerolls unchanged:', this.state.rerollsLeft);
 
-    // Set values and locked states
+    // Only set dice values, unlock all, don't touch rerolls
     for (let i = 0; i < GAME_RULES.DICE_COUNT; i++) {
       this.state.values[i] = values[i];
-      this.state.locked[i] = locked[i];
+      this.state.locked[i] = false;
       this.updateDieDisplay(i);
     }
 
-    // Reset rerolls to full
-    this.state.rerollsLeft = GAME_RULES.REROLLS_PER_TURN;
-    this.updateRerollText();
+    // Rerolls stay exactly as they were - don't call updateRerollText
     this.updateRollButton();
 
     // Emit rolled event so scorecard updates
@@ -216,6 +214,69 @@ export class DiceManager implements TutorialControllableDice {
       isInitial: false,
       sixthDieActive: this.state.sixthDieActive
     });
+  }
+
+  // ===========================================================================
+  // FORESIGHT PREVIEW MODE
+  // ===========================================================================
+
+  private previewValues: number[] | null = null;
+
+  /**
+   * Show foresight preview - displays preview values on the actual dice with purple glow
+   */
+  showForesightPreview(previewValues: number[]): void {
+    log.log('Showing foresight preview:', previewValues);
+    this.previewValues = [...previewValues];
+
+    // Update dice visuals to preview mode
+    for (let i = 0; i < GAME_RULES.DICE_COUNT; i++) {
+      const sprite = this.sprites[i];
+      if (!sprite || !this.renderer) continue;
+
+      const isLocked = this.state.locked[i];
+      const value = isLocked ? this.state.values[i] : previewValues[i];
+      this.renderer.updateDieVisualPreview(sprite, value, isLocked);
+    }
+  }
+
+  /**
+   * Clear foresight preview - restores original dice display
+   */
+  clearForesightPreview(): void {
+    log.log('Clearing foresight preview');
+    this.previewValues = null;
+
+    // Restore normal dice display
+    for (let i = 0; i < GAME_RULES.DICE_COUNT; i++) {
+      this.updateDieDisplay(i);
+    }
+  }
+
+  /**
+   * Check if preview mode is active
+   */
+  isPreviewActive(): boolean {
+    return this.previewValues !== null;
+  }
+
+  /**
+   * Reset hand completely (Mercy blessing)
+   * New random dice + full rerolls, like starting the hand fresh
+   */
+  resetHand(): void {
+    log.log('Resetting hand (Mercy)');
+
+    // Reset rerolls to full
+    this.state.rerollsLeft = GAME_RULES.REROLLS_PER_TURN;
+
+    // Unlock all dice
+    for (let i = 0; i < this.state.locked.length; i++) {
+      this.state.locked[i] = false;
+    }
+
+    // Roll all dice fresh (this will handle the cursed die in Curse 2)
+    this.roll(true);
   }
 
   /**

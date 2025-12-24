@@ -57,7 +57,7 @@ export default defineConfig({
 | **Mode Mechanics** | `systems/mode-mechanics.ts` | Pure functions |
 | **Save Manager** | `systems/save-manager.ts` | Uses localStorage (mockable) |
 | **Logger** | `systems/logger.ts` | Pure utility |
-| **Commands** | `systems/commands/*.ts` | Command pattern classes |
+| **Blessings** | `systems/blessings/*.ts` | Blessing logic (Mercy, Sanctuary, etc.) |
 | **Categories Data** | `data/categories.ts` | Pure scoring functions |
 | **Modes Data** | `data/modes.ts` | Pure data |
 | **Blessings Data** | `data/blessings.ts` | Pure data |
@@ -284,29 +284,7 @@ describe('Mode Mechanics', () => {
 });
 ```
 
-### 6. Command Pattern (`systems/commands/`)
-
-```typescript
-describe('Command Invoker', () => {
-  it('executes command and returns success', () => {});
-  it('adds undoable commands to history', () => {});
-  it('undo() reverts last command', () => {});
-  it('redo() re-executes undone command', () => {});
-  it('new command clears redo stack', () => {});
-  it('respects maxHistorySize limit', () => {});
-  it('canUndo() reflects history state', () => {});
-  it('canRedo() reflects redo stack state', () => {});
-});
-
-describe('ScoreCategoryCommand', () => {
-  it('scores category on execute', () => {});
-  it('unscores category on undo', () => {});
-  it('canExecute returns false if category filled', () => {});
-  it('canExecute returns false if category locked', () => {});
-});
-```
-
-### 7. Scoring Functions (`data/categories.ts`)
+### 6. Scoring Functions (`data/categories.ts`)
 
 ```typescript
 describe('Scoring Functions', () => {
@@ -365,7 +343,7 @@ describe('Scoring Functions', () => {
 });
 ```
 
-### 8. Save Manager (`systems/save-manager.ts`)
+### 7. Save Manager (`systems/save-manager.ts`)
 
 ```typescript
 describe('SaveManager', () => {
@@ -394,7 +372,7 @@ describe('SaveManager', () => {
 | `data/categories.ts` | 100% | Scoring must be bug-free |
 | `game-progression.ts` | 90%+ | Mode advancement |
 | `mode-mechanics.ts` | 90%+ | Mode-specific rules |
-| `commands/*.ts` | 85%+ | Undo/redo reliability |
+| `blessings/*.ts` | 85%+ | Blessing logic reliability |
 | `layout-calculator.ts` | 80%+ | Responsive layout |
 | `save-manager.ts` | 80%+ | Data persistence |
 
@@ -442,7 +420,7 @@ npx vitest run src/systems/scorecard.test.ts
 ### Phase 2: Game Rules
 4. `systems/mode-mechanics.ts` - Mode-specific rules
 5. `systems/game-progression.ts` - Mode advancement
-6. `systems/commands/*.ts` - Command pattern
+6. `systems/blessings/*.ts` - Blessing system
 
 ### Phase 3: Supporting Systems
 7. `ui/scorecard/layout-calculator.ts` - Layout math

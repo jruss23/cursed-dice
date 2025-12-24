@@ -140,14 +140,14 @@ export class BlessingChoicePanel {
     this.container.add(curseDesc);
 
     // Cards area - vertical on mobile, horizontal on desktop
-    const blessingIds: BlessingId[] = ['abundance', 'foresight', 'sanctuary', 'sixth'];
+    const blessingIds: BlessingId[] = ['abundance', 'mercy', 'sanctuary', 'sixth'];
 
     if (isMobile) {
-      // Mobile: 4 compact rows - sized for readable text
+      // Mobile: 4 compact rows - taller to fit description text
       const cardWidth = panelWidth - 20;
-      const cardHeight = 82;
-      const cardSpacing = 5;
-      const cardsStartY = curseBoxY + curseBoxHeight / 2 + 10;
+      const cardHeight = 95;
+      const cardSpacing = 4;
+      const cardsStartY = curseBoxY + curseBoxHeight / 2 + 8;
 
       blessingIds.forEach((id, index) => {
         const cardX = (width - cardWidth) / 2;
@@ -375,56 +375,74 @@ export class BlessingChoicePanel {
     card.add(cardGlow);
     card.sendToBack(cardGlow);
 
-    // Compact layout: Icon | Name + Subtitle | Coming Soon badge (if needed)
-    const iconX = 32;
-    const textStartX = 60;
-    const centerY = cardHeight / 2;
+    // Compact layout: Icon | "Name: Subtitle" + Description
+    const iconX = 28;
+    const textStartX = 54;
 
     // Icon (centered vertically)
-    const icon = createText(this.scene, iconX, centerY, config.icon, {
-      fontSize: FONTS.SIZE_LARGE,
+    const icon = createText(this.scene, iconX, cardHeight / 2, config.icon, {
+      fontSize: FONTS.SIZE_BODY,
       fontFamily: FONTS.FAMILY,
     });
     icon.setOrigin(0.5, 0.5);
     if (!isImplemented) icon.setAlpha(0.5);
     card.add(icon);
 
-    // Name (top line) - larger for mobile readability
-    const name = createText(this.scene, textStartX, centerY - 14, config.name.replace('Blessing of ', ''), {
-      fontSize: FONTS.SIZE_SUBHEADING,
+    // Name (purple) + Subtitle (white) on same line
+    const blessingName = config.name.replace('Blessing of ', '');
+    const nameText = createText(this.scene, textStartX, 28, `${blessingName}: `, {
+      fontSize: FONTS.SIZE_BODY,
+      fontFamily: FONTS.FAMILY,
+      color: isImplemented ? COLORS.TEXT_ACCENT : COLORS.TEXT_MUTED,
+      fontStyle: 'bold',
+    });
+    nameText.setOrigin(0, 0.5);
+    card.add(nameText);
+
+    const subtitleText = createText(this.scene, textStartX + nameText.width, 28, config.subtitle, {
+      fontSize: FONTS.SIZE_BODY,
       fontFamily: FONTS.FAMILY,
       color: isImplemented ? COLORS.TEXT_PRIMARY : COLORS.TEXT_MUTED,
       fontStyle: 'bold',
     });
-    name.setOrigin(0, 0.5);
-    card.add(name);
+    subtitleText.setOrigin(0, 0.5);
+    card.add(subtitleText);
 
-    // Subtitle - simpler for disabled cards to avoid overlap with badge
-    const subtitleText = isImplemented
-      ? `${config.subtitle} — ${config.description}`
-      : config.subtitle;
-    const subtitleWidth = isImplemented ? cardWidth - textStartX - 15 : cardWidth - textStartX - 75;
-    const subtitle = createText(this.scene, textStartX, centerY + 14, subtitleText, {
-      fontSize: FONTS.SIZE_SMALL,
-      fontFamily: FONTS.FAMILY,
-      color: isImplemented ? COLORS.TEXT_SECONDARY : COLORS.TEXT_DISABLED,
-      wordWrap: { width: subtitleWidth },
-    });
-    subtitle.setOrigin(0, 0.5);
-    card.add(subtitle);
+    // Description (below title with padding)
+    if (isImplemented) {
+      const descWidth = cardWidth - textStartX - 15;
+      const desc = createText(this.scene, textStartX, 48, config.description, {
+        fontSize: FONTS.SIZE_SMALL,
+        fontFamily: FONTS.FAMILY,
+        color: COLORS.TEXT_SECONDARY,
+        wordWrap: { width: descWidth },
+      });
+      desc.setOrigin(0, 0);
+      card.add(desc);
+    } else {
+      // Show just subtitle for unimplemented
+      const desc = createText(this.scene, textStartX, 48, config.subtitle, {
+        fontSize: FONTS.SIZE_SMALL,
+        fontFamily: FONTS.FAMILY,
+        color: COLORS.TEXT_DISABLED,
+      });
+      desc.setOrigin(0, 0);
+      card.add(desc);
+    }
 
     // "Coming Soon" badge on right for unimplemented
     if (!isImplemented) {
       const badgeX = cardWidth - 35;
+      const badgeY = cardHeight / 2;
       const comingSoonBg = this.scene.add.rectangle(
-        badgeX, centerY,
+        badgeX, badgeY,
         50, 20,
         PALETTE.neutral[700], 0.9
       );
       comingSoonBg.setStrokeStyle(1, PALETTE.neutral[500], 0.5);
       card.add(comingSoonBg);
 
-      const comingSoon = createText(this.scene, badgeX, centerY, 'SOON', {
+      const comingSoon = createText(this.scene, badgeX, badgeY, 'SOON', {
         fontSize: FONTS.SIZE_NANO,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_MUTED,

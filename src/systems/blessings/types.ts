@@ -3,7 +3,7 @@
  * Defines interfaces for the blessing choice system
  */
 
-export type BlessingId = 'abundance' | 'foresight' | 'sanctuary' | 'sixth';
+export type BlessingId = 'abundance' | 'mercy' | 'sanctuary' | 'sixth';
 
 export interface BlessingConfig {
   id: BlessingId;
@@ -26,13 +26,10 @@ export interface AbundanceModeState extends BlessingModeState {
   enabled: boolean;
 }
 
-// Foresight blessing state (3 charges total - preview next roll)
-export interface ForesightModeState extends BlessingModeState {
-  readonly type: 'foresight';
-  chargesRemaining: number;
-  maxCharges: number;
-  isPreviewActive: boolean;
-  previewedValues: number[] | null;
+// Mercy blessing state (1 use per curse - reset hand completely)
+export interface MercyModeState extends BlessingModeState {
+  readonly type: 'mercy';
+  used: boolean;
 }
 
 // Sanctuary blessing state (bank/restore once per run)
@@ -93,29 +90,29 @@ export const BLESSING_CONFIGS: Record<BlessingId, BlessingConfig> = {
     ],
     bestFor: 'Players who want flexibility and backup options',
   },
-  foresight: {
-    id: 'foresight',
-    name: 'Blessing of Foresight',
-    subtitle: 'Perfect Information',
-    description: 'Spend 1 reroll to preview next roll (3 charges)',
-    icon: '🔮',
+  mercy: {
+    id: 'mercy',
+    name: 'Blessing of Mercy',
+    subtitle: 'Fresh Start',
+    description: 'Once per curse, reset your hand completely: new dice, full rerolls.',
+    icon: '🕊️',
     benefits: [
-      'See future roll before it happens',
-      'Costs 1 reroll, 3 charges total',
-      'Plan optimal lock strategies',
+      'Completely reset a dead hand',
+      'New dice + rerolls restored to 3',
+      'Resets each curse round',
     ],
-    bestFor: 'Strategic players who hate bad luck',
+    bestFor: 'Players who want a panic button for bad rolls',
   },
   sanctuary: {
     id: 'sanctuary',
     name: 'Blessing of Sanctuary',
     subtitle: 'Clutch Saves',
-    description: 'Bank current dice to restore later (1 use)',
+    description: 'Save your current dice, then restore them later when you need them. 1 use per curse.',
     icon: '🛡️',
     benefits: [
-      'Bank one promising hand',
-      'Use later with fresh rerolls',
-      'Perfect for clutch moments',
+      'Bank a promising hand for later',
+      'Restore swaps dice, keeps rerolls',
+      'Resets each curse round',
     ],
     bestFor: 'Players who like risk/reward timing',
   },
@@ -123,12 +120,12 @@ export const BLESSING_CONFIGS: Record<BlessingId, BlessingConfig> = {
     id: 'sixth',
     name: 'The Sixth Blessing',
     subtitle: 'Extra Die',
-    description: 'Roll 6 dice, score with best 5 (3 charges)',
+    description: 'Add a 6th die to your roll, but only the best 5 count for scoring. 3 uses per curse.',
     icon: '🎲',
     benefits: [
       'Roll 6 dice instead of 5',
       'Keep the best 5 for scoring',
-      '3 charges total',
+      '3 charges per curse, resets each round',
     ],
     bestFor: 'Players who want raw statistical advantage',
   },

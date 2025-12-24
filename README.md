@@ -25,9 +25,9 @@ After completing each curse, choose a blessing to help you in the next round. Ea
 | Blessing | Effect |
 |----------|--------|
 | **Abundance** | Unlocks 4 bonus categories (All Even, All Odd, Pairs, No Pairs). Fill any 13 of 17 total. |
-| **Foresight** | Preview your next roll before committing. Costs 1 reroll, 3 charges total. |
-| **Sanctuary** | Bank your current dice to restore later. One use per run. |
-| **The Sixth** | Roll 6 dice instead of 5 - scoring uses the best 5. 3 charges total. |
+| **Mercy** | Reset your hand completely: new dice, full rerolls. One use per curse. |
+| **Sanctuary** | Bank your current dice to restore later. One use per curse. |
+| **The Sixth** | Roll 6 dice instead of 5 - scoring uses the best 5. 3 charges per curse. |
 
 ## Difficulty Levels
 

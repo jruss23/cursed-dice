@@ -1,11 +1,11 @@
 /**
  * Sanctuary Blessing
- * Bank current dice to restore later. One use per run.
+ * Bank current dice to restore later. One use per curse round.
  *
  * How it works:
  * 1. At any point, player can "bank" their current dice values
- * 2. Later, they can "restore" to those banked values with fresh rerolls
- * 3. Single use - once restored, the blessing is spent
+ * 2. Later, they can "restore" to those banked values (rerolls stay as-is)
+ * 3. Resets each curse round - can bank/restore once per curse
  */
 
 import type { GameEventEmitter } from '../game-events';
@@ -20,11 +20,15 @@ export interface BankedDiceState {
   locked: boolean[];
 }
 
+// Minimum actions required before restore is allowed after banking
+const MIN_ACTIONS_BEFORE_RESTORE = 1;
+
 export class SanctuaryBlessing implements Blessing<SanctuaryModeState> {
   readonly config = BLESSING_CONFIGS.sanctuary;
   private events: GameEventEmitter;
   private state: SanctuaryModeState;
   private bankedState: BankedDiceState | null = null;
+  private actionsSinceBanking: number = 0;
 
   constructor(events: GameEventEmitter) {
     this.events = events;
@@ -34,16 +38,41 @@ export class SanctuaryBlessing implements Blessing<SanctuaryModeState> {
       canBank: true,
       canRestore: false,
     };
+
+    // Listen for actions (roll or score) to enable USE
+    this.events.on('dice:rolled', this.onAction, this);
+    this.events.on('score:updated', this.onAction, this);
   }
 
+  private onAction = (): void => {
+    // After any action (roll or score), enable USE if we have banked dice
+    if (this.state.canRestore && this.bankedState) {
+      this.actionsSinceBanking++;
+      log.log('Action after banking, actions:', this.actionsSinceBanking);
+      // Emit update so button refreshes to show USE
+      this.events.emit('blessing:sanctuary:reset', {
+        canBank: this.state.canBank,
+        canRestore: this.state.canRestore,
+        bankedDice: this.state.bankedDice,
+      });
+    }
+  };
+
   onModeStart(): void {
+    // Reset blessing for new curse round
+    this.state.canBank = true;
+    this.state.canRestore = false;
+    this.state.bankedDice = null;
+    this.bankedState = null;
+    this.actionsSinceBanking = 0;
+
     // Emit reset event for UI updates
     this.events.emit('blessing:sanctuary:reset', {
       canBank: this.state.canBank,
       canRestore: this.state.canRestore,
       bankedDice: this.state.bankedDice,
     });
-    log.log('Curse round started - canBank:', this.state.canBank, 'canRestore:', this.state.canRestore);
+    log.log('Curse round started - blessing reset, canBank:', this.state.canBank);
   }
 
   onModeEnd(): void {
@@ -73,6 +102,7 @@ export class SanctuaryBlessing implements Blessing<SanctuaryModeState> {
     this.state.bankedDice = [...values];
     this.state.canBank = false;
     this.state.canRestore = true;
+    this.actionsSinceBanking = 0; // Reset counter - must take action before restore
 
     this.events.emit('blessing:sanctuary:banked', {
       values: this.bankedState.values,
@@ -94,7 +124,11 @@ export class SanctuaryBlessing implements Blessing<SanctuaryModeState> {
     }
 
     const restored = { ...this.bankedState };
+
+    // Clear state - blessing is spent for this curse round
     this.state.canRestore = false;
+    this.state.bankedDice = null;
+    this.bankedState = null;
 
     this.events.emit('blessing:sanctuary:restored', {
       values: restored.values,
@@ -114,9 +148,12 @@ export class SanctuaryBlessing implements Blessing<SanctuaryModeState> {
 
   /**
    * Check if we can currently restore dice
+   * Requires at least one action (roll or score) since banking
    */
   canRestoreDice(): boolean {
-    return this.state.canRestore && this.bankedState !== null;
+    return this.state.canRestore &&
+           this.bankedState !== null &&
+           this.actionsSinceBanking >= MIN_ACTIONS_BEFORE_RESTORE;
   }
 
   /**
@@ -142,6 +179,8 @@ export class SanctuaryBlessing implements Blessing<SanctuaryModeState> {
   }
 
   destroy(): void {
+    this.events.off('dice:rolled', this.onAction, this);
+    this.events.off('score:updated', this.onAction, this);
     this.events = null as unknown as GameEventEmitter;
   }
 }

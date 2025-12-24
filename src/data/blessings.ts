@@ -3,7 +3,7 @@
  * Data-driven blessing definitions
  */
 
-export type BlessingId = 'abundance' | 'foresight' | 'sanctuary' | 'sixth';
+export type BlessingId = 'abundance' | 'mercy' | 'sanctuary' | 'sixth';
 
 export interface BlessingConfig {
   id: BlessingId;
@@ -35,31 +35,31 @@ export const BLESSINGS: Record<BlessingId, BlessingConfig> = {
     charges: null,
     implemented: true,
   },
-  foresight: {
-    id: 'foresight',
-    name: 'Blessing of Foresight',
-    subtitle: 'Perfect Information',
-    description: 'Spend 1 reroll to preview next roll (3 charges)',
-    icon: '🔮',
+  mercy: {
+    id: 'mercy',
+    name: 'Blessing of Mercy',
+    subtitle: 'Fresh Start',
+    description: 'Once per curse, reset your hand completely: new dice, full rerolls.',
+    icon: '🕊️',
     benefits: [
-      'See future roll before it happens',
-      'Costs 1 reroll, 3 charges total',
-      'Plan optimal lock strategies',
+      'Completely reset a dead hand',
+      'New dice + rerolls restored to 3',
+      'Resets each curse round',
     ],
-    bestFor: 'Strategic players who hate bad luck',
-    charges: 3,
+    bestFor: 'Players who want a panic button for bad rolls',
+    charges: 1,
     implemented: true,
   },
   sanctuary: {
     id: 'sanctuary',
     name: 'Blessing of Sanctuary',
     subtitle: 'Clutch Saves',
-    description: 'Bank current dice to restore later (1 use)',
+    description: 'Save your current dice, then restore them later when you need them. 1 use per curse.',
     icon: '🛡️',
     benefits: [
-      'Bank one promising hand',
-      'Use later with fresh rerolls',
-      'Perfect for clutch moments',
+      'Bank a promising hand for later',
+      'Restore swaps dice, keeps rerolls',
+      'Resets each curse round',
     ],
     bestFor: 'Players who like risk/reward timing',
     charges: 1,
@@ -69,12 +69,12 @@ export const BLESSINGS: Record<BlessingId, BlessingConfig> = {
     id: 'sixth',
     name: 'The Sixth Blessing',
     subtitle: 'Extra Die',
-    description: 'Roll 6 dice, score with best 5 (3 charges)',
+    description: 'Add a 6th die to your roll, but only the best 5 count for scoring. 3 uses per curse.',
     icon: '🎲',
     benefits: [
       'Roll 6 dice instead of 5',
       'Keep the best 5 for scoring',
-      '3 charges total',
+      '3 charges per curse, resets each round',
     ],
     bestFor: 'Players who want raw statistical advantage',
     charges: 3,
@@ -82,7 +82,7 @@ export const BLESSINGS: Record<BlessingId, BlessingConfig> = {
   },
 } as const;
 
-export const BLESSING_IDS: readonly BlessingId[] = ['abundance', 'foresight', 'sanctuary', 'sixth'];
+export const BLESSING_IDS: readonly BlessingId[] = ['abundance', 'mercy', 'sanctuary', 'sixth'];
 
 export function getBlessingConfig(id: BlessingId): BlessingConfig {
   return BLESSINGS[id];

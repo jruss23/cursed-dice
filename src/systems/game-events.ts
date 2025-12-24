@@ -36,11 +36,8 @@ export interface GameEvents {
   'blessing:sixth:activated': { chargesRemaining: number };
   'blessing:sixth:deactivated': void;
   'blessing:sixth:reset': { charges: number };
-  'blessing:foresight:activated': { chargesRemaining: number; previewValues: number[] };
-  'blessing:foresight:accepted': { values: number[] };
-  'blessing:foresight:rejected': void;
-  'blessing:foresight:cleared': void;
-  'blessing:foresight:reset': { charges: number };
+  'blessing:mercy:used': Record<string, never>;
+  'blessing:mercy:reset': { used: boolean };
   'blessing:sanctuary:banked': { values: number[]; locked: boolean[] };
   'blessing:sanctuary:restored': { values: number[]; locked: boolean[] };
   'blessing:sanctuary:reset': { canBank: boolean; canRestore: boolean; bankedDice: number[] | null };

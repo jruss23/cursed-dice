@@ -6,11 +6,10 @@
 
 import Phaser from 'phaser';
 import { SixthBlessingButton } from '@/ui/gameplay/sixth-blessing-button';
-import { ForesightBlessingButton } from '@/ui/gameplay/foresight-blessing-button';
-import { ForesightPreviewPanel } from '@/ui/gameplay/foresight-preview-panel';
+import { MercyBlessingButton } from '@/ui/gameplay/mercy-blessing-button';
 import { SanctuaryBlessingButton } from '@/ui/gameplay/sanctuary-blessing-button';
 import { SixthBlessing } from '@/systems/blessings/blessing-sixth';
-import { ForesightBlessing } from '@/systems/blessings/blessing-foresight';
+import { MercyBlessing } from '@/systems/blessings/blessing-mercy';
 import { SanctuaryBlessing } from '@/systems/blessings/blessing-sanctuary';
 import type { BlessingManager } from '@/systems/blessings';
 import type { GameEventEmitter } from '@/systems/game-events';
@@ -41,8 +40,7 @@ export class BlessingIntegration {
 
   // UI Components
   private sixthBlessingButton: SixthBlessingButton | null = null;
-  private foresightBlessingButton: ForesightBlessingButton | null = null;
-  private foresightPreviewPanel: ForesightPreviewPanel | null = null;
+  private mercyBlessingButton: MercyBlessingButton | null = null;
   private sanctuaryBlessingButton: SanctuaryBlessingButton | null = null;
 
   constructor(config: BlessingIntegrationConfig) {
@@ -54,7 +52,7 @@ export class BlessingIntegration {
     this.setup(config);
   }
 
-  private setup(config: BlessingIntegrationConfig): void {
+  private setup(_config: BlessingIntegrationConfig): void {
     const activeBlessing = this.blessingManager.getActiveBlessing();
     if (!activeBlessing) return;
 
@@ -62,8 +60,8 @@ export class BlessingIntegration {
 
     if (blessingId === 'sixth') {
       this.setupSixthBlessing();
-    } else if (blessingId === 'foresight') {
-      this.setupForesightBlessing(config);
+    } else if (blessingId === 'mercy') {
+      this.setupMercyBlessing();
     } else if (blessingId === 'sanctuary') {
       this.setupSanctuaryBlessing();
     }
@@ -101,98 +99,41 @@ export class BlessingIntegration {
     );
   }
 
-  private setupForesightBlessing(config: BlessingIntegrationConfig): void {
-    const blessing = this.blessingManager.getActiveBlessing() as ForesightBlessing | null;
+  private setupMercyBlessing(): void {
+    const blessing = this.blessingManager.getActiveBlessing() as MercyBlessing | null;
     if (!blessing) return;
 
-    log.log('Setting up Foresight Blessing integration');
+    log.log('Setting up Mercy Blessing integration');
 
-    const centerX = config.gameWidth / 2;
-
-    // Create preview panel
-    this.foresightPreviewPanel = new ForesightPreviewPanel(this.scene, {
-      centerX,
-      centerY: config.diceY,
-      diceSize: config.diceSize,
-      diceSpacing: config.diceSpacing,
-      onAccept: () => this.handleForesightAccept(blessing),
-      onReject: () => this.handleForesightReject(blessing),
-    });
-
-    // Create button
     const pos = this.diceManager.getBlessingButtonPosition();
     if (!pos) {
       log.warn('Could not get blessing button position');
       return;
     }
 
-    this.foresightBlessingButton = new ForesightBlessingButton(
+    this.mercyBlessingButton = new MercyBlessingButton(
       this.scene,
       this.events,
       {
         x: pos.x,
         y: pos.y,
         height: pos.height,
-        onActivate: () => this.handleForesightActivate(blessing),
-        getCharges: () => blessing.getChargesRemaining(),
-        isPreviewActive: () => blessing.isPreviewActive(),
-        canActivate: () => this.diceManager.getRerollsLeft() > 0,
+        onUse: () => this.handleMercyUse(blessing),
+        canUse: () => blessing.canUse(),
       }
     );
   }
 
-  private handleForesightActivate(blessing: ForesightBlessing): boolean {
-    if (this.diceManager.getRerollsLeft() <= 0) {
-      log.log('Cannot activate Foresight - no rerolls left');
-      return false;
-    }
+  private handleMercyUse(blessing: MercyBlessing): boolean {
+    const success = blessing.use();
+    if (!success) return false;
 
-    const diceState = this.diceManager.getState();
-    const lockedDice = diceState.locked.slice(0, 5);
+    log.log('Mercy used - resetting hand');
 
-    const previewValues = blessing.activate(lockedDice);
-    if (!previewValues) {
-      return false;
-    }
-
-    // Fill in locked dice values
-    for (let i = 0; i < 5; i++) {
-      if (lockedDice[i]) {
-        previewValues[i] = diceState.values[i];
-      }
-    }
-
-    this.foresightPreviewPanel?.show(previewValues, lockedDice);
-    this.diceManager.setEnabled(false);
+    // Reset the dice completely: new random dice + full rerolls
+    this.diceManager.resetHand();
 
     return true;
-  }
-
-  private handleForesightAccept(blessing: ForesightBlessing): void {
-    const values = blessing.acceptPreview();
-    if (!values) return;
-
-    this.foresightPreviewPanel?.hide();
-
-    const diceState = this.diceManager.getState();
-
-    // Fill in locked values
-    for (let i = 0; i < 5; i++) {
-      if (diceState.locked[i]) {
-        values[i] = diceState.values[i];
-      }
-    }
-
-    // Apply values via forced roll
-    this.diceManager.setForcedRollValues(values);
-    this.diceManager.setEnabled(true);
-    this.diceManager.roll(false);
-  }
-
-  private handleForesightReject(blessing: ForesightBlessing): void {
-    blessing.rejectPreview();
-    this.foresightPreviewPanel?.hide();
-    this.diceManager.setEnabled(true);
   }
 
   private setupSanctuaryBlessing(): void {
@@ -252,14 +193,9 @@ export class BlessingIntegration {
       this.sixthBlessingButton = null;
     }
 
-    if (this.foresightBlessingButton) {
-      this.foresightBlessingButton.destroy();
-      this.foresightBlessingButton = null;
-    }
-
-    if (this.foresightPreviewPanel) {
-      this.foresightPreviewPanel.destroy();
-      this.foresightPreviewPanel = null;
+    if (this.mercyBlessingButton) {
+      this.mercyBlessingButton.destroy();
+      this.mercyBlessingButton = null;
     }
 
     if (this.sanctuaryBlessingButton) {
