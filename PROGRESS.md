@@ -222,6 +222,24 @@ src/
 
 ## Recent Session Work (Dec 24, 2025)
 
+### Architecture Simplification
+- [x] **Deleted command pattern** (5 files, ~350 lines) - undo/redo was never used
+- [x] **Trimmed unused events** - Removed 15 event definitions with zero listeners
+- [x] **Extracted BlessingIntegration** - Moved blessing UI/handlers to `src/scenes/gameplay/`
+- [x] GameplayScene reduced from 1456 → 1272 lines (-184 lines)
+
+**Files deleted:**
+- `src/systems/commands/` directory (types.ts, command-invoker.ts, dice-commands.ts, score-commands.ts, index.ts)
+
+**Files created:**
+- `src/scenes/gameplay/blessing-integration.ts` (209 lines) - blessing UI coordination
+- `src/scenes/gameplay/index.ts` - barrel export
+
+**Remaining large files:**
+- GameplayScene.ts: 1272 lines (target: <800)
+- DiceManager.ts: 1227 lines (target: <800)
+- ScorecardPanel.ts: 1037 lines (complex, may stay as-is)
+
 ### Foresight Blessing Implementation
 - [x] Created `ForesightBlessing` class with 3 charges
 - [x] Created `ForesightBlessingButton` UI with mystical purple theme
