@@ -257,6 +257,17 @@ export class GameStateMachine {
     this.enterCallbacks.clear();
     this.exitCallbacks.clear();
   }
+
+  /**
+   * Destroy the state machine (clear callbacks and reset state)
+   */
+  destroy(): void {
+    this.clearCallbacks();
+    this.transitions = [];
+    this.currentState = 'idle';
+    this.previousState = 'idle';
+    log.log('State machine destroyed');
+  }
 }
 
 // =============================================================================

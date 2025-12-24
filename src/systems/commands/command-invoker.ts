@@ -158,6 +158,14 @@ export class CommandInvoker {
     this.redoStack = [];
     log.log(`Cleared ${count} commands from history`);
   }
+
+  /**
+   * Destroy the invoker (clear history and reset)
+   */
+  destroy(): void {
+    this.clear();
+    log.log('CommandInvoker destroyed');
+  }
 }
 
 // =============================================================================

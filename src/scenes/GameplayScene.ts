@@ -1240,7 +1240,12 @@ export class GameplayScene extends BaseScene {
 
     // Cleanup state machine
     if (this.stateMachine) {
-      this.stateMachine.clearCallbacks();
+      this.stateMachine.destroy();
+    }
+
+    // Cleanup command invoker
+    if (this.commandInvoker) {
+      this.commandInvoker.destroy();
     }
 
     // Unregister scene-scoped services (keep global services like save, progression)

@@ -138,10 +138,10 @@ export class SixthBlessingButton {
   }
 
   private setupEventListeners(): void {
-    // Update when blessing state changes
-    this.events.on('blessing:sixth:deactivated', this.updateDisplay);
-    this.events.on('blessing:sixth:activated', this.updateDisplay);
-    this.events.on('blessing:sixth:reset', this.updateDisplay);
+    // Update when blessing state changes (using context parameter for safe cleanup)
+    this.events.on('blessing:sixth:deactivated', this.updateDisplay, this);
+    this.events.on('blessing:sixth:activated', this.updateDisplay, this);
+    this.events.on('blessing:sixth:reset', this.updateDisplay, this);
   }
 
   private updateDisplay = (): void => {
@@ -199,9 +199,9 @@ export class SixthBlessingButton {
   }
 
   destroy(): void {
-    this.events.off('blessing:sixth:deactivated', this.updateDisplay);
-    this.events.off('blessing:sixth:activated', this.updateDisplay);
-    this.events.off('blessing:sixth:reset', this.updateDisplay);
+    this.events.off('blessing:sixth:deactivated', this.updateDisplay, this);
+    this.events.off('blessing:sixth:activated', this.updateDisplay, this);
+    this.events.off('blessing:sixth:reset', this.updateDisplay, this);
     this.container.destroy();
   }
 }
