@@ -1,9 +1,9 @@
 /**
  * Menu Scene
  * Spooky cursed theme with difficulty selection
+ * Extends BaseScene for common lifecycle helpers
  */
 
-import Phaser from 'phaser';
 import {
   type Difficulty,
   DIFFICULTIES,
@@ -11,22 +11,19 @@ import {
   FONTS,
   SIZES,
   COLORS,
-  getViewportMetrics,
 } from '@/config';
 import { resetGameProgression, debugSetMode, type GameMode } from '@/systems/game-progression';
 import { resetBlessingManager, debugSetBlessing } from '@/systems/blessings';
-import { createLogger } from '@/systems/logger';
 import { DifficultyButton, FlickeringTitle, HighScoresPanel, SpookyBackground } from '@/ui/menu';
 import { createText } from '@/ui/ui-utils';
-
-const log = createLogger('MenuScene');
+import { BaseScene } from './BaseScene';
 
 interface DebugSkipData {
   debugSkipToMode?: number;
   debugEnableExpansion?: boolean;
 }
 
-export class MenuScene extends Phaser.Scene {
+export class MenuScene extends BaseScene {
   private menuMusic: Phaser.Sound.BaseSound | null = null;
   private difficultyButtons: DifficultyButton[] = [];
   private debugSkipData: DebugSkipData | null = null;
@@ -40,27 +37,27 @@ export class MenuScene extends Phaser.Scene {
     // Store debug skip data if provided
     if (data?.debugSkipToMode) {
       this.debugSkipData = data;
-      log.debug('Received debug skip data:', data);
+      this.log.debug('Received debug skip data:', data);
     } else {
       this.debugSkipData = null;
     }
   }
 
   preload(): void {
-    log.log('Preloading menu music...');
+    this.log.log('Preloading menu music...');
     this.load.audio('menu-music', 'sounds/menu.ogg');
 
     this.load.on('filecomplete-audio-menu-music', () => {
-      log.log('Menu music loaded successfully');
+      this.log.log('Menu music loaded successfully');
     });
 
     this.load.on('loaderror', (file: Phaser.Loader.File) => {
-      log.error('Failed to load:', file.key, file.url);
+      this.log.error('Failed to load:', file.key, file.url);
     });
   }
 
   create(): void {
-    log.log('create() called');
+    this.log.log('create() called');
 
     // Handle debug skip to mode
     if (this.debugSkipData?.debugSkipToMode) {
@@ -68,8 +65,8 @@ export class MenuScene extends Phaser.Scene {
       return;
     }
 
-    // Register shutdown handler
-    this.events.once('shutdown', this.onShutdown, this);
+    // Register shutdown handler (from BaseScene)
+    this.registerShutdown();
 
     // Load and play menu music
     const playMenuMusic = () => {
@@ -79,7 +76,7 @@ export class MenuScene extends Phaser.Scene {
         // Only play if not locked, otherwise wait for unlock
         if (!this.sound.locked) {
           this.menuMusic.play();
-          log.log('Menu music started');
+          this.log.log('Menu music started');
           // Start background preloading gameplay tracks
           this.preloadGameplayTracks();
         }
@@ -88,12 +85,12 @@ export class MenuScene extends Phaser.Scene {
 
     // Handle locked audio context - set up listener FIRST
     if (this.sound.locked) {
-      log.log('Audio context locked, waiting for user interaction...');
+      this.log.log('Audio context locked, waiting for user interaction...');
       this.boundOnAudioUnlocked = () => {
-        log.log('Audio context unlocked');
+        this.log.log('Audio context unlocked');
         if (this.menuMusic && !this.menuMusic.isPlaying) {
           this.menuMusic.play();
-          log.log('Menu music started after unlock');
+          this.log.log('Menu music started after unlock');
           // Start background preloading gameplay tracks
           this.preloadGameplayTracks();
         }
@@ -110,7 +107,7 @@ export class MenuScene extends Phaser.Scene {
     }
 
     const { width, height } = this.cameras.main;
-    const metrics = getViewportMetrics(this);
+    const metrics = this.getMetrics();
     const isMobile = metrics.isMobile;
 
     // Font scaling for mobile - keep readable
@@ -261,8 +258,8 @@ export class MenuScene extends Phaser.Scene {
     // Pulsing vignette effect (disabled on mobile)
     this.createPulsingVignette(width, height, isMobile);
 
-    // Fade in
-    this.cameras.main.fadeIn(800, 0, 0, 0);
+    // Fade in (using BaseScene helper with custom duration)
+    this.fadeIn(800);
   }
 
   private createLearnToPlayButton(width: number, y: number, isMobile: boolean): void {
@@ -316,7 +313,7 @@ export class MenuScene extends Phaser.Scene {
     });
 
     bg.on('pointerdown', () => {
-      log.log('Starting tutorial');
+      this.log.log('Starting tutorial');
       this.startTutorial();
     });
   }
@@ -334,12 +331,8 @@ export class MenuScene extends Phaser.Scene {
       });
     }
 
-    // Transition to tutorial
-    this.cameras.main.fadeOut(SIZES.FADE_DURATION_MS, 0, 0, 0);
-
-    this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.scene.start('TutorialScene');
-    });
+    // Transition to tutorial (using BaseScene helper)
+    this.transitionTo('TutorialScene');
   }
 
   private createPulsingVignette(width: number, height: number, isMobile: boolean): void {
@@ -415,7 +408,7 @@ export class MenuScene extends Phaser.Scene {
   private debugStartGame(data: DebugSkipData): void {
     const mode = data.debugSkipToMode as GameMode;
 
-    log.debug(`DEBUG: Starting game at mode ${mode}, expansion=${data.debugEnableExpansion}`);
+    this.log.debug(`DEBUG: Starting game at mode ${mode}, expansion=${data.debugEnableExpansion}`);
 
     // Reset and set up progression
     resetGameProgression();
@@ -440,14 +433,14 @@ export class MenuScene extends Phaser.Scene {
   private preloadGameplayTracks(): void {
     const tracks = ['sounds/chill.ogg', 'sounds/normal.ogg', 'sounds/intense.ogg'];
 
-    log.log('Background preloading gameplay tracks...');
+    this.log.log('Background preloading gameplay tracks...');
 
     tracks.forEach((track, index) => {
       const key = `music-${track.split('/')[1].replace('.ogg', '')}`;
 
       // Skip if already cached
       if (this.cache.audio.exists(key)) {
-        log.log(`Already cached: ${key}`);
+        this.log.log(`Already cached: ${key}`);
         return;
       }
 
@@ -456,14 +449,14 @@ export class MenuScene extends Phaser.Scene {
         if (this.scene.isActive()) {
           this.load.audio(key, track);
           this.load.start();
-          log.log(`Preloading: ${key}`);
+          this.log.log(`Preloading: ${key}`);
         }
       });
     });
   }
 
-  private onShutdown(): void {
-    log.log('shutdown - cleaning up');
+  protected onShutdown(): void {
+    this.log.log('shutdown - cleaning up');
 
     // Remove global sound manager listener (if audio never unlocked)
     if (this.boundOnAudioUnlocked) {
@@ -480,5 +473,8 @@ export class MenuScene extends Phaser.Scene {
     // Cleanup difficulty buttons
     this.difficultyButtons.forEach(btn => btn.destroy());
     this.difficultyButtons = [];
+
+    // Call base cleanup
+    this.cleanup();
   }
 }

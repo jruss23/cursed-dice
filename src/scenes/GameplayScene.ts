@@ -1,6 +1,7 @@
 /**
  * Gameplay Scene
  * Supports all 4 game modes with cursed mechanics
+ * Extends BaseScene for common lifecycle helpers
  *
  * Mode 1: Classic Sprint - Standard dice game
  * Mode 2: Cursed Dice - 1 die locked per hand
@@ -13,7 +14,6 @@
  * - Proper Phaser lifecycle (init → create → shutdown)
  */
 
-import Phaser from 'phaser';
 import {
   type Difficulty,
   DIFFICULTIES,
@@ -23,7 +23,6 @@ import {
   COLORS,
   DEV,
   RESPONSIVE,
-  getViewportMetrics,
   getScaledSizes,
   getPortraitLayout,
   type ViewportMetrics,
@@ -46,15 +45,12 @@ import {
   resetBlessingManager,
   type BlessingManager,
 } from '@/systems/blessings';
-import { createLogger } from '@/systems/logger';
 import { InputManager } from '@/systems/input-manager';
 import { getModeMechanics, type ModeMechanicsManager } from '@/systems/mode-mechanics';
 import { BlessingChoicePanel } from '@/ui/blessing-choice-panel';
 import { GameStateMachine } from '@/systems/state-machine';
 import { Services, getProgression, getSave } from '@/systems/services';
 import { CommandInvoker, ScoreCategoryCommand } from '@/systems/commands';
-
-const log = createLogger('GameplayScene');
 import { PauseMenu } from '@/ui/pause-menu';
 import { HeaderPanel, DebugPanel, EndScreenOverlay } from '@/ui/gameplay';
 import { SixthBlessingButton } from '@/ui/gameplay/sixth-blessing-button';
@@ -62,8 +58,9 @@ import { ParticlePool } from '@/systems/particle-pool';
 import { createText } from '@/ui/ui-utils';
 import { DebugController } from '@/systems/debug-controller';
 import { SixthBlessing } from '@/systems/blessings/blessing-sixth';
+import { BaseScene } from './BaseScene';
 
-export class GameplayScene extends Phaser.Scene {
+export class GameplayScene extends BaseScene {
   // Core systems (created fresh each game)
   private scorecard!: Scorecard;
   private gameEvents!: GameEventEmitter;
@@ -109,8 +106,10 @@ export class GameplayScene extends Phaser.Scene {
   // Layout positions (set during buildUI, used by effects)
   private diceCenterX: number = 0;
 
-  // Bound handlers for cleanup
-  private boundOnResize: (() => void) | null = null;
+  // Bound event handlers for cleanup (boundOnResize inherited from BaseScene)
+  private boundOnExpansionEnable: (() => void) | null = null;
+  private boundOnScoreCategory: ((payload: { categoryId: CategoryId; dice: number[] }) => void) | null = null;
+  private boundOnMenuRequested: (() => void) | null = null;
 
   constructor() {
     super({ key: 'GameplayScene' });
@@ -126,7 +125,7 @@ export class GameplayScene extends Phaser.Scene {
     this.currentMode = progression.getCurrentMode();
     this.modeConfig = progression.getCurrentModeConfig();
 
-    log.log('init() - Mode:', this.currentMode, this.modeConfig.name);
+    this.log.log('init() - Mode:', this.currentMode, this.modeConfig.name);
 
     // Set difficulty and time from config
     this.difficulty = data.difficulty || 'normal';
@@ -153,11 +152,12 @@ export class GameplayScene extends Phaser.Scene {
     // Initialize blessing manager (singleton, persists across scenes)
     this.blessingManager = getBlessingManager();
 
-    // Listen for blessing events
-    this.gameEvents.on('blessing:expansion:enable', () => {
+    // Listen for blessing events (store bound handler for cleanup)
+    this.boundOnExpansionEnable = () => {
       this.scorecard.enableSpecialSection();
-      log.log('Special section (Blessing of Expansion) enabled via event');
-    });
+      this.log.log('Special section (Blessing of Expansion) enabled via event');
+    };
+    this.gameEvents.on('blessing:expansion:enable', this.boundOnExpansionEnable);
 
     // Trigger blessing mode start (emits events for active blessing)
     // Pass fresh events emitter since it's recreated each scene
@@ -172,10 +172,10 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   create(): void {
-    log.log('create()');
+    this.log.log('create()');
 
-    // Register shutdown handler
-    this.events.once('shutdown', this.onShutdown, this);
+    // Register shutdown handler (from BaseScene)
+    this.registerShutdown();
 
     // Initialize object pools
     this.particlePool = new ParticlePool(this);
@@ -248,6 +248,7 @@ export class GameplayScene extends Phaser.Scene {
 
   /**
    * Register services for dependency injection
+   * Note: diceManager is registered later in buildUI() because it creates UI in constructor
    */
   private registerServices(): void {
     Services.register('scorecard', this.scorecard);
@@ -271,7 +272,7 @@ export class GameplayScene extends Phaser.Scene {
 
       // If layout mode changed, restart the scene
       if (newMode !== this.initialAspectRatio) {
-        log.log('Aspect ratio changed, rebuilding layout');
+        this.log.log('Aspect ratio changed, rebuilding layout');
         this.initialAspectRatio = newMode;
         // Restart scene preserving game state (don't reset progression)
         this.scene.restart({ difficulty: this.difficulty });
@@ -291,15 +292,17 @@ export class GameplayScene extends Phaser.Scene {
   // ===========================================================================
 
   private setupEventListeners(): void {
-    // Handle category scoring
-    this.gameEvents.on('score:category', ({ categoryId, dice }) => {
+    // Handle category scoring (store bound handler for cleanup)
+    this.boundOnScoreCategory = ({ categoryId, dice }) => {
       this.onCategoryScored(categoryId, dice);
-    });
+    };
+    this.gameEvents.on('score:category', this.boundOnScoreCategory);
 
-    // Handle menu request
-    this.gameEvents.on('ui:menuRequested', () => {
+    // Handle menu request (store bound handler for cleanup)
+    this.boundOnMenuRequested = () => {
       this.returnToMenu();
-    });
+    };
+    this.gameEvents.on('ui:menuRequested', this.boundOnMenuRequested);
   }
 
   private async setupAudio(): Promise<void> {
@@ -345,10 +348,10 @@ export class GameplayScene extends Phaser.Scene {
     }
 
     // Get responsive metrics and scaled sizes
-    const metrics = getViewportMetrics(this);
+    const metrics = this.getMetrics();
     const scaledSizes = getScaledSizes(metrics);
 
-    log.debug(`Layout: ${metrics.isPortrait ? 'portrait' : 'landscape'}, width: ${width}`);
+    this.log.debug(`Layout: ${metrics.isPortrait ? 'portrait' : 'landscape'}, width: ${width}`);
 
     if (metrics.isPortrait) {
       this.buildPortraitLayout(width, height, progression.getTotalScore(), metrics, scaledSizes);
@@ -642,12 +645,12 @@ export class GameplayScene extends Phaser.Scene {
     const blessing = this.blessingManager.getActiveBlessing() as SixthBlessing | null;
     if (!blessing) return;
 
-    log.log('Setting up Sixth Blessing integration');
+    this.log.log('Setting up Sixth Blessing integration');
 
     // Get button position from DiceManager (in the controls panel)
     const pos = this.diceManager.getBlessingButtonPosition();
     if (!pos) {
-      log.warn('Could not get blessing button position');
+      this.log.warn('Could not get blessing button position');
       return;
     }
 
@@ -861,7 +864,7 @@ export class GameplayScene extends Phaser.Scene {
       // Pre-processed siren (3 octaves down, 3.2x speed)
       const sound = this.sound.add('warning-sound', { volume: 0.5 });
       sound.play();
-      log.log(`Playing warning: ${checkpoint}`);
+      this.log.log(`Playing warning: ${checkpoint}`);
     }
   }
 
@@ -875,7 +878,7 @@ export class GameplayScene extends Phaser.Scene {
   private onCategoryScored(categoryId: CategoryId, dice: number[]): void {
     // Check if category is locked (Mode 3 & 4)
     if (!this.modeMechanics.canScore(categoryId)) {
-      log.warn(`Cannot score locked category: ${categoryId}`);
+      this.log.warn(`Cannot score locked category: ${categoryId}`);
       return;
     }
 
@@ -889,7 +892,7 @@ export class GameplayScene extends Phaser.Scene {
     const points = this.commandInvoker.executeWithResult(command);
     if (points === null || points < 0) return; // Command failed or category already filled
 
-    log.log(`Scored ${points} in ${categoryId} (history: ${this.commandInvoker.getHistorySize()})`);
+    this.log.log(`Scored ${points} in ${categoryId} (history: ${this.commandInvoker.getHistorySize()})`);
 
     // Deactivate Sixth Blessing if it was active (after scoring, not after rolling)
     if (this.diceManager.isSixthDieActive()) {
@@ -1069,10 +1072,10 @@ export class GameplayScene extends Phaser.Scene {
       isNewBestRun = saveManager.recordCompletedRun(totalScore);
     }
     if (isNewHighScore) {
-      log.log(`New high score for ${this.difficulty}: ${modeScore}`);
+      this.log.log(`New high score for ${this.difficulty}: ${modeScore}`);
     }
     if (isNewBestRun) {
-      log.log(`New best run: ${totalScore}`);
+      this.log.log(`New best run: ${totalScore}`);
     }
 
     new EndScreenOverlay(
@@ -1121,11 +1124,11 @@ export class GameplayScene extends Phaser.Scene {
   private startNextMode(skipFade = false): void {
     // Prevent double-transitions
     if (this.stateMachine.is('mode-transition')) {
-      log.debug('startNextMode blocked: already transitioning');
+      this.log.debug('startNextMode blocked: already transitioning');
       return;
     }
     this.stateMachine.transition('mode-transition');
-    log.log('Starting transition to next mode');
+    this.log.log('Starting transition to next mode');
 
     if (this.timerEvent) {
       this.timerEvent.destroy();
@@ -1147,11 +1150,11 @@ export class GameplayScene extends Phaser.Scene {
    * Show blessing choice panel after Mode 1 completion
    */
   private showBlessingChoicePanel(): void {
-    log.log('Showing blessing choice panel');
+    this.log.log('Showing blessing choice panel');
 
     new BlessingChoicePanel(this, {
       onSelect: (blessingId) => {
-        log.log(`Player chose blessing: ${blessingId}`);
+        this.log.log(`Player chose blessing: ${blessingId}`);
         this.blessingManager.chooseBlessing(blessingId, this.gameEvents);
         // Skip fade since BlessingChoicePanel already faded to black
         this.startNextMode(true);
@@ -1171,31 +1174,31 @@ export class GameplayScene extends Phaser.Scene {
     // Use state machine - callbacks handle the actual pause logic
     const previousState = this.stateMachine.getState();
     if (this.stateMachine.transition('paused')) {
-      log.log(`Game paused (was: ${previousState})`);
+      this.log.log(`Game paused (was: ${previousState})`);
     }
   }
 
   private resumeGame(): void {
     if (!this.stateMachine.is('paused')) {
-      log.debug('resumeGame blocked: not paused');
+      this.log.debug('resumeGame blocked: not paused');
       return;
     }
 
     // Resume to previous state
     const previousState = this.stateMachine.getPreviousState();
     if (this.stateMachine.transition(previousState)) {
-      log.log(`Game resumed to: ${previousState}`);
+      this.log.log(`Game resumed to: ${previousState}`);
     }
   }
 
   private returnToMenu(): void {
     // Prevent double-transitions
     if (this.stateMachine.is('mode-transition')) {
-      log.debug('returnToMenu blocked: already transitioning');
+      this.log.debug('returnToMenu blocked: already transitioning');
       return;
     }
     this.stateMachine.transition('mode-transition');
-    log.log('Returning to menu');
+    this.log.log('Returning to menu');
 
     // Hide pause menu if visible
     if (this.pauseMenu?.isVisible()) {
@@ -1217,14 +1220,11 @@ export class GameplayScene extends Phaser.Scene {
   // CLEANUP
   // ===========================================================================
 
-  private onShutdown(): void {
-    log.log('shutdown - cleaning up');
+  protected onShutdown(): void {
+    this.log.log('shutdown - cleaning up');
 
-    // Remove resize listener
-    if (this.boundOnResize) {
-      this.scale.off('resize', this.boundOnResize);
-      this.boundOnResize = null;
-    }
+    // Remove resize listener (via BaseScene helper)
+    this.removeResizeListener();
 
     // Stop timer
     if (this.timerEvent) {
@@ -1250,8 +1250,20 @@ export class GameplayScene extends Phaser.Scene {
     Services.unregister('commandInvoker');
     Services.unregister('diceManager');
 
-    // Destroy event emitter
+    // Remove event listeners explicitly before destroying emitter
     if (this.gameEvents) {
+      if (this.boundOnExpansionEnable) {
+        this.gameEvents.off('blessing:expansion:enable', this.boundOnExpansionEnable);
+        this.boundOnExpansionEnable = null;
+      }
+      if (this.boundOnScoreCategory) {
+        this.gameEvents.off('score:category', this.boundOnScoreCategory);
+        this.boundOnScoreCategory = null;
+      }
+      if (this.boundOnMenuRequested) {
+        this.gameEvents.off('ui:menuRequested', this.boundOnMenuRequested);
+        this.boundOnMenuRequested = null;
+      }
       this.gameEvents.destroy();
     }
 
