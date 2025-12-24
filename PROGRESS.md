@@ -222,6 +222,16 @@ src/
 
 ## Recent Session Work (Dec 24, 2025)
 
+### Foresight Blessing Implementation
+- [x] Created `ForesightBlessing` class with 3 charges
+- [x] Created `ForesightBlessingButton` UI with mystical purple theme
+- [x] Created `ForesightPreviewPanel` showing ghost dice with accept/reject buttons
+- [x] Integrated with `GameplayScene` (button position, handlers, cleanup)
+- [x] Added foresight events to `GameEvents` interface
+- [x] Marked foresight as `implemented: true` in blessings.ts
+
+**How it works**: Click button → spend 1 reroll + 1 charge → see preview of next roll → accept (apply values) or reject (discard preview)
+
 ### Tutorial Polish & Bug Fixes
 - [x] Fixed highlight flash animation (pulse was conflicting with fade-in tween)
 - [x] Added dark background to hint text for readability on green dice area
@@ -314,7 +324,7 @@ src/
 ## Next Steps (Suggested Priority)
 
 ### Soon - Blessings
-1. [ ] Implement Foresight blessing (preview next roll)
+1. [x] Implement Foresight blessing (preview next roll) ✅ Dec 24, 2025
 2. [ ] Implement Sanctuary blessing (bank/restore dice)
 
 ### Later - Polish
