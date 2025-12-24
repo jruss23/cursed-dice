@@ -65,7 +65,7 @@ export class TutorialOverlay {
     this.createPopup();
   }
 
-  private drawHighlight(highlight: Bounds | null): void {
+  private drawHighlight(highlight: Bounds | null, startPulse: boolean = true): void {
     if (!this.highlightGraphics) return;
 
     // Clear previous drawing
@@ -88,8 +88,10 @@ export class TutorialOverlay {
     this.highlightGraphics.lineStyle(3, PALETTE.gold[500], 1.0);
     this.highlightGraphics.strokeRoundedRect(hx, hy, hw, hh, 6);
 
-    // Start pulse animation
-    this.startPulseAnimation();
+    // Start pulse animation (can be deferred for transitions)
+    if (startPulse) {
+      this.startPulseAnimation();
+    }
   }
 
   private startPulseAnimation(): void {
@@ -303,7 +305,8 @@ export class TutorialOverlay {
 
     // After fade out, update content and fade both back in together
     this.scene.time.delayedCall(fadeOutDuration, () => {
-      this.updateStepContent(step);
+      // Update content but don't start pulse yet (would conflict with fade-in)
+      this.updateStepContent(step, false);
 
       // Fade highlight and popup in together
       if (this.highlightGraphics) {
@@ -313,6 +316,10 @@ export class TutorialOverlay {
           alpha: 1,
           duration: fadeInDuration,
           ease: 'Power2',
+          onComplete: () => {
+            // Start pulse AFTER fade-in completes to avoid tween conflict
+            this.startPulseAnimation();
+          },
         });
       }
 
@@ -335,9 +342,10 @@ export class TutorialOverlay {
     });
   }
 
-  private updateStepContent(step: TutorialStep): void {
+  private updateStepContent(step: TutorialStep, startPulse: boolean = true): void {
     // Draw the highlight (no dark overlay)
-    this.drawHighlight(step.highlight);
+    // startPulse=false during transitions to avoid conflict with fade-in tween
+    this.drawHighlight(step.highlight, startPulse);
 
     // Update popup content
     if (this.titleText) {
