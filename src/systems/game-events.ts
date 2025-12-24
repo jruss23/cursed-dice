@@ -50,6 +50,11 @@ export interface GameEvents {
   'blessing:sixth:activated': { chargesRemaining: number };
   'blessing:sixth:deactivated': void;
   'blessing:sixth:reset': { charges: number };
+  'blessing:foresight:activated': { chargesRemaining: number; previewValues: number[] };
+  'blessing:foresight:accepted': { values: number[] };
+  'blessing:foresight:rejected': void;
+  'blessing:foresight:cleared': void;
+  'blessing:foresight:reset': { charges: number };
 
   // Mode mechanics events
   'mode:gauntlet': boolean;

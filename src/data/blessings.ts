@@ -48,7 +48,7 @@ export const BLESSINGS: Record<BlessingId, BlessingConfig> = {
     ],
     bestFor: 'Strategic players who hate bad luck',
     charges: 3,
-    implemented: false,
+    implemented: true,
   },
   sanctuary: {
     id: 'sanctuary',

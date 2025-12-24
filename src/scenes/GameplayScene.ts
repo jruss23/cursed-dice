@@ -54,10 +54,13 @@ import { CommandInvoker, ScoreCategoryCommand } from '@/systems/commands';
 import { PauseMenu } from '@/ui/pause-menu';
 import { HeaderPanel, DebugPanel, EndScreenOverlay } from '@/ui/gameplay';
 import { SixthBlessingButton } from '@/ui/gameplay/sixth-blessing-button';
+import { ForesightBlessingButton } from '@/ui/gameplay/foresight-blessing-button';
+import { ForesightPreviewPanel } from '@/ui/gameplay/foresight-preview-panel';
 import { ParticlePool } from '@/systems/particle-pool';
 import { createText } from '@/ui/ui-utils';
 import { DebugController } from '@/systems/debug-controller';
 import { SixthBlessing } from '@/systems/blessings/blessing-sixth';
+import { ForesightBlessing } from '@/systems/blessings/blessing-foresight';
 import { BaseScene } from './BaseScene';
 
 export class GameplayScene extends BaseScene {
@@ -76,6 +79,8 @@ export class GameplayScene extends BaseScene {
   private debugPanel: DebugPanel | null = null;
   private selectPrompt: Phaser.GameObjects.Text | null = null;
   private sixthBlessingButton: SixthBlessingButton | null = null;
+  private foresightBlessingButton: ForesightBlessingButton | null = null;
+  private foresightPreviewPanel: ForesightPreviewPanel | null = null;
 
   // Game state
   private difficulty: Difficulty = 'normal';
@@ -624,17 +629,21 @@ export class GameplayScene extends BaseScene {
     this.diceManager = new DiceManager(this, this.gameEvents);
     Services.register('diceManager', this.diceManager);
 
-    // If sixth blessing is chosen, enable the blessing slot in controls panel
-    const hasSixthBlessing = this.blessingManager.getChosenBlessingId() === 'sixth';
-    if (hasSixthBlessing) {
+    // If sixth or foresight blessing is chosen, enable the blessing slot in controls panel
+    const chosenBlessing = this.blessingManager.getChosenBlessingId();
+    const hasSixthBlessing = chosenBlessing === 'sixth';
+    const hasForesightBlessing = chosenBlessing === 'foresight';
+    if (hasSixthBlessing || hasForesightBlessing) {
       this.diceManager.enableBlessingSlot();
     }
 
     this.diceManager.createUI(centerX, diceY, scaledSizes, isUltraCompact);
 
-    // Set up Sixth Blessing integration if that blessing is chosen
+    // Set up blessing integration based on chosen blessing
     if (hasSixthBlessing) {
       this.setupSixthBlessingIntegration();
+    } else if (hasForesightBlessing) {
+      this.setupForesightBlessingIntegration(diceY, scaledSizes?.dice ?? SIZES.DICE_SIZE, scaledSizes?.diceSpacing ?? SIZES.DICE_SPACING);
     }
   }
 
@@ -674,6 +683,126 @@ export class GameplayScene extends BaseScene {
         isActive: () => blessing.isActive(),
       }
     );
+  }
+
+  /**
+   * Set up Foresight Blessing button and preview panel
+   */
+  private setupForesightBlessingIntegration(diceY: number, diceSize: number, diceSpacing: number): void {
+    const blessing = this.blessingManager.getActiveBlessing() as ForesightBlessing | null;
+    if (!blessing) return;
+
+    this.log.log('Setting up Foresight Blessing integration');
+
+    const { width } = this.scale.gameSize;
+    const centerX = width / 2;
+
+    // Create preview panel (shows above dice when activated)
+    this.foresightPreviewPanel = new ForesightPreviewPanel(this, {
+      centerX,
+      centerY: diceY,
+      diceSize,
+      diceSpacing,
+      onAccept: () => this.handleForesightAccept(blessing),
+      onReject: () => this.handleForesightReject(blessing),
+    });
+
+    // Get button position from DiceManager (in the controls panel)
+    const pos = this.diceManager.getBlessingButtonPosition();
+    if (!pos) {
+      this.log.warn('Could not get blessing button position');
+      return;
+    }
+
+    this.foresightBlessingButton = new ForesightBlessingButton(
+      this,
+      this.gameEvents,
+      {
+        x: pos.x,
+        y: pos.y,
+        height: pos.height,
+        onActivate: () => this.handleForesightActivate(blessing),
+        getCharges: () => blessing.getChargesRemaining(),
+        isPreviewActive: () => blessing.isPreviewActive(),
+        canActivate: () => this.diceManager.getRerollsLeft() > 0,
+      }
+    );
+  }
+
+  /**
+   * Handle Foresight blessing activation (preview button clicked)
+   */
+  private handleForesightActivate(blessing: ForesightBlessing): boolean {
+    // Check if we have rerolls to spend
+    if (this.diceManager.getRerollsLeft() <= 0) {
+      this.log.log('Cannot activate Foresight - no rerolls left');
+      return false;
+    }
+
+    // Get current dice lock state
+    const diceState = this.diceManager.getState();
+    const lockedDice = diceState.locked.slice(0, 5); // Only first 5 dice
+
+    // Activate blessing to generate preview values
+    const previewValues = blessing.activate(lockedDice);
+    if (!previewValues) {
+      return false;
+    }
+
+    // Fill in locked dice values with current values
+    for (let i = 0; i < 5; i++) {
+      if (lockedDice[i]) {
+        previewValues[i] = diceState.values[i];
+      }
+    }
+
+    // Show the preview panel
+    this.foresightPreviewPanel?.show(previewValues, lockedDice);
+
+    // Disable dice interaction while preview is active
+    this.diceManager.setEnabled(false);
+
+    return true;
+  }
+
+  /**
+   * Handle accepting the Foresight preview
+   */
+  private handleForesightAccept(blessing: ForesightBlessing): void {
+    const values = blessing.acceptPreview();
+    if (!values) return;
+
+    // Hide preview
+    this.foresightPreviewPanel?.hide();
+
+    // Apply the previewed values to the dice (this costs 1 reroll)
+    // We manually set the values and consume a reroll
+    const diceState = this.diceManager.getState();
+
+    // Fill in locked values
+    for (let i = 0; i < 5; i++) {
+      if (diceState.locked[i]) {
+        values[i] = diceState.values[i];
+      }
+    }
+
+    // Force the dice to show these values (simulate a roll with forced values)
+    this.diceManager.setForcedRollValues(values);
+    this.diceManager.setEnabled(true);
+    this.diceManager.roll(false); // This will use a reroll and show the forced values
+  }
+
+  /**
+   * Handle rejecting the Foresight preview
+   */
+  private handleForesightReject(blessing: ForesightBlessing): void {
+    blessing.rejectPreview();
+
+    // Hide preview
+    this.foresightPreviewPanel?.hide();
+
+    // Re-enable dice interaction
+    this.diceManager.setEnabled(true);
   }
 
   private createAnimatedBackground(width: number, height: number): void {
@@ -1285,6 +1414,16 @@ export class GameplayScene extends BaseScene {
     if (this.sixthBlessingButton) {
       this.sixthBlessingButton.destroy();
       this.sixthBlessingButton = null;
+    }
+
+    if (this.foresightBlessingButton) {
+      this.foresightBlessingButton.destroy();
+      this.foresightBlessingButton = null;
+    }
+
+    if (this.foresightPreviewPanel) {
+      this.foresightPreviewPanel.destroy();
+      this.foresightPreviewPanel = null;
     }
 
     if (this.headerPanel) {
