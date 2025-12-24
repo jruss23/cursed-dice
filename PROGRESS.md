@@ -45,8 +45,8 @@
 
 | Pattern | Status | Issue |
 |---------|--------|-------|
-| **Command Pattern** | 60% | `ScoreCategoryCommand` used, but `RollDiceCommand` and `ToggleDiceLockCommand` exist but NOT wired up. DiceManager uses direct methods instead |
-| **Base UI Components** | 40% | `BasePanel` exists but most panels don't extend it. `BaseButton` started but unused |
+| **Command Pattern** | ✅ 100% | All commands wired up: `ScoreCategoryCommand`, `RollDiceCommand`, `ToggleDiceLockCommand` |
+| **Base UI Components** | 60% | `BasePanel` + `BaseButton` used by `PauseMenu`. Exception: `DebugPanel` (intentionally different styling) |
 | **Object Pooling** | 30% | Only `ParticlePool` for score effects. Dice sprites not pooled |
 
 ### Not Implemented
@@ -61,43 +61,33 @@
 
 ## Code Health Issues
 
-### 1. Command Pattern Incomplete (Medium Priority)
-**Problem**: Dice commands (`RollDiceCommand`, `ToggleDiceLockCommand`) are implemented but not used.
-**Location**: `src/systems/commands/dice-commands.ts` (defined), `src/systems/dice-manager.ts` (not using them)
-**Impact**: Can't undo dice actions, inconsistent architecture
-
-**Fix**: Wire up dice commands in DiceManager:
-```typescript
-// Instead of direct:
-this.rollDice();
-
-// Use command:
-const cmd = new RollDiceCommand({ diceManager: this, isInitial: false });
-this.commandInvoker.execute(cmd);
-```
+### 1. ~~Command Pattern Incomplete~~ ✅ RESOLVED (Dec 23, 2025)
+Dice commands (`RollDiceCommand`, `ToggleDiceLockCommand`) are now wired up via `DiceManager.executeRoll()` and Services.
 
 ### 2. Scorecard Still Complex (Medium Priority)
-**Problem**: `scorecard-panel.ts` is 1232 lines despite layout-calculator refactor
+**Problem**: `scorecard-panel.ts` is ~1000 lines despite layout-calculator refactor and sizing getter removal
 **Root Cause**:
-- Sizing getters still inline (`rowHeight`, `headerHeight`, etc.)
+- ~~Sizing getters still inline~~ ✅ RESOLVED - All sizing now via `layoutConfig`
 - Render methods have `isTwoCol` branches throughout
 - State and rendering coupled
 
 **Fix Options**:
-1. Move ALL sizing into `layout-calculator.ts` (eliminate inline getters)
+1. ~~Move ALL sizing into `layout-calculator.ts`~~ ✅ DONE
 2. Extract `ScorecardRenderer` class that takes LayoutConfig
 3. Use Strategy pattern: `TwoColumnRenderer` vs `SingleColumnRenderer`
 
-### 3. BasePanel Not Adopted (Low Priority)
-**Problem**: `BasePanel` class exists but panels don't use it
-**Panels NOT using BasePanel**:
-- `ScorecardPanel` (custom)
-- `HeaderPanel` (custom)
-- `EndScreenOverlay` (custom)
-- `BlessingChoicePanel` (custom)
-- `PauseMenu` (custom)
+### 3. BasePanel Adoption (Low Priority) - Partially Resolved
+**Panels using BasePanel**:
+- ✅ `PauseMenu` (uses BasePanel + BaseButton)
 
-**Fix**: Gradually migrate panels to extend BasePanel for consistency
+**Panels NOT using BasePanel** (by design or complexity):
+- `ScorecardPanel` (too complex, custom layout)
+- `HeaderPanel` (simple, doesn't need it)
+- `EndScreenOverlay` (custom animation needs)
+- `BlessingChoicePanel` (custom card layout)
+- `DebugPanel` (intentionally different styling - gold/orange debug theme)
+
+**Note**: Not all panels need BasePanel. Use it for standard purple-themed modal panels.
 
 ### 4. Missing BaseScene (Low Priority)
 **Problem**: Scene setup code duplicated between MenuScene and GameplayScene
@@ -119,9 +109,9 @@ The scorecard uses a **Layout Calculator** pattern:
 3. Same render methods for both layouts, just different positions
 
 ### Remaining Complexity
-- 15+ sizing getters still in scorecard-panel.ts
-- Font sizes and paddings should come from LayoutConfig
-- Row rendering has inline `isTwoCol` checks
+- ~~15+ sizing getters still in scorecard-panel.ts~~ ✅ RESOLVED
+- Font sizes and paddings now come from LayoutConfig
+- Row rendering has inline `isTwoCol` checks (could use Strategy pattern)
 
 ### Recommended Improvement
 Move ALL styling/sizing into LayoutConfig:
