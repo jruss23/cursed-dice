@@ -126,7 +126,8 @@ export class TutorialController {
       {
         id: 'welcome',
         title: 'Welcome!',
-        message: "Let's learn Cursed Dice! Fill 13 categories and score 250+ before time runs out.",
+        message:
+          "You have 13 turns to fill all categories on the scorecard. Score 250+ points before time runs out to break the curse!",
         highlightTarget: 'none',
         showNextButton: true,
         onEnter: () => {
@@ -137,7 +138,8 @@ export class TutorialController {
       {
         id: 'header-intro',
         title: 'The Curse Timer',
-        message: "See the timer? Score 250+ before it runs out to survive this curse!",
+        message:
+          "This timer counts down. If it hits zero before you score 250+ points, you lose. Keep an eye on it!",
         highlightTarget: 'header',
         showNextButton: true,
         onEnter: () => {
@@ -147,8 +149,9 @@ export class TutorialController {
       },
       {
         id: 'scorecard-intro',
-        title: 'Scoring Categories',
-        message: "13 categories. Upper section sums matching dice (63+ = 35 bonus!). Lower has combos.",
+        title: 'The Scorecard',
+        message:
+          "There are 13 scoring categories. The number categories (1s through 6s) add up dice showing that number. The rest require special dice patterns.",
         highlightTarget: 'scorecard',
         showNextButton: true,
         onEnter: () => {
@@ -158,8 +161,9 @@ export class TutorialController {
       },
       {
         id: 'explain-dice',
-        title: 'Your Roll',
-        message: "Each turn starts with an automatic roll. You got three 1s - that's a great start!",
+        title: 'Your First Roll',
+        message:
+          "Each turn starts with an automatic roll of 5 dice. Look - you rolled three 1s! That's a great start.",
         highlightTarget: 'dice',
         showNextButton: true,
         onEnter: () => {
@@ -170,7 +174,8 @@ export class TutorialController {
       {
         id: 'lock-ones',
         title: 'Lock the 1s!',
-        message: "Tap each 1 to lock it. Locked dice (green) won't change when you reroll. Go ahead and try it now!",
+        message:
+          "Tap each die showing a 1 to lock it. Locked dice turn green and won't change when you reroll. Try it now!",
         highlightTarget: 'dice',
         showNextButton: false,
         advanceOn: 'lock-count',
@@ -185,7 +190,8 @@ export class TutorialController {
       {
         id: 'reroll-1',
         title: 'Reroll!',
-        message: "You have 3 rerolls. Tap ROLL to reroll only the unlocked dice!",
+        message:
+          "You get 3 rerolls per turn to improve your dice. Tap ROLL to reroll only the unlocked dice.",
         highlightTarget: 'roll-button',
         showNextButton: false,
         advanceOn: 'roll',
@@ -199,7 +205,7 @@ export class TutorialController {
       {
         id: 'no-luck',
         title: 'No Luck!',
-        message: "No new 1s this time. Keep going - tap ROLL again!",
+        message: "The unlocked dice didn't land on 1. That happens! Tap ROLL to try again.",
         highlightTarget: 'roll-button',
         showNextButton: false,
         advanceOn: 'roll',
@@ -213,7 +219,7 @@ export class TutorialController {
       {
         id: 'lock-fourth',
         title: 'Another 1!',
-        message: "Nice! Lock the new 1. You have 1 reroll left.",
+        message: "You got a fourth 1! Tap it to lock it. You have one reroll left.",
         highlightTarget: 'dice',
         showNextButton: false,
         advanceOn: 'lock-count',
@@ -228,7 +234,7 @@ export class TutorialController {
       {
         id: 'reroll-2',
         title: 'Last Reroll',
-        message: "One more chance for 5 of a kind! Tap ROLL.",
+        message: "One more chance to get all five 1s! Tap ROLL for your final reroll.",
         highlightTarget: 'roll-button',
         showNextButton: false,
         advanceOn: 'roll',
@@ -242,7 +248,8 @@ export class TutorialController {
       {
         id: 'five-dice-celebration',
         title: '5 Dice!',
-        message: "Five of a kind! That's worth 50 points! Tap 5 Dice to score it.",
+        message:
+          'All five dice match - that\'s called "5 Dice" and it\'s worth 50 points! Tap the "5 Dice" row on the scorecard to claim it.',
         highlightTarget: 'category',
         highlightCategory: 'fiveDice',
         showNextButton: false,
@@ -259,8 +266,8 @@ export class TutorialController {
       },
       {
         id: 'score',
-        title: 'Nice Score!',
-        message: "50 points! Now let's see what happens when nothing matches...",
+        title: 'Nice!',
+        message: "You scored 50 points! But what happens when your dice don't match anything useful?",
         highlightTarget: 'none',
         showNextButton: true,
         onEnter: () => {
@@ -275,12 +282,23 @@ export class TutorialController {
       },
       {
         id: 'zero-setup',
-        title: 'Sometimes Nothing Fits',
-        message: "No combos here - no 3-of-a-kind, no straights, nothing. You have no rerolls left.",
+        title: 'A Bad Roll',
+        message:
+          "Sometimes you get unlucky. This roll has no useful patterns, and you've used all your rerolls. Now what?",
         highlightTarget: 'dice',
         showNextButton: true,
         onEnter: () => {
-          // Reset and show junk roll
+          // Pre-fill number categories (1s-6s) so zeroing out 4-of-a-Kind makes sense
+          this.scorecardData.score('ones', [1, 1, 1, 2, 3]); // 3 pts
+          this.scorecardData.score('twos', [2, 2, 3, 4, 5]); // 4 pts
+          this.scorecardData.score('threes', [3, 3, 3, 1, 2]); // 9 pts
+          this.scorecardData.score('fours', [4, 4, 1, 2, 3]); // 8 pts
+          this.scorecardData.score('fives', [5, 5, 5, 1, 2]); // 15 pts
+          this.scorecardData.score('sixes', [6, 6, 6, 1, 2]); // 18 pts
+          this.onUpdateScore(this.scorecardData.getTotal());
+          this.scorecard.updateDisplay();
+
+          // Reset dice and show junk roll
           this.dice.reset();
           this.dice.forceTutorialState({ rollValues: TUTORIAL_ROLLS.zeroRoll, rerollsRemaining: null });
           this.dice.setEnabled(true);
@@ -293,7 +311,8 @@ export class TutorialController {
       {
         id: 'zero-explain',
         title: 'Zero It Out',
-        message: "You MUST score each turn. Sacrifice a hard category - tap 4 of a Kind to take 0.",
+        message:
+          'You MUST pick a category every turn. When nothing fits, sacrifice a hard category for 0 points. Tap "4 of a Kind" to take the zero.',
         highlightTarget: 'category',
         highlightCategory: 'fourOfAKind',
         showNextButton: false,
@@ -310,14 +329,21 @@ export class TutorialController {
       },
       {
         id: 'practice-ready',
-        title: "You've Got This!",
-        message: "Now you know the basics! Let's start fresh for you to practice on your own.",
+        title: "You're Ready!",
+        message:
+          "That's everything! Now practice on your own. Fill all 13 categories and try to hit 250 points!",
         highlightTarget: 'none',
         showNextButton: true,
         onEnter: () => {
-          // Undo scored categories for fresh practice
+          // Undo all scored categories for fresh practice
           this.scorecardData.unscore('fourOfAKind');
           this.scorecardData.unscore('fiveDice');
+          this.scorecardData.unscore('ones');
+          this.scorecardData.unscore('twos');
+          this.scorecardData.unscore('threes');
+          this.scorecardData.unscore('fours');
+          this.scorecardData.unscore('fives');
+          this.scorecardData.unscore('sixes');
           this.onUpdateScore(this.scorecardData.getTotal());
           this.scorecard.updateDisplay();
           this.dice.setEnabled(false);
@@ -519,7 +545,7 @@ export class TutorialController {
   // ===========================================================================
 
   onLockAttemptBlocked(): void {
-    this.onShowHint("Tap the 1s to lock them!");
+    this.onShowHint('Tap the 1s to lock them!');
   }
 
   isTutorialComplete(): boolean {

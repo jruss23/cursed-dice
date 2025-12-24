@@ -1,6 +1,6 @@
 # Cursed Dice - Development Progress & Architecture Review
 
-## Last Updated: December 23, 2025
+## Last Updated: December 24, 2025
 
 ---
 
@@ -220,9 +220,31 @@ src/
 
 ---
 
-## Recent Session Work (Dec 23, 2025)
+## Recent Session Work (Dec 24, 2025)
 
-### Scorecard Mega-Refactor
+### Tutorial Polish & Bug Fixes
+- [x] Fixed highlight flash animation (pulse was conflicting with fade-in tween)
+- [x] Added dark background to hint text for readability on green dice area
+- [x] Fixed race condition where user could roll during step transition delay
+- [x] Improved tutorial text for non-Yahtzee players (clearer explanations)
+- [x] Pre-fill number categories (1s-6s) before zero-out scenario
+- [x] Layout-agnostic terminology (no more "upper/lower section")
+
+### Testing Strategy
+- [x] Created `TESTING.md` with comprehensive testing plan
+- [x] Vitest + @vitest/coverage-v8 recommended
+- [x] Testability analysis of all modules
+- [x] Detailed test cases for scorecard, state-machine, commands, etc.
+- [x] Coverage goals defined (85%+ overall, 95%+ for core logic)
+
+### Misc Fixes
+- [x] Fixed audio paths in `assets/audio-test.html`
+
+---
+
+## Previous Session Work (Dec 23, 2025)
+
+### Scorecard Refactor
 - [x] Deleted `scorecard-row.ts` (premature abstraction with duplicate state)
 - [x] Created `layout-calculator.ts` for pure layout computation
 - [x] Created `layout-config.ts` for layout types
