@@ -1,15 +1,16 @@
 /**
  * Dice Manager
- * Handles dice state, rolling logic, and UI rendering
- * Extracted from GameplayScene for better separation of concerns
+ * Handles dice state and rolling logic
+ * Rendering delegated to DiceRenderer for better separation of concerns
  */
 
 import Phaser from 'phaser';
-import { COLORS, SIZES, FONTS, GAME_RULES, PALETTE, type ScaledSizes, getViewportMetrics } from '@/config';
+import { SIZES, FONTS, GAME_RULES, COLORS, type ScaledSizes, getViewportMetrics } from '@/config';
 import { createText } from '@/ui/ui-utils';
 import { GameEventEmitter } from './game-events';
 import { createLogger } from './logger';
 import { DiceControls } from '@/ui/dice';
+import { DiceRenderer, type DiceSprite, type DiceSizeConfig } from './dice';
 import type {
   DiceAllowedActions,
   DiceForcedState,
@@ -30,44 +31,6 @@ export interface DiceState {
   sixthDieActive: boolean; // Sixth Blessing: 6th die is in play
 }
 
-interface DiceSprite {
-  container: Phaser.GameObjects.Container;
-  shadow: Phaser.GameObjects.Ellipse;
-  bg: Phaser.GameObjects.Rectangle;
-  innerBg: Phaser.GameObjects.Rectangle;
-  shine: Phaser.GameObjects.Graphics;
-  pipsGraphics: Phaser.GameObjects.Graphics;
-  lockIndicator: Phaser.GameObjects.Text;
-  lockIcon: Phaser.GameObjects.Graphics;
-  cursedIcon: Phaser.GameObjects.Graphics;
-  glowGraphics: Phaser.GameObjects.Graphics;
-  originalX: number;
-  originalY: number;
-}
-
-/** Pip position multipliers (normalized to pip offset) */
-const PIP_LAYOUT: Record<number, { x: number; y: number }[]> = {
-  1: [{ x: 0, y: 0 }],
-  2: [{ x: -1, y: -1 }, { x: 1, y: 1 }],
-  3: [{ x: -1, y: -1 }, { x: 0, y: 0 }, { x: 1, y: 1 }],
-  4: [{ x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: 1, y: 1 }],
-  5: [{ x: -1, y: -1 }, { x: 1, y: -1 }, { x: 0, y: 0 }, { x: -1, y: 1 }, { x: 1, y: 1 }],
-  6: [{ x: -1, y: -1 }, { x: -1, y: 0 }, { x: -1, y: 1 }, { x: 1, y: -1 }, { x: 1, y: 0 }, { x: 1, y: 1 }],
-};
-
-/** Get pip positions for a value with scaled offset */
-function getPipPositions(value: number, pipOffset: number): { x: number; y: number }[] {
-  return PIP_LAYOUT[value].map(p => ({ x: p.x * pipOffset, y: p.y * pipOffset }));
-}
-
-/** Current dice size configuration */
-interface DiceSizeConfig {
-  size: number;
-  spacing: number;
-  pipRadius: number;
-  pipOffset: number;
-}
-
 // =============================================================================
 // DICE MANAGER
 // =============================================================================
@@ -79,6 +42,7 @@ export class DiceManager implements TutorialControllableDice {
   private sprites: DiceSprite[] = [];
   private controls: DiceControls | null = null;
   private enabled: boolean = true;
+  private renderer: DiceRenderer | null = null;
 
   // Layout info for repositioning dice and getting bounds
   private layoutCenterX: number = 0;
@@ -141,11 +105,11 @@ export class DiceManager implements TutorialControllableDice {
   /**
    * Activate the 6th die (Sixth Blessing)
    * Shows the 6th die, repositions all dice, and rolls the 6th die immediately
-   * This allows it to be used mid-hand as a "panic reroll" when out of rerolls
    */
   activateSixthDie(): void {
     if (this.state.sixthDieActive) return;
     if (this.sprites.length <= GAME_RULES.DICE_COUNT) return;
+    if (!this.renderer) return;
 
     log.log('Activating 6th die');
     this.state.sixthDieActive = true;
@@ -158,26 +122,12 @@ export class DiceManager implements TutorialControllableDice {
     for (let i = 0; i < diceCount; i++) {
       const sprite = this.sprites[i];
       const newX = startX + i * this.sizeConfig.spacing;
-
-      // Animate to new position
-      this.scene.tweens.add({
-        targets: sprite.container,
-        x: newX,
-        duration: 200,
-        ease: 'Back.easeOut',
-      });
-      sprite.originalX = newX;
+      this.renderer.animateReposition(sprite, newX);
     }
 
-    // Show and animate in the 6th die
+    // Show the 6th die
     const sixthDie = this.sprites[GAME_RULES.DICE_COUNT];
-    sixthDie.container.setVisible(true);
-    this.scene.tweens.add({
-      targets: sixthDie.container,
-      alpha: 1,
-      duration: 300,
-      ease: 'Cubic.easeOut',
-    });
+    this.renderer.animateShow(sixthDie);
 
     // Roll the 6th die immediately with a fresh random value
     const newValue = Phaser.Math.Between(1, 6);
@@ -185,8 +135,6 @@ export class DiceManager implements TutorialControllableDice {
     this.state.locked[GAME_RULES.DICE_COUNT] = false;
 
     log.log(`6th die rolled: ${newValue}`);
-
-    // Animate the 6th die roll
     this.animateSingleDieRoll(GAME_RULES.DICE_COUNT);
   }
 
@@ -196,55 +144,10 @@ export class DiceManager implements TutorialControllableDice {
    */
   private animateSingleDieRoll(index: number): void {
     const sprite = this.sprites[index];
-    if (!sprite) return;
+    if (!sprite || !this.renderer) return;
 
-    const rollDuration = SIZES.ROLL_DURATION_MS * 0.7; // Slightly faster for single die
-
-    // Hide pips during animation
-    sprite.pipsGraphics.setVisible(false);
-
-    // Add glow during roll
-    sprite.glowGraphics.clear();
-    sprite.glowGraphics.fillStyle(PALETTE.gold[400], 0.4);
-    sprite.glowGraphics.fillCircle(0, 0, SIZES.DICE_SIZE * 0.8);
-
-    // Animate glow pulse
-    this.scene.tweens.add({
-      targets: sprite.glowGraphics,
-      alpha: 0,
-      duration: rollDuration,
-      ease: 'Quad.easeIn',
-    });
-
-    // Tumble rotation
-    const rotations = Phaser.Math.Between(2, 3) * 360;
-    this.scene.tweens.add({
-      targets: [sprite.bg, sprite.innerBg, sprite.shine, sprite.pipsGraphics],
-      angle: rotations,
-      duration: rollDuration * 0.8,
-      ease: 'Cubic.easeOut',
-    });
-
-    // Bounce effect
-    this.scene.tweens.add({
-      targets: sprite.container,
-      y: sprite.originalY - 30,
-      duration: rollDuration * 0.4,
-      ease: 'Quad.easeOut',
-      yoyo: true,
-    });
-
-    // Set final value after animation
-    this.scene.time.delayedCall(rollDuration, () => {
-      sprite.pipsGraphics.setVisible(true);
-      sprite.bg.setAngle(0);
-      sprite.innerBg.setAngle(0);
-      sprite.shine.setAngle(0);
-      sprite.pipsGraphics.setAngle(0);
-
+    this.renderer.animateSingleDieRoll(sprite, this.state.values[index], () => {
       this.updateDieDisplay(index);
-
-      // Emit event so scorecard updates with new 6-dice values
       this.events.emit('dice:rolled', {
         values: this.getValues(),
         isInitial: false,
@@ -260,21 +163,14 @@ export class DiceManager implements TutorialControllableDice {
   deactivateSixthDie(): void {
     if (!this.state.sixthDieActive) return;
     if (this.sprites.length <= GAME_RULES.DICE_COUNT) return;
+    if (!this.renderer) return;
 
     log.log('Deactivating 6th die');
     this.state.sixthDieActive = false;
 
     // Hide the 6th die
     const sixthDie = this.sprites[GAME_RULES.DICE_COUNT];
-    this.scene.tweens.add({
-      targets: sixthDie.container,
-      alpha: 0,
-      duration: 200,
-      ease: 'Cubic.easeIn',
-      onComplete: () => {
-        sixthDie.container.setVisible(false);
-      },
-    });
+    this.renderer.animateHide(sixthDie);
 
     // Reposition back to 5 dice centered
     const diceCount = GAME_RULES.DICE_COUNT;
@@ -284,14 +180,7 @@ export class DiceManager implements TutorialControllableDice {
     for (let i = 0; i < diceCount; i++) {
       const sprite = this.sprites[i];
       const newX = startX + i * this.sizeConfig.spacing;
-
-      this.scene.tweens.add({
-        targets: sprite.container,
-        x: newX,
-        duration: 200,
-        ease: 'Back.easeOut',
-      });
-      sprite.originalX = newX;
+      this.renderer.animateReposition(sprite, newX);
     }
   }
 
@@ -322,18 +211,8 @@ export class DiceManager implements TutorialControllableDice {
 
       // Visual feedback - shake the cursed die
       const sprite = this.sprites[index];
-      if (sprite) {
-        this.scene.tweens.add({
-          targets: sprite.container,
-          x: sprite.originalX + 5,
-          duration: 50,
-          yoyo: true,
-          repeat: 3,
-          ease: 'Sine.easeInOut',
-          onComplete: () => {
-            sprite.container.x = sprite.originalX; // Ensure exact position
-          },
-        });
+      if (sprite && this.renderer) {
+        this.renderer.animateCursedShake(sprite);
       }
     }
 
@@ -514,10 +393,13 @@ export class DiceManager implements TutorialControllableDice {
       };
     }
 
+    // Create renderer
+    this.renderer = new DiceRenderer(this.scene, this.sizeConfig);
+
     const diceAreaWidth = (GAME_RULES.DICE_COUNT - 1) * this.sizeConfig.spacing;
     const startX = centerX - diceAreaWidth / 2;
 
-    // Pulsing tip text above dice - tighter on mobile, even tighter in ultra-compact
+    // Pulsing tip text above dice
     const tipOffset = ultraCompact ? 32 : (isMobile ? 38 : 70);
     const tipText = createText(this.scene, centerX, centerY - tipOffset, 'Tap dice to lock', {
       fontSize: isMobile ? FONTS.SIZE_MICRO : FONTS.SIZE_SMALL,
@@ -526,16 +408,23 @@ export class DiceManager implements TutorialControllableDice {
     });
     tipText.setOrigin(0.5, 0.5);
 
-    // Create dice sprites (5 normal + 1 hidden 6th for blessing)
+    // Create dice sprites via renderer
     for (let i = 0; i < GAME_RULES.DICE_COUNT; i++) {
       const x = startX + i * this.sizeConfig.spacing;
-      this.sprites.push(this.createDieSprite(x, centerY, i));
+      this.sprites.push(this.renderer.createDieSprite(
+        x, centerY, i,
+        (idx) => this.onDieClicked(idx),
+        (sprite, isHovered) => this.onDieHover(sprite, isHovered)
+      ));
     }
 
     // Create 6th die sprite (hidden until Sixth Blessing activates)
-    // Position it at the end, will be repositioned when activated
     const sixthX = startX + GAME_RULES.DICE_COUNT * this.sizeConfig.spacing;
-    const sixthDie = this.createDieSprite(sixthX, centerY, GAME_RULES.DICE_COUNT);
+    const sixthDie = this.renderer.createDieSprite(
+      sixthX, centerY, GAME_RULES.DICE_COUNT,
+      (idx) => this.onDieClicked(idx),
+      (sprite, isHovered) => this.onDieHover(sprite, isHovered)
+    );
     sixthDie.container.setVisible(false);
     sixthDie.container.setAlpha(0);
     this.sprites.push(sixthDie);
@@ -544,13 +433,10 @@ export class DiceManager implements TutorialControllableDice {
     this.state.values.push(1);
     this.state.locked.push(false);
 
-    // Create controls panel below dice - leave room for lock icons/checkmarks
-    // Ultra-compact: 75px to minimize vertical space
-    // Mobile: 85px gives space for icons while keeping scorecard visible
+    // Create controls panel
     const controlsOffset = ultraCompact ? 75 : (isMobile ? 85 : 140);
     this.layoutControlsY = centerY + controlsOffset;
 
-    // Create controls panel using DiceControls component
     this.controls = new DiceControls({
       scene: this.scene,
       centerX: centerX,
@@ -561,6 +447,21 @@ export class DiceManager implements TutorialControllableDice {
       initialRerolls: this.state.rerollsLeft,
       onRoll: () => this.executeRoll(false),
     });
+  }
+
+  /**
+   * Handle die hover event
+   */
+  private onDieHover(sprite: DiceSprite, isHovered: boolean): void {
+    const index = this.sprites.indexOf(sprite);
+    if (index === -1) return;
+
+    const isLocked = this.state.locked[index];
+    const isCursed = index === this.state.cursedIndex;
+
+    if (this.renderer && this.enabled) {
+      this.renderer.animateHover(sprite, isHovered, isLocked, isCursed);
+    }
   }
 
   // Flag to include blessing slot in controls panel
@@ -582,129 +483,6 @@ export class DiceManager implements TutorialControllableDice {
     return this.controls.getBlessingButtonPosition();
   }
 
-  private createDieSprite(x: number, y: number, index: number): DiceSprite {
-    const container = this.scene.add.container(x, y);
-    const size = this.sizeConfig.size;
-
-    // Shadow beneath die (centered)
-    const shadow = this.scene.add.ellipse(0, size / 2 + 6, size * 0.85, size * 0.25, 0x000000, 0.4);
-    container.add(shadow);
-
-    // Glow effect (behind die)
-    const glowGraphics = this.scene.add.graphics();
-    container.add(glowGraphics);
-
-    // Die outer background (border effect) - darker, more refined
-    const bg = this.scene.add.rectangle(0, 0, size, size, PALETTE.neutral[700], 1);
-    bg.setStrokeStyle(2, PALETTE.neutral[500]);
-    container.add(bg);
-
-    // Die inner background (face) - slightly lighter for contrast
-    const innerBg = this.scene.add.rectangle(0, 0, size - 6, size - 6, PALETTE.neutral[700], 1);
-    container.add(innerBg);
-
-    // Shine/highlight effect - more subtle
-    const shine = this.scene.add.graphics();
-    shine.fillStyle(0xffffff, 0.06);
-    shine.fillRoundedRect(-size / 2 + 5, -size / 2 + 5, size - 16, 10, 3);
-    container.add(shine);
-
-    // Pips graphics
-    const pipsGraphics = this.scene.add.graphics();
-    container.add(pipsGraphics);
-
-    // Lock indicator text (for cursed dice)
-    const lockIndicator = createText(this.scene, 0, size / 2 + 16, '', {
-      fontSize: FONTS.SIZE_TINY,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_MUTED,
-      fontStyle: 'bold',
-    });
-    lockIndicator.setOrigin(0.5, 0.5);
-    container.add(lockIndicator);
-
-    // Hold icon graphic (for user-held dice) - green checkmark
-    const lockIcon = this.scene.add.graphics();
-    const iconY = size / 2 + 16;
-    const checkColor = PALETTE.green[400];
-    lockIcon.lineStyle(3, checkColor, 1);
-    lockIcon.beginPath();
-    lockIcon.moveTo(-6, iconY - 1);
-    lockIcon.lineTo(-2, iconY + 4);
-    lockIcon.lineTo(7, iconY - 5);
-    lockIcon.strokePath();
-    lockIcon.setVisible(false);
-    container.add(lockIcon);
-
-    // Cursed icon graphic (for cursed dice) - purple skull
-    const cursedIcon = this.scene.add.graphics();
-    const cursedColor = PALETTE.purple[400];
-    // Skull head (circle)
-    cursedIcon.fillStyle(cursedColor, 1);
-    cursedIcon.fillCircle(0, iconY - 2, 6);
-    // Jaw (smaller arc)
-    cursedIcon.fillRoundedRect(-4, iconY + 2, 8, 4, 2);
-    // Eyes (dark circles)
-    cursedIcon.fillStyle(0x000000, 1);
-    cursedIcon.fillCircle(-2, iconY - 3, 1.5);
-    cursedIcon.fillCircle(2, iconY - 3, 1.5);
-    cursedIcon.setVisible(false);
-    container.add(cursedIcon);
-
-    // Make interactive
-    bg.setInteractive({ useHandCursor: true });
-    bg.on('pointerdown', () => this.onDieClicked(index));
-    bg.on('pointerover', () => {
-      if (!this.state.locked[index] && this.enabled) {
-        // Hover lift effect
-        this.scene.tweens.add({
-          targets: container,
-          y: y - 5,
-          duration: 100,
-          ease: 'Quad.easeOut',
-        });
-        this.scene.tweens.add({
-          targets: shadow,
-          scaleX: 1.1,
-          scaleY: 1.2,
-          alpha: 0.2,
-          duration: 100,
-        });
-        bg.setStrokeStyle(3, PALETTE.green[400]);
-        innerBg.setFillStyle(PALETTE.green[700]);
-      }
-    });
-    bg.on('pointerout', () => {
-      // Return to original position
-      this.scene.tweens.add({
-        targets: container,
-        y: y,
-        duration: 100,
-        ease: 'Quad.easeOut',
-      });
-      this.scene.tweens.add({
-        targets: shadow,
-        scaleX: 1,
-        scaleY: 1,
-        alpha: 0.3,
-        duration: 100,
-      });
-      const isCursed = index === this.state.cursedIndex;
-      const locked = this.state.locked[index];
-      if (isCursed) {
-        bg.setStrokeStyle(3, PALETTE.purple[400]);
-        innerBg.setFillStyle(PALETTE.purple[600]);
-      } else if (locked) {
-        bg.setStrokeStyle(3, PALETTE.green[500]);
-        innerBg.setFillStyle(PALETTE.green[700]);
-      } else {
-        bg.setStrokeStyle(3, PALETTE.neutral[500]);
-        innerBg.setFillStyle(PALETTE.neutral[700]);
-      }
-    });
-
-    return { container, shadow, bg, innerBg, shine, pipsGraphics, lockIndicator, lockIcon, cursedIcon, glowGraphics, originalX: x, originalY: y };
-  }
 
   // ===========================================================================
   // DICE LOGIC
@@ -767,20 +545,9 @@ export class DiceManager implements TutorialControllableDice {
 
       if (!allowed) {
         log.debug(`onDieClicked rejected: die ${index} not in lockable indices`);
-        // Visual feedback - subtle shake
         const sprite = this.sprites[index];
-        if (sprite) {
-          this.scene.tweens.add({
-            targets: sprite.container,
-            x: sprite.originalX + 3,
-            duration: 50,
-            yoyo: true,
-            repeat: 2,
-            ease: 'Sine.easeInOut',
-            onComplete: () => {
-              sprite.container.x = sprite.originalX;
-            },
-          });
+        if (sprite && this.renderer) {
+          this.renderer.animateFailedLock(sprite);
         }
         return;
       }
@@ -862,207 +629,31 @@ export class DiceManager implements TutorialControllableDice {
   }
 
   private animateRoll(initial: boolean, finalValues: number[]): void {
-    const rollDuration = SIZES.ROLL_DURATION_MS;
+    if (!this.renderer) return;
+
     const diceCount = this.state.sixthDieActive ? 6 : GAME_RULES.DICE_COUNT;
+    const spritesToAnimate = this.sprites.slice(0, diceCount);
+    const lockedState = initial ? Array(diceCount).fill(false) : this.state.locked.slice(0, diceCount);
 
-    for (let i = 0; i < diceCount; i++) {
-      if (!this.state.locked[i] || initial) {
-        const sprite = this.sprites[i];
-        const delay = i * 50; // Stagger the dice
-
-        // Hide pips during animation
-        sprite.pipsGraphics.setVisible(false);
-
-        // Add glow during roll
-        sprite.glowGraphics.clear();
-        sprite.glowGraphics.fillStyle(PALETTE.purple[400], 0.3);
-        sprite.glowGraphics.fillCircle(0, 0, SIZES.DICE_SIZE * 0.8);
-
-        // Animate glow pulse
-        this.scene.tweens.add({
-          targets: sprite.glowGraphics,
-          alpha: 0,
-          duration: rollDuration,
-          ease: 'Quad.easeIn',
-        });
-
-        // Launch dice upward with random trajectory
-        const jumpHeight = Phaser.Math.Between(60, 100);
-        const horizontalOffset = Phaser.Math.Between(-20, 20);
-
-        // Phase 1: Launch up
-        this.scene.tweens.add({
-          targets: sprite.container,
-          y: sprite.originalY - jumpHeight,
-          x: sprite.originalX + horizontalOffset,
-          duration: rollDuration * 0.4,
-          ease: 'Quad.easeOut',
-          delay,
-        });
-
-        // Shadow shrinks as die goes up
-        this.scene.tweens.add({
-          targets: sprite.shadow,
-          scaleX: 0.5,
-          scaleY: 0.3,
-          alpha: 0.15,
-          duration: rollDuration * 0.4,
-          ease: 'Quad.easeOut',
-          delay,
-        });
-
-        // Tumble rotation
-        const rotations = Phaser.Math.Between(2, 4) * 360;
-        this.scene.tweens.add({
-          targets: [sprite.bg, sprite.innerBg, sprite.shine, sprite.pipsGraphics],
-          angle: rotations,
-          duration: rollDuration * 0.8,
-          ease: 'Cubic.easeOut',
-          delay,
-        });
-
-        // Phase 2: Fall down and land with bounce
-        this.scene.time.delayedCall(rollDuration * 0.4 + delay, () => {
-          // Fall
-          this.scene.tweens.add({
-            targets: sprite.container,
-            y: sprite.originalY,
-            x: sprite.originalX, // Return to exact original position
-            duration: rollDuration * 0.35,
-            ease: 'Bounce.easeOut',
-          });
-
-          // Shadow returns
-          this.scene.tweens.add({
-            targets: sprite.shadow,
-            scaleX: 1.2,
-            scaleY: 1.3,
-            alpha: 0.4,
-            duration: rollDuration * 0.2,
-            ease: 'Quad.easeIn',
-            onComplete: () => {
-              // Normalize shadow after landing
-              this.scene.tweens.add({
-                targets: sprite.shadow,
-                scaleX: 1,
-                scaleY: 1,
-                alpha: 0.3,
-                duration: 150,
-              });
-            },
-          });
-        });
-
-        // Create trail particles during roll
-        this.createRollParticles(sprite.container.x, sprite.originalY, i, delay);
-      }
-    }
-
-    // Set final values after animation
-    this.scene.time.delayedCall(rollDuration + 100, () => {
+    this.renderer.animateRoll(spritesToAnimate, lockedState, initial, finalValues, () => {
+      // Update state after animation
       for (let i = 0; i < diceCount; i++) {
         if (!this.state.locked[i] || initial) {
-          const sprite = this.sprites[i];
           this.state.values[i] = finalValues[i];
-          sprite.pipsGraphics.setVisible(true);
-
-          // Reset rotation
-          sprite.bg.setAngle(0);
-          sprite.innerBg.setAngle(0);
-          sprite.shine.setAngle(0);
-          sprite.pipsGraphics.setAngle(0);
-
-          // Landing impact effect
-          this.createLandingImpact(sprite, finalValues[i]);
         }
       }
 
       if (initial) {
-        // Reset locked state - include 6th die if active
         this.state.locked = Array(diceCount).fill(false);
       }
 
       this.updateDisplay();
-      this.events.emit('dice:rolled', { values: this.getValues(), isInitial: initial, sixthDieActive: this.state.sixthDieActive });
+      this.events.emit('dice:rolled', {
+        values: this.getValues(),
+        isInitial: initial,
+        sixthDieActive: this.state.sixthDieActive
+      });
     });
-  }
-
-  private createRollParticles(x: number, y: number, _index: number, delay: number): void {
-    this.scene.time.delayedCall(delay, () => {
-      for (let p = 0; p < 5; p++) {
-        this.scene.time.delayedCall(p * 40, () => {
-          const particle = this.scene.add.circle(
-            x + Phaser.Math.Between(-15, 15),
-            y + Phaser.Math.Between(-30, -60),
-            Phaser.Math.Between(3, 6),
-            PALETTE.purple[400],
-            0.6
-          );
-
-          this.scene.tweens.add({
-            targets: particle,
-            y: particle.y + 40,
-            alpha: 0,
-            scaleX: 0.2,
-            scaleY: 0.2,
-            duration: 300,
-            ease: 'Quad.easeOut',
-            onComplete: () => particle.destroy(),
-          });
-        });
-      }
-    });
-  }
-
-  private createLandingImpact(sprite: DiceSprite, value: number): void {
-    // Scale pop
-    this.scene.tweens.add({
-      targets: [sprite.bg, sprite.innerBg],
-      scaleX: 1.15,
-      scaleY: 0.9,
-      duration: 80,
-      yoyo: true,
-      ease: 'Quad.easeOut',
-    });
-
-    // Impact ring
-    const ring = this.scene.add.circle(sprite.container.x, sprite.originalY, 20, 0xffffff, 0);
-    ring.setStrokeStyle(2, PALETTE.purple[400], 0.8);
-
-    this.scene.tweens.add({
-      targets: ring,
-      scaleX: 2.5,
-      scaleY: 2.5,
-      alpha: 0,
-      duration: 300,
-      ease: 'Quad.easeOut',
-      onComplete: () => ring.destroy(),
-    });
-
-    // Extra effects for high values
-    if (value === 6) {
-      // Golden sparkle for 6
-      for (let s = 0; s < 6; s++) {
-        const angle = (s / 6) * Math.PI * 2;
-        const sparkle = this.scene.add.circle(
-          sprite.container.x + Math.cos(angle) * 30,
-          sprite.originalY + Math.sin(angle) * 30,
-          4,
-          PALETTE.gold[400],
-          1
-        );
-
-        this.scene.tweens.add({
-          targets: sparkle,
-          x: sparkle.x + Math.cos(angle) * 25,
-          y: sparkle.y + Math.sin(angle) * 25,
-          alpha: 0,
-          duration: 400,
-          ease: 'Quad.easeOut',
-          onComplete: () => sparkle.destroy(),
-        });
-      }
-    }
   }
 
   // ===========================================================================
@@ -1080,54 +671,13 @@ export class DiceManager implements TutorialControllableDice {
 
   private updateDieDisplay(index: number): void {
     const sprite = this.sprites[index];
-    if (!sprite) return;
+    if (!sprite || !this.renderer) return;
 
     const value = this.state.values[index];
-    const locked = this.state.locked[index];
+    const isLocked = this.state.locked[index];
     const isCursed = index === this.state.cursedIndex;
 
-    // Update background - cursed = purple, held = green, normal = neutral
-    if (isCursed) {
-      sprite.bg.setFillStyle(COLORS.DICE_CURSED_BG);
-      sprite.bg.setStrokeStyle(SIZES.DICE_BORDER_WIDTH, COLORS.DICE_CURSED_BORDER);
-      sprite.innerBg.setFillStyle(PALETTE.purple[600]);
-    } else if (locked) {
-      sprite.bg.setFillStyle(PALETTE.green[700]);
-      sprite.bg.setStrokeStyle(SIZES.DICE_BORDER_WIDTH, PALETTE.green[500]);
-      sprite.innerBg.setFillStyle(PALETTE.green[700]);
-    } else {
-      sprite.bg.setFillStyle(COLORS.DICE_BG);
-      sprite.bg.setStrokeStyle(SIZES.DICE_BORDER_WIDTH, COLORS.DICE_BORDER);
-      sprite.innerBg.setFillStyle(PALETTE.neutral[700]);
-    }
-
-    // Update pips - cursed = purple, held/normal = white
-    const pipColor = isCursed ? COLORS.DICE_PIP_CURSED : COLORS.DICE_PIP;
-    this.drawPips(sprite.pipsGraphics, value, pipColor);
-
-    // Update icons - cursed shows purple X, held shows green checkmark
-    if (isCursed) {
-      sprite.lockIndicator.setText('');
-      sprite.lockIcon.setVisible(false);
-      sprite.cursedIcon.setVisible(true);
-    } else if (locked) {
-      sprite.lockIndicator.setText('');
-      sprite.lockIcon.setVisible(true);
-      sprite.cursedIcon.setVisible(false);
-    } else {
-      sprite.lockIndicator.setText('');
-      sprite.lockIcon.setVisible(false);
-      sprite.cursedIcon.setVisible(false);
-    }
-  }
-
-  private drawPips(graphics: Phaser.GameObjects.Graphics, value: number, color: number): void {
-    graphics.clear();
-    graphics.fillStyle(color, 1);
-    const positions = getPipPositions(value, this.sizeConfig.pipOffset);
-    for (const pos of positions) {
-      graphics.fillCircle(pos.x, pos.y, this.sizeConfig.pipRadius);
-    }
+    this.renderer.updateDieVisual(sprite, value, isLocked, isCursed);
   }
 
   private updateRerollText(): void {
