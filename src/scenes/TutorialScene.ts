@@ -44,7 +44,9 @@ export class TutorialScene extends Phaser.Scene {
   private tutorialOverlay: TutorialOverlay | null = null;
   private headerPanel: HeaderPanel | null = null;
   private backButton: Phaser.GameObjects.Container | null = null;
+  private hintContainer: Phaser.GameObjects.Container | null = null;
   private hintText: Phaser.GameObjects.Text | null = null;
+  private hintBg: Phaser.GameObjects.Rectangle | null = null;
 
   // Tutorial controller (owns all tutorial logic)
   private controller: TutorialController | null = null;
@@ -147,16 +149,25 @@ export class TutorialScene extends Phaser.Scene {
       maxHeight: layout.scorecardHeight,
     });
 
-    // Hint text (shown briefly for guidance)
-    this.hintText = createText(this, width / 2, layout.diceY - 60, '', {
+    // Hint text with background (shown briefly for guidance)
+    this.hintContainer = this.add.container(width / 2, layout.diceY - 60);
+    this.hintContainer.setDepth(600);
+    this.hintContainer.setAlpha(0);
+
+    // Dark background for readability
+    this.hintBg = this.add.rectangle(0, 0, 200, 28, PALETTE.purple[900], 0.9);
+    this.hintBg.setStrokeStyle(1, PALETTE.gold[500], 0.5);
+    this.hintContainer.add(this.hintBg);
+
+    // Hint text
+    this.hintText = createText(this, 0, 0, '', {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_WARNING,
       fontStyle: 'bold',
     });
     this.hintText.setOrigin(0.5, 0.5);
-    this.hintText.setAlpha(0);
-    this.hintText.setDepth(600);
+    this.hintContainer.add(this.hintText);
 
     this.createBackButton();
 
@@ -252,18 +263,23 @@ export class TutorialScene extends Phaser.Scene {
   // ===========================================================================
 
   private showHint(message: string): void {
-    if (!this.hintText) return;
+    if (!this.hintText || !this.hintContainer || !this.hintBg) return;
 
     this.hintText.setText(message);
-    this.tweens.killTweensOf(this.hintText);
+
+    // Resize background to fit text with padding
+    const padding = 16;
+    this.hintBg.setSize(this.hintText.width + padding * 2, this.hintText.height + 10);
+
+    this.tweens.killTweensOf(this.hintContainer);
 
     this.tweens.add({
-      targets: this.hintText,
+      targets: this.hintContainer,
       alpha: 1,
       duration: 150,
       onComplete: () => {
         this.tweens.add({
-          targets: this.hintText,
+          targets: this.hintContainer,
           alpha: 0,
           delay: 1500,
           duration: 300,
