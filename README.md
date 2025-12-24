@@ -35,6 +35,16 @@ After completing each curse, choose a blessing to help you in the next round. Ea
 - **Normal**: 3 minutes per curse
 - **Intense**: 2 minutes per curse
 
+## Tutorial
+
+New to Cursed Dice? The interactive tutorial teaches you:
+- How the timer and scoring work
+- Locking dice to build combinations
+- When to reroll vs. when to score
+- Strategic "zeroing out" when nothing fits
+
+Access the tutorial from the main menu.
+
 ## How to Play
 
 1. Select a difficulty level

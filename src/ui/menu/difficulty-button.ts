@@ -51,10 +51,10 @@ export class DifficultyButton {
     const viewportWidth = metrics?.width ?? 1200;
     const isMobile = metrics?.isMobile ?? false;
 
-    // Responsive button sizing
+    // Responsive button sizing - smaller on mobile to fit with Learn to Play button
     const maxWidth = Math.min(320, viewportWidth - 40); // 20px margin each side
     const buttonWidth = isMobile ? maxWidth : 320;
-    const buttonHeight = isMobile ? 58 : 75; // Still 44px+ for touch
+    const buttonHeight = isMobile ? 52 : 75; // Still 44px+ for touch
 
     // Font sizes - keep readable on mobile
     const labelSize = isMobile ? FONTS.SIZE_LARGE : FONTS.SIZE_HEADING;
@@ -63,9 +63,10 @@ export class DifficultyButton {
 
     const config = this.config;
 
-    // Outer glow (pulsing) - smaller on mobile
+    // Outer glow (pulsing) - much smaller on mobile to avoid overlap
     const glowStroke = isMobile ? SIZES.GLOW_STROKE_SMALL : SIZES.GLOW_STROKE_LARGE;
-    const outerGlow = this.scene.add.rectangle(0, 0, buttonWidth + 20, buttonHeight + 20, 0x000000, 0);
+    const glowPadding = isMobile ? 8 : 20;
+    const outerGlow = this.scene.add.rectangle(0, 0, buttonWidth + glowPadding, buttonHeight + glowPadding, 0x000000, 0);
     outerGlow.setStrokeStyle(glowStroke, Phaser.Display.Color.HexStringToColor(config.color).color, 0.2);
     this.container.add(outerGlow);
 
@@ -120,14 +121,15 @@ export class DifficultyButton {
     label.setOrigin(0.5, 0.5);
     this.container.add(label);
 
-    // Time and description
-    const timeText = createText(this.scene, 10, 14, `${config.timeDisplay} per curse`, {
+    // Subtitle description
+    const subtitleText = createText(this.scene, 10, 14, config.subtitle, {
       fontSize: subSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SECONDARY,
+      fontStyle: 'italic',
     });
-    timeText.setOrigin(0.5, 0.5);
-    this.container.add(timeText);
+    subtitleText.setOrigin(0.5, 0.5);
+    this.container.add(subtitleText);
 
     // Decorative skulls on sides (hidden on mobile to save space)
     let leftSkull: Phaser.GameObjects.Text | null = null;

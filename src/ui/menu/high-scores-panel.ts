@@ -5,7 +5,7 @@
 
 import Phaser from 'phaser';
 import { type Difficulty, DIFFICULTIES, FONTS, SIZES, PALETTE, COLORS } from '@/config';
-import { getSaveManager } from '@/systems/save-manager';
+import { getSave } from '@/systems/services';
 import { createText } from '@/ui/ui-utils';
 
 export interface HighScoresPanelConfig {
@@ -29,7 +29,7 @@ export class HighScoresPanel {
   private build(config: HighScoresPanelConfig): void {
     const { x, y, depth = 100 } = config;
 
-    const saveManager = getSaveManager();
+    const saveManager = getSave();
     const highScores = saveManager.getHighScores();
 
     const hasData = highScores.bestRunTotal > 0 ||

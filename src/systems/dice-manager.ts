@@ -9,6 +9,12 @@ import { COLORS, SIZES, FONTS, GAME_RULES, PALETTE, type ScaledSizes, getViewpor
 import { createText } from '@/ui/ui-utils';
 import { GameEventEmitter } from './game-events';
 import { createLogger } from './logger';
+import { DiceControls } from '@/ui/dice';
+import type {
+  DiceAllowedActions,
+  DiceForcedState,
+  TutorialControllableDice,
+} from './tutorial/interfaces';
 
 const log = createLogger('DiceManager');
 
@@ -66,18 +72,18 @@ interface DiceSizeConfig {
 // DICE MANAGER
 // =============================================================================
 
-export class DiceManager {
+export class DiceManager implements TutorialControllableDice {
   private scene: Phaser.Scene;
   private events: GameEventEmitter;
   private state: DiceState;
   private sprites: DiceSprite[] = [];
-  private rollButton: Phaser.GameObjects.Container | null = null;
-  private rerollText: Phaser.GameObjects.Text | null = null;
+  private controls: DiceControls | null = null;
   private enabled: boolean = true;
-  private controlsPanelHeight: number = 84;
 
-  // Layout info for repositioning dice
+  // Layout info for repositioning dice and getting bounds
   private layoutCenterX: number = 0;
+  private layoutCenterY: number = 0;
+  private layoutControlsY: number = 0;
 
   // Current size configuration (responsive)
   private sizeConfig: DiceSizeConfig = {
@@ -86,6 +92,11 @@ export class DiceManager {
     pipRadius: SIZES.DICE_PIP_RADIUS,
     pipOffset: SIZES.DICE_PIP_OFFSET,
   };
+
+  // Tutorial mode controls
+  private forcedRollValues: number[] | null = null; // If set, next roll uses these values
+  private lockableIndices: number[] | null = null; // If set, only these dice can be locked
+  private onLockAttempt: ((index: number, allowed: boolean) => void) | null = null;
 
   constructor(scene: Phaser.Scene, events: GameEventEmitter) {
     this.scene = scene;
@@ -371,15 +382,107 @@ export class DiceManager {
       }
     }
 
-    // Also disable roll button
-    const rollBtn = this.rollButton?.getData('bg') as Phaser.GameObjects.Rectangle | null;
-    if (rollBtn) {
-      if (enabled) {
-        rollBtn.setInteractive({ useHandCursor: true });
-      } else {
-        rollBtn.disableInteractive();
+    // Also update the controls panel (roll button)
+    if (enabled) {
+      this.updateRollButton();
+    } else {
+      this.controls?.setEnabled(false);
+    }
+  }
+
+  // ===========================================================================
+  // TUTORIAL MODE CONTROLS
+  // ===========================================================================
+
+  /**
+   * Set forced values for the next roll (tutorial mode)
+   * Pass null to return to random rolling
+   */
+  setForcedRollValues(values: number[] | null): void {
+    this.forcedRollValues = values;
+    log.debug('Forced roll values set:', values);
+  }
+
+  /**
+   * Restrict which dice can be locked (tutorial mode)
+   * Pass null to allow locking any die
+   */
+  setLockableIndices(indices: number[] | null): void {
+    this.lockableIndices = indices;
+    log.debug('Lockable indices set:', indices);
+  }
+
+  /**
+   * Set a callback for when user attempts to lock a die (tutorial mode)
+   * Useful for showing guidance when they try to lock the "wrong" die
+   */
+  setOnLockAttempt(callback: ((index: number, allowed: boolean) => void) | null): void {
+    this.onLockAttempt = callback;
+  }
+
+  /**
+   * Force set rerolls remaining (tutorial mode)
+   * Used to show scenarios with no rerolls left
+   */
+  forceRerollsRemaining(count: number): void {
+    this.state.rerollsLeft = count;
+    this.controls?.setRerolls(count);
+    this.updateRollButton();
+    log.debug('Forced rerolls remaining:', count);
+  }
+
+  /**
+   * Force-lock specific dice (tutorial mode)
+   * Locks the dice at the given indices without user interaction
+   */
+  lockDice(indices: number[]): void {
+    for (const index of indices) {
+      if (index >= 0 && index < this.state.values.length) {
+        this.state.locked[index] = true;
+        this.updateDieDisplay(index);
       }
     }
+    this.updateRollButton();
+  }
+
+  /**
+   * Get rerolls remaining
+   */
+  getRerollsLeft(): number {
+    return this.state.rerollsLeft;
+  }
+
+  // ===========================================================================
+  // TUTORIAL INTERFACE METHODS
+  // ===========================================================================
+
+  /**
+   * Set tutorial mode restrictions (implements TutorialControllableDice)
+   */
+  setTutorialMode(actions: DiceAllowedActions): void {
+    this.setLockableIndices(actions.lockableIndices);
+    // canRoll is handled via setEnabled
+  }
+
+  /**
+   * Force tutorial state (implements TutorialControllableDice)
+   */
+  forceTutorialState(state: DiceForcedState): void {
+    if (state.rollValues !== undefined) {
+      this.setForcedRollValues(state.rollValues);
+    }
+    if (state.rerollsRemaining !== null && state.rerollsRemaining !== undefined) {
+      this.forceRerollsRemaining(state.rerollsRemaining);
+    }
+  }
+
+  /**
+   * Reset all tutorial mode restrictions (implements TutorialControllableDice)
+   */
+  resetTutorialMode(): void {
+    this.setLockableIndices(null);
+    this.setForcedRollValues(null);
+    this.onLockAttempt = null;
   }
 
   // ===========================================================================
@@ -392,8 +495,9 @@ export class DiceManager {
    * @param isUltraCompact Whether to use ultra-compact mode for very short screens
    */
   createUI(centerX: number, centerY: number, scaledSizes?: ScaledSizes, isUltraCompact?: boolean): void {
-    // Store layout info for repositioning
+    // Store layout info for repositioning and bounds
     this.layoutCenterX = centerX;
+    this.layoutCenterY = centerY;
 
     // Get viewport metrics for responsive adjustments
     const metrics = getViewportMetrics(this.scene);
@@ -444,7 +548,19 @@ export class DiceManager {
     // Ultra-compact: 75px to minimize vertical space
     // Mobile: 85px gives space for icons while keeping scorecard visible
     const controlsOffset = ultraCompact ? 75 : (isMobile ? 85 : 140);
-    this.createControlsPanel(centerX, centerY + controlsOffset, isMobile, ultraCompact, this.includeBlessingSlot);
+    this.layoutControlsY = centerY + controlsOffset;
+
+    // Create controls panel using DiceControls component
+    this.controls = new DiceControls({
+      scene: this.scene,
+      centerX: centerX,
+      centerY: this.layoutControlsY,
+      isMobile,
+      ultraCompact,
+      includeBlessingSlot: this.includeBlessingSlot,
+      initialRerolls: this.state.rerollsLeft,
+      onRoll: () => this.roll(false),
+    });
   }
 
   // Flag to include blessing slot in controls panel
@@ -457,194 +573,13 @@ export class DiceManager {
     this.includeBlessingSlot = true;
   }
 
-  // Store button height for external access
-  private rollButtonHeight: number = 32;
-
   /**
    * Get the position and height for the blessing button within the controls panel
    * Returns null if blessing slot is not enabled
    */
   getBlessingButtonPosition(): { x: number; y: number; height: number } | null {
-    if (!this.includeBlessingSlot || !this.rollButton) return null;
-
-    // Button is positioned in the left slot of the controls panel
-    // The panel container is stored in rollButton, get its position
-    const panelX = this.rollButton.x;
-    const panelY = this.rollButton.y;
-
-    // Column-based layout: blessing button is centered in column 0
-    // Column width is 120px on mobile, 130px on desktop
-    const colWidth = 120; // Use mobile width as default since that's the primary use case
-    const colCenter = colWidth / 2;
-    return {
-      x: panelX + colCenter,
-      y: panelY + this.controlsPanelHeight / 2,
-      height: this.rollButtonHeight,
-    };
-  }
-
-  /**
-   * Create the controls panel with rerolls and roll button
-   * Uses a clean column-based layout with equal columns and centered content
-   * @param includeBlessingSlot If true, adds a 3rd column for the blessing button
-   */
-  private createControlsPanel(centerX: number, centerY: number, isMobile: boolean = false, ultraCompact: boolean = false, includeBlessingSlot: boolean = false): void {
-    // Column-based layout: divide panel into equal columns
-    const numCols = includeBlessingSlot ? 3 : 2;
-    const colWidth = isMobile ? 120 : 130;
-    const panelWidth = numCols * colWidth;
-    const panelHeight = ultraCompact ? 50 : (isMobile ? 60 : 84);
-    const panelX = centerX - panelWidth / 2;
-    const panelY = centerY - panelHeight / 2;
-
-    // Store for external access
-    this.controlsPanelHeight = panelHeight;
-
-    // Panel container
-    const panel = this.scene.add.container(panelX, panelY);
-
-    const panelBg = this.scene.add.rectangle(
-      panelWidth / 2, panelHeight / 2,
-      panelWidth, panelHeight,
-      PALETTE.purple[900], 0.88
-    );
-    panelBg.setStrokeStyle(SIZES.PANEL_BORDER_WIDTH, PALETTE.purple[500], 0.5);
-    panel.add(panelBg);
-
-    // Corner accents
-    const cornerSize = SIZES.PANEL_CORNER_SIZE;
-    const cornerInset = SIZES.PANEL_CORNER_INSET;
-    const corners = [
-      { x: cornerInset, y: cornerInset, ax: 1, ay: 1 },
-      { x: panelWidth - cornerInset, y: cornerInset, ax: -1, ay: 1 },
-      { x: panelWidth - cornerInset, y: panelHeight - cornerInset, ax: -1, ay: -1 },
-      { x: cornerInset, y: panelHeight - cornerInset, ax: 1, ay: -1 },
-    ];
-
-    corners.forEach(corner => {
-      const accent = this.scene.add.graphics();
-      accent.lineStyle(2, PALETTE.purple[400], 0.4);
-      accent.beginPath();
-      accent.moveTo(corner.x, corner.y + cornerSize * corner.ay);
-      accent.lineTo(corner.x, corner.y);
-      accent.lineTo(corner.x + cornerSize * corner.ax, corner.y);
-      accent.strokePath();
-      panel.add(accent);
-    });
-
-    const rowY = panelHeight / 2;
-    const dividerPadding = ultraCompact ? 10 : (isMobile ? 16 : 24);
-
-    // Calculate column centers
-    // With blessing: [Blessing] | [Rerolls] | [Roll]
-    // Without:       [Rerolls] | [Roll]
-    const getColCenter = (colIndex: number) => colWidth * colIndex + colWidth / 2;
-
-    const rerollsColX = includeBlessingSlot ? getColCenter(1) : getColCenter(0);
-    const rollColX = includeBlessingSlot ? getColCenter(2) : getColCenter(1);
-
-    // Add dividers between columns
-    for (let i = 1; i < numCols; i++) {
-      const dividerX = i * colWidth;
-      const divider = this.scene.add.rectangle(
-        dividerX, rowY, 1, panelHeight - dividerPadding, PALETTE.purple[500], 0.35
-      );
-      panel.add(divider);
-    }
-
-    // Rerolls display - centered in its column
-    if (isMobile) {
-      // Compact horizontal layout: "REROLLS: 2"
-      // Offset meeting point right to visually center the combined text
-      const meetPoint = rerollsColX + 34;
-      const rerollsLabel = createText(this.scene, meetPoint, rowY, 'REROLLS: ', {
-        fontSize: FONTS.SIZE_SMALL,
-        fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_PRIMARY,
-        fontStyle: 'bold',
-      });
-      rerollsLabel.setOrigin(1, 0.5);
-      panel.add(rerollsLabel);
-
-      this.rerollText = createText(this.scene, meetPoint, rowY, `${this.state.rerollsLeft}`, {
-        fontSize: FONTS.SIZE_BODY,
-        fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_SUCCESS,
-        fontStyle: 'bold',
-      });
-      this.rerollText.setOrigin(0, 0.5);
-      panel.add(this.rerollText);
-    } else {
-      // Desktop: stacked vertical layout - both centered
-      const rerollsLabel = createText(this.scene, rerollsColX, rowY - 12, 'REROLLS', {
-        fontSize: FONTS.SIZE_SMALL,
-        fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_PRIMARY,
-        fontStyle: 'bold',
-      });
-      rerollsLabel.setOrigin(0.5, 0.5);
-      panel.add(rerollsLabel);
-
-      this.rerollText = createText(this.scene, rerollsColX, rowY + 12, `${this.state.rerollsLeft}`, {
-        fontSize: FONTS.SIZE_HEADING,
-        fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_SUCCESS,
-        fontStyle: 'bold',
-      });
-      this.rerollText.setOrigin(0.5, 0.5);
-      panel.add(this.rerollText);
-    }
-
-    // Roll button - centered in its column
-    const btnWidth = isMobile ? 100 : 110;
-    const btnHeight = ultraCompact ? 28 : (isMobile ? 32 : 44);
-    this.rollButtonHeight = btnHeight; // Store for blessing button to match
-
-    const btnGlow = this.scene.add.rectangle(
-      rollColX, rowY,
-      btnWidth + 10, btnHeight + 8,
-      PALETTE.green[500], 0.12
-    );
-    panel.add(btnGlow);
-
-    const rollBtn = this.scene.add.rectangle(
-      rollColX, rowY,
-      btnWidth, btnHeight,
-      PALETTE.green[700], 0.95
-    );
-    rollBtn.setStrokeStyle(2, PALETTE.green[500]);
-    rollBtn.setInteractive({ useHandCursor: true });
-    panel.add(rollBtn);
-
-    const rollText = createText(this.scene, rollColX, rowY, 'ROLL', {
-      fontSize: isMobile ? FONTS.SIZE_LABEL : FONTS.SIZE_BODY,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_SUCCESS,
-      fontStyle: 'bold',
-    });
-    rollText.setOrigin(0.5, 0.5);
-    panel.add(rollText);
-
-    // Roll button interactions
-    rollBtn.on('pointerover', () => {
-      rollBtn.setFillStyle(PALETTE.green[600], 1);
-      rollBtn.setStrokeStyle(2, PALETTE.green[400]);
-      btnGlow.setAlpha(0.25);
-    });
-    rollBtn.on('pointerout', () => {
-      rollBtn.setFillStyle(PALETTE.green[700], 0.95);
-      rollBtn.setStrokeStyle(2, PALETTE.green[500]);
-      btnGlow.setAlpha(0.12);
-    });
-    rollBtn.on('pointerdown', () => this.roll(false));
-
-    // Note: Keyboard shortcut (SPACE) is handled by InputManager in GameplayScene
-
-    // Store roll button reference for state updates
-    this.rollButton = panel;
-    this.rollButton.setData('bg', rollBtn);
-    this.rollButton.setData('glow', btnGlow);
-
+    if (!this.controls) return null;
+    return this.controls.getBlessingButtonPosition();
   }
 
   private createDieSprite(x: number, y: number, index: number): DiceSprite {
@@ -801,6 +736,36 @@ export class DiceManager {
       return;
     }
 
+    // Tutorial mode: check if this die is allowed to be locked
+    if (this.lockableIndices !== null) {
+      const allowed = this.lockableIndices.includes(index);
+
+      // Notify callback if set (for showing tutorial guidance)
+      if (this.onLockAttempt) {
+        this.onLockAttempt(index, allowed);
+      }
+
+      if (!allowed) {
+        log.debug(`toggleLock rejected: die ${index} not in lockable indices`);
+        // Visual feedback - subtle shake
+        const sprite = this.sprites[index];
+        if (sprite) {
+          this.scene.tweens.add({
+            targets: sprite.container,
+            x: sprite.originalX + 3,
+            duration: 50,
+            yoyo: true,
+            repeat: 2,
+            ease: 'Sine.easeInOut',
+            onComplete: () => {
+              sprite.container.x = sprite.originalX;
+            },
+          });
+        }
+        return;
+      }
+    }
+
     this.state.locked[index] = !this.state.locked[index];
     this.updateDieDisplay(index);
     this.updateRollButton(); // Update button state based on holdable dice
@@ -811,7 +776,9 @@ export class DiceManager {
    * Roll the dice
    */
   roll(initial: boolean): void {
-    if (!this.enabled) {
+    // Initial roll should always work, even if dice are disabled
+    // (dice get disabled during 'rolling' state for click prevention)
+    if (!this.enabled && !initial) {
       log.debug('roll rejected: dice disabled');
       return;
     }
@@ -842,12 +809,27 @@ export class DiceManager {
     const diceCount = this.state.sixthDieActive ? 6 : GAME_RULES.DICE_COUNT;
     const finalValues: number[] = [];
 
+    // Tutorial mode: use forced values if set
+    const useForcedValues = this.forcedRollValues !== null;
+    if (useForcedValues) {
+      log.debug('Using forced roll values:', this.forcedRollValues);
+    }
+
     for (let i = 0; i < diceCount; i++) {
       if (!this.state.locked[i] || initial) {
-        finalValues[i] = Phaser.Math.Between(1, 6);
+        if (useForcedValues && this.forcedRollValues![i] !== undefined) {
+          finalValues[i] = this.forcedRollValues![i];
+        } else {
+          finalValues[i] = Phaser.Math.Between(1, 6);
+        }
       } else {
         finalValues[i] = this.state.values[i];
       }
+    }
+
+    // Clear forced values after use (one-time use)
+    if (useForcedValues) {
+      this.forcedRollValues = null;
     }
 
     // Animate and set values
@@ -1124,42 +1106,75 @@ export class DiceManager {
   }
 
   private updateRerollText(): void {
-    if (!this.rerollText) return;
-    this.rerollText.setText(`${this.state.rerollsLeft}`);
-    this.rerollText.setColor(this.state.rerollsLeft > 0 ? COLORS.TEXT_SUCCESS : COLORS.TEXT_DANGER);
+    this.controls?.setRerolls(this.state.rerollsLeft);
   }
 
   private updateRollButton(): void {
-    if (!this.rollButton) return;
-    const bg = this.rollButton.getData('bg') as Phaser.GameObjects.Rectangle | null;
-    const glow = this.rollButton.getData('glow') as Phaser.GameObjects.Rectangle | null;
-    if (!bg) return;
+    if (!this.controls) return;
+
+    // If dice are disabled (tutorial mode), keep button visually disabled
+    if (!this.enabled) {
+      this.controls.setEnabled(false);
+      return;
+    }
 
     // Check if any dice can be rerolled (not held, not cursed)
     const canReroll = this.state.locked.some((locked, i) => !locked && i !== this.state.cursedIndex);
+    const enabled = this.state.rerollsLeft > 0 && canReroll;
 
-    if (this.state.rerollsLeft > 0 && canReroll) {
-      bg.setFillStyle(PALETTE.green[700], 0.95);
-      bg.setStrokeStyle(2, PALETTE.green[500]);
-      bg.setInteractive({ useHandCursor: true });
-      glow?.setAlpha(0.12);
-    } else {
-      bg.setFillStyle(PALETTE.neutral[700], 0.8);
-      bg.setStrokeStyle(2, PALETTE.neutral[500]);
-      bg.removeInteractive();
-      glow?.setAlpha(0.05);
-    }
+    this.controls.setEnabled(enabled);
   }
 
   private flashRerollText(): void {
-    if (!this.rerollText) return;
-    this.scene.tweens.add({
-      targets: this.rerollText,
-      alpha: 0.3,
-      duration: 100,
-      yoyo: true,
-      repeat: 2,
-    });
+    this.controls?.flashRerollText();
+  }
+
+  // ===========================================================================
+  // BOUNDS (for tutorial highlighting)
+  // ===========================================================================
+
+  /**
+   * Get the bounding box of the dice area (all 5 dice)
+   */
+  getDiceBounds(): { x: number; y: number; width: number; height: number } {
+    const diceAreaWidth = (GAME_RULES.DICE_COUNT - 1) * this.sizeConfig.spacing + this.sizeConfig.size;
+    const diceHeight = this.sizeConfig.size;
+    return {
+      x: this.layoutCenterX - diceAreaWidth / 2,
+      y: this.layoutCenterY - diceHeight / 2,
+      width: diceAreaWidth,
+      height: diceHeight,
+    };
+  }
+
+  /**
+   * Get the bounding box of the controls panel (rerolls + roll button)
+   */
+  getControlsBounds(): { x: number; y: number; width: number; height: number } {
+    if (!this.controls) {
+      return { x: 0, y: 0, width: 0, height: 0 };
+    }
+    return this.controls.getBounds();
+  }
+
+  /**
+   * Get combined bounds of dice + controls (the whole dice panel)
+   */
+  getFullBounds(): { x: number; y: number; width: number; height: number } {
+    const dice = this.getDiceBounds();
+    const controls = this.getControlsBounds();
+
+    const minX = Math.min(dice.x, controls.x);
+    const minY = Math.min(dice.y, controls.y);
+    const maxX = Math.max(dice.x + dice.width, controls.x + controls.width);
+    const maxY = Math.max(dice.y + dice.height, controls.y + controls.height);
+
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY,
+    };
   }
 
   // ===========================================================================
@@ -1170,7 +1185,7 @@ export class DiceManager {
    * Destroy all UI elements
    */
   destroy(): void {
-    log.log(`Destroying DiceManager (${this.sprites.length} sprites, rollButton: ${!!this.rollButton})`);
+    log.log(`Destroying DiceManager (${this.sprites.length} sprites, controls: ${!!this.controls})`);
 
     // Note: Keyboard listener (SPACE) cleanup is handled by InputManager
 
@@ -1179,14 +1194,9 @@ export class DiceManager {
     }
     this.sprites = [];
 
-    if (this.rollButton) {
-      this.rollButton.destroy();
-      this.rollButton = null;
-    }
-
-    if (this.rerollText) {
-      this.rerollText.destroy();
-      this.rerollText = null;
+    if (this.controls) {
+      this.controls.destroy();
+      this.controls = null;
     }
   }
 }

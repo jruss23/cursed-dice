@@ -8,7 +8,7 @@ import { FONTS, COLORS, SIZES, getViewportMetrics, type Difficulty } from '@/con
 import { type Scorecard, type CategoryId } from '@/systems/scorecard';
 import { type GameMode, resetGameProgression, debugSetMode } from '@/systems/game-progression';
 import { resetBlessingManager, debugSetBlessing } from '@/systems/blessings/blessing-manager';
-import { getSaveManager } from '@/systems/save-manager';
+import { getSave } from '@/systems/services';
 import { createLogger } from '@/systems/logger';
 import { createText } from '@/ui/ui-utils';
 
@@ -109,7 +109,7 @@ export class DebugController {
    * Clear all save data
    */
   clearData(): void {
-    const saveManager = getSaveManager();
+    const saveManager = getSave();
     saveManager.clearAll();
     log.debug('Save data cleared');
 

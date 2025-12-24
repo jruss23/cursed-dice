@@ -2,7 +2,7 @@
  * Mode Mechanics Manager
  *
  * Centralized system for all mode-specific game mechanics:
- * - Mode 1 (The Awakening): Standard Yahtzee - no special mechanics
+ * - Mode 1 (The Awakening): Standard dice game - no special mechanics
  * - Mode 2 (Shackled Die): Highest value die becomes cursed after scoring
  * - Mode 3 (Sealed Paths): 3 random categories locked after scoring
  * - Mode 4 (The Gauntlet): Only 3 categories available at a time

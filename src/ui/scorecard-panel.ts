@@ -6,8 +6,21 @@
 import Phaser from 'phaser';
 import { type Scorecard, type CategoryId, type Category } from '@/systems/scorecard';
 import { GameEventEmitter } from '@/systems/game-events';
-import { FONTS, SIZES, GAME_RULES, PALETTE, COLORS, type ScorecardLayout, RESPONSIVE } from '@/config';
+import { FONTS, SIZES, PALETTE, COLORS, type ScorecardLayout, RESPONSIVE } from '@/config';
 import { createText } from '@/ui/ui-utils';
+import type {
+  Bounds,
+  ScorecardAllowedActions,
+  TutorialControllableScorecard,
+} from '@/systems/tutorial/interfaces';
+import {
+  createScorecardStateManager,
+  type ScorecardStateManager,
+  calculateLayout,
+  type LayoutConfig,
+  type LayoutInput,
+  type RowLayout,
+} from '@/ui/scorecard';
 
 export interface ScorecardPanelConfig {
   x: number;
@@ -20,6 +33,8 @@ export interface ScorecardPanelConfig {
   // Note: layout is auto-determined based on viewport size, not passed in
 }
 
+// Note: ScorecardRow component exists but has interface mismatch with stateManager
+// TODO: Unify RowDisplayState interfaces before migrating
 interface CategoryRow {
   id: CategoryId;
   nameText: Phaser.GameObjects.Text;
@@ -61,23 +76,27 @@ const PANEL_COLORS = {
 const LOCKED_CATEGORY_COLOR = PALETTE.neutral[800];
 const LOCKED_CATEGORY_BORDER = PALETTE.neutral[500];
 
-export class ScorecardPanel {
+export class ScorecardPanel implements TutorialControllableScorecard {
   private scene: Phaser.Scene;
   private scorecard: Scorecard;
   private events: GameEventEmitter;
   private config: ScorecardPanelConfig;
   private container: Phaser.GameObjects.Container;
   private categoryRows: Map<CategoryId, CategoryRow> = new Map();
-  private currentDice: number[] = Array(GAME_RULES.DICE_COUNT).fill(1);
-  private lockedCategories: Set<CategoryId> = new Set(); // Mode 3 & 4: locked categories
   private isCompact: boolean = false; // Compact mode for portrait/mobile
   private layout: ScorecardLayout = 'single-column'; // Layout mode
-  private isGauntletMode: boolean = false; // Mode 4: limited categories available
   private gauntletPulseTweens: Map<CategoryId, Phaser.Tweens.Tween> = new Map(); // Pulsing effects by category
   private maxHeight: number | undefined; // Maximum height constraint from viewport
   private calculatedRowHeight: number = RESPONSIVE.ROW_HEIGHT_MOBILE; // Dynamically calculated row height
   private passThreshold: number = 250; // Score threshold to display next to total
-  private isInputLocked: boolean = false; // Prevents multi-click exploit after scoring
+
+  // Tutorial mode controls
+  private highlightGraphics: Phaser.GameObjects.Graphics | null = null; // Gold highlight border
+  private highlightPulseTween: Phaser.Tweens.Tween | null = null; // Pulsing animation for highlight
+
+  // Modular state management
+  private stateManager!: ScorecardStateManager;
+  private layoutConfig!: LayoutConfig;
 
   // UI elements
   private totalText: Phaser.GameObjects.Text | null = null;
@@ -171,6 +190,24 @@ export class ScorecardPanel {
   private determineLayout(): ScorecardLayout {
     const { width } = this.scene.cameras.main;
     return width < 900 ? 'two-column' : 'single-column';
+  }
+
+  /**
+   * Compute layout configuration using the modular layout calculator
+   */
+  private computeLayoutConfig(): LayoutConfig {
+    const { width, height } = this.scene.cameras.main;
+    const input: LayoutInput = {
+      viewportWidth: width,
+      viewportHeight: height,
+      isCompact: this.isCompact,
+      hasSpecialSection: this.scorecard.isSpecialSectionEnabled(),
+      maxHeight: this.maxHeight,
+      upperCategories: this.scorecard.getUpperSection(),
+      lowerCategories: this.scorecard.getLowerSection(),
+      specialCategories: this.scorecard.getSpecialSection(),
+    };
+    return calculateLayout(input);
   }
 
   /**
@@ -290,6 +327,12 @@ export class ScorecardPanel {
     // Determine layout based on viewport - single source of truth
     this.layout = this.determineLayout();
 
+    // Initialize modular state manager
+    this.stateManager = createScorecardStateManager(scorecard, this.passThreshold);
+
+    // Calculate layout using the new modular layout calculator
+    this.layoutConfig = this.computeLayoutConfig();
+
     // Calculate optimal row height based on available space (must be before calculateHeight)
     this.calculateRowHeight();
 
@@ -340,6 +383,7 @@ export class ScorecardPanel {
   private rebuild(): void {
     // Recalculate layout using single source of truth
     this.layout = this.determineLayout();
+    this.layoutConfig = this.computeLayoutConfig(); // Recompute modular layout
     this.calculateRowHeight(); // Recalculate row heights for new content
     this.config.width = this.calculateWidth();
 
@@ -415,12 +459,8 @@ export class ScorecardPanel {
     // === PANEL FRAME (matching menu button design) ===
     this.buildPanelFrame(width, height);
 
-    // === CONTENT ===
-    if (this.isTwoColumn) {
-      this.buildTwoColumnContent(width, height);
-    } else {
-      this.buildSingleColumnContent(width, height);
-    }
+    // === CONTENT (unified using layoutConfig.rows) ===
+    this.buildContentUnified();
   }
 
   /** Build the shared panel frame (background, corners) */
@@ -465,21 +505,21 @@ export class ScorecardPanel {
     });
   }
 
-  /** Build two-column mobile layout: Upper+Bonus on left, Lower+Total on right */
-  private buildTwoColumnContent(width: number, _height: number): void {
-    const padding = this.contentPadding;
-    const colGap = 6;
-    const colWidth = (width - padding * 2 - colGap) / 2;
-    const leftX = padding;
-    const rightX = padding + colWidth + colGap;
+  // ===========================================================================
+  // UNIFIED BUILD METHODS (using layoutConfig.rows)
+  // ===========================================================================
 
-    // Title - use dynamic height
-    const title_h = this.titleHeight;
-    const titleFontSize = this.needsCompactLayout ? FONTS.SIZE_SMALL : FONTS.SIZE_BUTTON;
-    const titleY = padding + title_h / 2;
+  /**
+   * Build content using layoutConfig.rows for positioning
+   * Replaces buildTwoColumnContent and buildSingleColumnContent
+   */
+  private buildContentUnified(): void {
+    const lc = this.layoutConfig;
+    const isTwoCol = lc.mode === 'two-column';
 
-    const title = createText(this.scene,width / 2, titleY, 'SCORECARD', {
-      fontSize: titleFontSize,
+    // Title (not in rows array)
+    const title = createText(this.scene, lc.width / 2, lc.titleY, 'SCORECARD', {
+      fontSize: lc.titleFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_ACCENT,
       fontStyle: 'bold',
@@ -487,114 +527,130 @@ export class ScorecardPanel {
     title.setOrigin(0.5, 0.5);
     this.container.add(title);
 
-    let leftY = padding + title_h + this.titleGap;
-    let rightY = leftY;
-
-    // === LEFT COLUMN: Upper section + Bonus ===
-    this.contentBounds = { x: leftX, width: colWidth };
-
-    leftY = this.addSectionHeader('UPPER', leftY, 'upper');
-    const upperCategories = this.scorecard.getUpperSection();
-    for (let i = 0; i < upperCategories.length; i++) {
-      leftY = this.addCategoryRowTwoCol(upperCategories[i], leftY, i % 2 === 0, 'upper', leftX, colWidth);
-    }
-    leftY = this.addBonusRowTwoCol(leftY, leftX, colWidth);
-
-    // === RIGHT COLUMN: Lower section ===
-    this.contentBounds = { x: rightX, width: colWidth };
-
-    rightY = this.addSectionHeader('LOWER', rightY, 'lower');
-    const lowerCategories = this.scorecard.getLowerSection();
-    for (let i = 0; i < lowerCategories.length; i++) {
-      rightY = this.addCategoryRowTwoCol(lowerCategories[i], rightY, i % 2 === 0, 'lower', rightX, colWidth);
-    }
-
-    // Track where columns end
-    let bottomY = Math.max(leftY, rightY);
-
-    // === SPECIAL SECTION (2x2 grid) ===
-    if (this.scorecard.isSpecialSectionEnabled()) {
-      const fullWidth = width - padding * 2;
-
-      let y = bottomY + this.dividerHeight / 2;
-      const divider = this.scene.add.rectangle(padding, y, fullWidth, 1, PALETTE.gold[500], 0.5);
-      divider.setOrigin(0, 0);
+    // Divider before special section (if enabled)
+    if (lc.hasSpecialSection && lc.specialHeaderY !== undefined) {
+      const dividerY = lc.specialHeaderY - lc.dividerHeight / 2;
+      const divider = this.scene.add.rectangle(
+        lc.contentX, dividerY,
+        lc.contentWidth, 1,
+        PALETTE.gold[500], 0.5
+      );
+      divider.setOrigin(0, 0.5);
       this.container.add(divider);
-      y += this.dividerHeight / 2;
-
-      // Expansion header with helper text on same row
-      y = this.addExpansionHeader(y, padding, fullWidth);
-
-      // 2x2 grid layout for 4 expansion categories
-      const specialCategories = this.scorecard.getSpecialSection();
-      const gridColWidth = (fullWidth - colGap) / 2;
-      const gridLeftX = padding;
-      const gridRightX = padding + gridColWidth + colGap;
-
-      // Row 1: categories 0 and 1
-      if (specialCategories[0]) {
-        this.contentBounds = { x: gridLeftX, width: gridColWidth };
-        this.addCategoryRowTwoCol(specialCategories[0], y, true, 'special', gridLeftX, gridColWidth);
-      }
-      if (specialCategories[1]) {
-        this.contentBounds = { x: gridRightX, width: gridColWidth };
-        this.addCategoryRowTwoCol(specialCategories[1], y, true, 'special', gridRightX, gridColWidth);
-      }
-      y += this.rowHeight;
-
-      // Row 2: categories 2 and 3
-      if (specialCategories[2]) {
-        this.contentBounds = { x: gridLeftX, width: gridColWidth };
-        this.addCategoryRowTwoCol(specialCategories[2], y, false, 'special', gridLeftX, gridColWidth);
-      }
-      if (specialCategories[3]) {
-        this.contentBounds = { x: gridRightX, width: gridColWidth };
-        this.addCategoryRowTwoCol(specialCategories[3], y, false, 'special', gridRightX, gridColWidth);
-      }
-      y += this.rowHeight;
-
-      bottomY = y;
     }
 
-    // === TOTAL ROW (spans full width at very bottom) ===
-    const fullWidth = width - padding * 2;
-    this.contentBounds = { x: padding, width: fullWidth };
-    this.addTotalRowTwoCol(bottomY, padding, fullWidth);
+    // Render all rows from layoutConfig
+    for (const row of lc.rows) {
+      switch (row.section) {
+        case 'header':
+          this.renderHeader(row, isTwoCol);
+          break;
+        case 'upper':
+        case 'lower':
+        case 'special':
+          this.renderCategoryRow(row, isTwoCol);
+          break;
+        case 'bonus':
+          this.renderBonusRow(row, isTwoCol);
+          break;
+        case 'total':
+          this.renderTotalRow(row, isTwoCol);
+          break;
+      }
+    }
 
-    // Reset content bounds
-    this.contentBounds = { x: padding, width: fullWidth };
+    // Store content bounds for other methods
+    this.contentBounds = { x: lc.contentX, width: lc.contentWidth };
   }
 
-  /** Add a category row for two-column layout (simplified, no potential column) */
-  private addCategoryRowTwoCol(
-    category: Category,
-    y: number,
-    isEven: boolean,
-    section: 'upper' | 'lower' | 'special',
-    colX: number,
-    colWidth: number
-  ): number {
-    const height = this.rowHeight;
-    const rowColor = this.getRowColor(section, isEven);
+  /** Render a section header */
+  private renderHeader(row: RowLayout, _isTwoCol: boolean): void {
+    const section = row.label === 'UPPER' || row.label === 'UPPER SECTION' ? 'upper'
+      : row.label === 'LOWER' || row.label === 'LOWER SECTION' ? 'lower'
+      : 'special';
+
+    const headerColors = {
+      upper: PANEL_COLORS.upperHeader,
+      lower: PANEL_COLORS.lowerHeader,
+      special: PANEL_COLORS.specialHeader,
+    };
+    const borderColors = {
+      upper: PANEL_COLORS.upperBorder,
+      lower: PANEL_COLORS.lowerBorder,
+      special: PANEL_COLORS.specialBorder,
+    };
+
+    const bg = this.scene.add.rectangle(row.x, row.y, row.width, row.height, headerColors[section], 0.7);
+    bg.setOrigin(0, 0);
+    bg.setStrokeStyle(1, borderColors[section], 0.5);
+    this.container.add(bg);
+
+    // For expansion header, we add helper text too
+    if (row.label === 'EXPANSION') {
+      // Title on left
+      const headerText = createText(this.scene, row.x + 8, row.y + row.height / 2, 'EXPANSION', {
+        fontSize: FONTS.SIZE_SMALL,
+        fontFamily: FONTS.FAMILY,
+        color: COLORS.TEXT_WARNING,
+        fontStyle: 'bold',
+      });
+      headerText.setOrigin(0, 0.5);
+      this.container.add(headerText);
+
+      // Progress text on right
+      this.expansionProgressText = createText(this.scene, row.x + row.width - 8, row.y + row.height / 2, '0/13 Scored', {
+        fontSize: FONTS.SIZE_SMALL,
+        fontFamily: FONTS.FAMILY,
+        color: COLORS.TEXT_SECONDARY,
+      });
+      this.expansionProgressText.setOrigin(1, 0.5);
+      this.container.add(this.expansionProgressText);
+    } else {
+      // Normal header
+      const headerText = createText(this.scene, row.x + 8, row.y + row.height / 2, row.label || '', {
+        fontSize: FONTS.SIZE_SMALL,
+        fontFamily: FONTS.FAMILY,
+        color: COLORS.TEXT_SECONDARY,
+        fontStyle: 'bold',
+      });
+      headerText.setOrigin(0, 0.5);
+      this.container.add(headerText);
+    }
+  }
+
+  /** Render a category row (upper, lower, or special section) */
+  private renderCategoryRow(row: RowLayout, isTwoCol: boolean): void {
+    if (!row.categoryId) return;
+
+    const category = this.scorecard.getCategory(row.categoryId);
+    if (!category) return;
+
+    const rowColor = this.getRowColorFromLayout(row);
 
     // Background
-    const background = this.scene.add.rectangle(colX, y, colWidth, height, rowColor);
+    const background = this.scene.add.rectangle(row.x, row.y, row.width, row.height, rowColor);
     background.setOrigin(0, 0);
     this.container.add(background);
 
-    // Category name (shorter for 2-col)
-    const shortName = this.getShortCategoryName(category.id);
-    const nameText = createText(this.scene,colX + 8, y + height / 2, shortName, {
-      fontSize: this.fontSize,
+    // Category name
+    const displayName = isTwoCol
+      ? this.getShortCategoryName(row.categoryId)
+      : category.name;
+    const nameX = row.x + (isTwoCol ? 8 : 14);
+    const nameText = createText(this.scene, nameX, row.y + row.height / 2, displayName, {
+      fontSize: this.layoutConfig.fontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
     });
     nameText.setOrigin(0, 0.5);
     this.container.add(nameText);
 
-    // Potential text (shows when available, smaller)
-    const potentialText = createText(this.scene,colX + colWidth - 45, y + height / 2, '', {
-      fontSize: this.smallFontSize,
+    // Potential text
+    const potentialX = isTwoCol
+      ? row.x + row.width - 45
+      : this.layoutConfig.width - row.x - 85;
+    const potentialText = createText(this.scene, potentialX, row.y + row.height / 2, '', {
+      fontSize: this.layoutConfig.smallFontSize,
       fontFamily: FONTS.FAMILY,
       color: PANEL_COLORS.textPotential,
     });
@@ -602,52 +658,56 @@ export class ScorecardPanel {
     this.container.add(potentialText);
 
     // Lock icon
-    const lockIcon = this.createLockIcon(colX + colWidth - 45, y + height / 2, PALETTE.red[400]);
+    const lockIcon = this.createLockIcon(potentialX, row.y + row.height / 2, PALETTE.red[400]);
     this.container.add(lockIcon);
 
-    // Score text (right aligned)
-    const scoreText = createText(this.scene,colX + colWidth - 12, y + height / 2, '', {
-      fontSize: this.scoreFontSize,
+    // Score text
+    const scoreX = isTwoCol
+      ? row.x + row.width - 12
+      : this.layoutConfig.width - row.x - 32;
+    const scoreText = createText(this.scene, scoreX, row.y + row.height / 2, '', {
+      fontSize: this.layoutConfig.scoreFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
       fontStyle: 'bold',
     });
-    scoreText.setOrigin(1, 0.5);
+    scoreText.setOrigin(isTwoCol ? 1 : 0.5, 0.5);
     this.container.add(scoreText);
 
-    // Hit area (transparent)
-    const hitArea = this.scene.add.rectangle(colX, y, colWidth, height, COLORS.HIGHLIGHT, 0);
+    // Hit area
+    const hitArea = this.scene.add.rectangle(row.x, row.y, row.width, row.height, COLORS.HIGHLIGHT, 0);
     hitArea.setOrigin(0, 0);
     hitArea.setInteractive({ useHandCursor: true });
     this.container.add(hitArea);
 
     // Hover effects
     hitArea.on('pointerover', () => {
-      if (this.scorecard.isAvailable(category.id)) {
-        this.container.bringToTop(background);
-        this.container.bringToTop(nameText);
-        this.container.bringToTop(potentialText);
-        this.container.bringToTop(scoreText);
-        this.container.bringToTop(hitArea);
+      if (!this.stateManager.isHoverEnabled()) return;
+      if (!this.scorecard.isAvailable(row.categoryId!)) return;
 
-        if (this.isGauntletMode) {
-          background.setFillStyle(PALETTE.green[700]);
-          background.setStrokeStyle(2, PALETTE.green[400]);
-        } else {
-          background.setFillStyle(PANEL_COLORS.rowHover);
-          background.setStrokeStyle(2, PALETTE.green[500]);
-        }
-        this.events.emit('ui:categoryHover', { categoryId: category.id });
+      this.container.bringToTop(background);
+      this.container.bringToTop(nameText);
+      this.container.bringToTop(potentialText);
+      this.container.bringToTop(scoreText);
+      this.container.bringToTop(hitArea);
+
+      if (this.stateManager.getGauntletMode()) {
+        background.setFillStyle(PALETTE.green[700]);
+        background.setStrokeStyle(2, PALETTE.green[400]);
+      } else {
+        background.setFillStyle(PANEL_COLORS.rowHover);
+        background.setStrokeStyle(2, PALETTE.green[500]);
       }
+      this.events.emit('ui:categoryHover', { categoryId: row.categoryId! });
     });
 
     hitArea.on('pointerout', () => {
-      const cat = this.scorecard.getCategory(category.id);
+      const cat = this.scorecard.getCategory(row.categoryId!);
       if (cat && cat.score !== null) {
         background.setFillStyle(PANEL_COLORS.rowFilled);
         background.setStrokeStyle(0);
         nameText.setColor(COLORS.TEXT_SECONDARY);
-      } else if (this.isGauntletMode && this.scorecard.isAvailable(category.id)) {
+      } else if (this.stateManager.getGauntletMode() && this.scorecard.isAvailable(row.categoryId!)) {
         background.setFillStyle(PALETTE.green[900]);
         background.setStrokeStyle(2, PALETTE.green[500], 0.8);
         nameText.setColor(COLORS.TEXT_SUCCESS);
@@ -660,16 +720,17 @@ export class ScorecardPanel {
     });
 
     hitArea.on('pointerdown', () => {
-      if (this.isInputLocked) return; // Prevent multi-click exploit
-      if (this.scorecard.isAvailable(category.id)) {
-        this.lockInput(); // Lock immediately on selection
-        this.events.emit('score:category', { categoryId: category.id, dice: this.currentDice });
-      }
+      if (this.stateManager.isInputLockedState()) return;
+      if (!this.stateManager.isAllowed(row.categoryId!)) return;
+      if (!this.scorecard.isAvailable(row.categoryId!)) return;
+
+      this.lockInput();
+      this.events.emit('score:category', { categoryId: row.categoryId!, dice: this.stateManager.getDice() });
     });
 
     // Store row reference
-    this.categoryRows.set(category.id, {
-      id: category.id,
+    this.categoryRows.set(row.categoryId, {
+      id: row.categoryId,
       nameText,
       scoreText,
       potentialText,
@@ -678,458 +739,106 @@ export class ScorecardPanel {
       hitArea,
       rowColor,
     });
-
-    return y + height;
   }
 
-  /** Add bonus row for two-column layout */
-  private addBonusRowTwoCol(y: number, colX: number, colWidth: number): number {
-    const height = this.rowHeight;
-
-    const background = this.scene.add.rectangle(colX, y, colWidth, height, PALETTE.gold[800], 0.3);
+  /** Render bonus row */
+  private renderBonusRow(row: RowLayout, isTwoCol: boolean): void {
+    const background = this.scene.add.rectangle(row.x, row.y, row.width, row.height, PALETTE.gold[800], 0.3);
     background.setOrigin(0, 0);
     this.container.add(background);
 
-    // Dynamic label: "Upper (0) >= 63" - progress is inline
-    this.bonusProgressText = createText(this.scene, colX + 8, y + height / 2, 'Upper (0) >= 63', {
-      fontSize: FONTS.SIZE_TINY,
+    // Label with progress
+    const labelX = row.x + (isTwoCol ? 6 : 14);
+    this.bonusProgressText = createText(this.scene, labelX, row.y + row.height / 2, 'Upper (0) >= 63', {
+      fontSize: this.layoutConfig.smallFontSize,
       fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_WARNING,
+      color: COLORS.TEXT_SECONDARY,
     });
     this.bonusProgressText.setOrigin(0, 0.5);
     this.container.add(this.bonusProgressText);
 
-    // Bonus earned - shows "35" only when earned
-    this.bonusText = createText(this.scene, colX + colWidth - 8, y + height / 2, '', {
-      fontSize: this.scoreFontSize,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_SUCCESS,
-      fontStyle: 'bold',
-    });
-    this.bonusText.setOrigin(1, 0.5);
-    this.container.add(this.bonusText);
-
-    return y + height;
-  }
-
-  /** Add total row for two-column layout */
-  private addTotalRowTwoCol(y: number, colX: number, colWidth: number): number {
-    const height = this.totalRowHeight;
-
-    const divider = this.scene.add.rectangle(colX, y, colWidth, 1, PALETTE.green[500], 0.6);
-    divider.setOrigin(0, 0);
-    this.container.add(divider);
-
-    const labelText = createText(this.scene, colX + 8, y + height / 2, 'TOTAL', {
-      fontSize: FONTS.SIZE_LABEL,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_SUCCESS,
-      fontStyle: 'bold',
-    });
-    labelText.setOrigin(0, 0.5);
-    this.container.add(labelText);
-
-    // Right side: combined "0/250" display
-    const rightEdge = colX + colWidth - 8;
-
-    this.totalText = createText(this.scene, rightEdge, y + height / 2, `0/${this.passThreshold}`, {
-      fontSize: FONTS.SIZE_BODY_SM,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_SUCCESS,
-      fontStyle: 'bold',
-    });
-    this.totalText.setOrigin(1, 0.5);
-    this.container.add(this.totalText);
-
-    return y + height;
-  }
-
-  /** Get row color based on section and parity */
-  private getRowColor(section: 'upper' | 'lower' | 'special', isEven: boolean): number {
-    if (section === 'special') {
-      return isEven ? PANEL_COLORS.specialRowEven : PANEL_COLORS.specialRowOdd;
-    } else if (section === 'upper') {
-      return isEven ? PANEL_COLORS.upperRowEven : PANEL_COLORS.upperRowOdd;
-    }
-    return isEven ? PANEL_COLORS.lowerRowEven : PANEL_COLORS.lowerRowOdd;
-  }
-
-  /** Get short category name for 2-column display */
-  private getShortCategoryName(id: CategoryId): string {
-    const shortNames: Record<string, string> = {
-      ones: '1s',
-      twos: '2s',
-      threes: '3s',
-      fours: '4s',
-      fives: '5s',
-      sixes: '6s',
-      threeOfAKind: '3 of Kind',
-      fourOfAKind: '4 of Kind',
-      fullHouse: 'Full House',
-      smallStraight: 'Sm Straight',
-      largeStraight: 'Lg Straight',
-      fiveDice: '5 Dice!',
-      chance: 'Chance',
-      // Special categories (Blessing of Expansion)
-      twoPair: 'Two Pair',
-      allOdd: 'All Odd',
-      allEven: 'All Even',
-      allHigh: 'All High',
-    };
-    return shortNames[id] || id;
-  }
-
-  /** Build single-column layout (original desktop layout) */
-  private buildSingleColumnContent(width: number, _height: number): void {
-    const contentPadding = 6;
-    const contentX = contentPadding;
-    const contentWidth = width - contentPadding * 2;
-
-    // Title area (no background)
-    const titleHeight = this.isCompact ? 24 : 28;
-
-    // Title with glow
-    const titleFontSize = this.isCompact ? FONTS.SIZE_LABEL : FONTS.SIZE_BODY;
-    const titleY = contentPadding + titleHeight / 2;
-
-    const titleGlow = createText(this.scene,width / 2, titleY, 'SCORECARD', {
-      fontSize: titleFontSize,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_ACCENT,
-      fontStyle: 'bold',
-    });
-    titleGlow.setOrigin(0.5, 0.5);
-    titleGlow.setAlpha(0.3);
-    titleGlow.setBlendMode(Phaser.BlendModes.ADD);
-    this.container.add(titleGlow);
-
-    const title = createText(this.scene,width / 2, titleY, 'SCORECARD', {
-      fontSize: titleFontSize,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_ACCENT,
-      fontStyle: 'bold',
-    });
-    title.setOrigin(0.5, 0.5);
-    this.container.add(title);
-
-    // Store content bounds for row methods
-    this.contentBounds = { x: contentX, width: contentWidth };
-
-    let y = contentPadding + titleHeight + 2;
-
-    // Upper section
-    y = this.addSectionHeader('UPPER SECTION', y, 'upper');
-    const upperCategories = this.scorecard.getUpperSection();
-    for (let i = 0; i < upperCategories.length; i++) {
-      y = this.addCategoryRow(upperCategories[i], y, i % 2 === 0, 'upper');
-    }
-
-    // Upper bonus (tracks 63-point threshold)
-    y = this.addBonusRow(y);
-
-    // Divider
-    y += 2;
-    const divider = this.scene.add.rectangle(contentX, y, contentWidth, 1, PALETTE.neutral[500], 0.4);
-    divider.setOrigin(0, 0);
-    this.container.add(divider);
-    y += 3;
-
-    // Lower section
-    y = this.addSectionHeader('LOWER SECTION', y, 'lower');
-    const lowerCategories = this.scorecard.getLowerSection();
-    for (let i = 0; i < lowerCategories.length; i++) {
-      y = this.addCategoryRow(lowerCategories[i], y, i % 2 === 0, 'lower');
-    }
-
-    // Special section (Blessing of Expansion) - normal rows like other sections
-    if (this.scorecard.isSpecialSectionEnabled()) {
-      y += 2;
-      const divider2 = this.scene.add.rectangle(contentX, y, contentWidth, 1, PALETTE.gold[500], 0.5);
-      divider2.setOrigin(0, 0);
-      this.container.add(divider2);
-      y += 3;
-
-      y = this.addExpansionHeader(y, contentX, contentWidth);
-      const specialCategories = this.scorecard.getSpecialSection();
-      for (let i = 0; i < specialCategories.length; i++) {
-        y = this.addCategoryRow(specialCategories[i], y, i % 2 === 0, 'special');
-      }
-    }
-
-    // Grand total
-    this.addTotalRow(y);
-  }
-
-  private addSectionHeader(text: string, y: number, section: 'upper' | 'lower' | 'special'): number {
-    const { x: cx } = this.contentBounds;
-    const height = this.headerHeight;
-    const borderColor = section === 'special' ? PANEL_COLORS.specialBorder
-      : section === 'upper' ? PANEL_COLORS.upperBorder : PANEL_COLORS.lowerBorder;
-    const textColor = section === 'special' ? COLORS.TEXT_WARNING : COLORS.TEXT_ACCENT;
-
-    // Left accent bar only (no background)
-    const accent = this.scene.add.rectangle(cx, y, 4, height, borderColor);
-    accent.setOrigin(0, 0);
-    this.container.add(accent);
-
-    const headerText = createText(this.scene,cx + 16, y + height / 2, text, {
-      fontSize: this.smallFontSize,
-      fontFamily: FONTS.FAMILY,
-      color: textColor,
-      fontStyle: 'bold',
-    });
-    headerText.setOrigin(0, 0.5);
-    this.container.add(headerText);
-
-    return y + height;
-  }
-
-  /** Expansion section header with helper text: "EXPANSION | Fill 13 of 17" */
-  private addExpansionHeader(y: number, x: number, width: number): number {
-    const height = this.headerHeight;
-
-    // Left accent bar
-    const accent = this.scene.add.rectangle(x, y, 4, height, PANEL_COLORS.specialBorder);
-    accent.setOrigin(0, 0);
-    this.container.add(accent);
-
-    // "EXPANSION" on left
-    const headerText = createText(this.scene,x + 12, y + height / 2, 'EXPANSION', {
-      fontSize: this.smallFontSize,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_WARNING,
-      fontStyle: 'bold',
-    });
-    headerText.setOrigin(0, 0.5);
-    this.container.add(headerText);
-
-    // "X/13 Scored" helper text on right (updates dynamically)
-    this.expansionProgressText = createText(this.scene,x + width - 8, y + height / 2, '0/13 Scored', {
-      fontSize: this.smallFontSize,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_WARNING,
-      fontStyle: 'bold',
-    });
-    this.expansionProgressText.setOrigin(1, 0.5);
-    this.container.add(this.expansionProgressText);
-
-    return y + height;
-  }
-
-  private addCategoryRow(
-    category: Category,
-    y: number,
-    isEven: boolean,
-    section: 'upper' | 'lower' | 'special'
-  ): number {
-    const { x: cx, width: cw } = this.contentBounds;
-    const width = this.config.width!;
-    const height = this.rowHeight;
-    const rowColor =
-      section === 'special'
-        ? isEven
-          ? PANEL_COLORS.specialRowEven
-          : PANEL_COLORS.specialRowOdd
-        : section === 'upper'
-          ? isEven
-            ? PANEL_COLORS.upperRowEven
-            : PANEL_COLORS.upperRowOdd
-          : isEven
-            ? PANEL_COLORS.lowerRowEven
-            : PANEL_COLORS.lowerRowOdd;
-
-    // Background
-    const background = this.scene.add.rectangle(cx, y, cw, height, rowColor);
-    background.setOrigin(0, 0);
-    this.container.add(background);
-
-    // Category name
-    const nameText = createText(this.scene,cx + 14, y + height / 2, category.name, {
-      fontSize: this.fontSize,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_PRIMARY,
-    });
-    nameText.setOrigin(0, 0.5);
-    this.container.add(nameText);
-
-    // Potential score
-    const potentialText = createText(this.scene,width - cx - 85, y + height / 2, '', {
-      fontSize: this.fontSize,
-      fontFamily: FONTS.FAMILY,
-      color: PANEL_COLORS.textPotential,
-    });
-    potentialText.setOrigin(0.5, 0.5);
-    this.container.add(potentialText);
-
-    // Lock icon (shown when category is locked)
-    const lockIcon = this.createLockIcon(width - cx - 85, y + height / 2, PALETTE.red[400]);
-    this.container.add(lockIcon);
-
-    // Actual score
-    const scoreText = createText(this.scene,width - cx - 32, y + height / 2, '', {
-      fontSize: this.scoreFontSize,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_PRIMARY,
-      fontStyle: 'bold',
-    });
-    scoreText.setOrigin(0.5, 0.5);
-    this.container.add(scoreText);
-
-    // Hit area for interaction (transparent)
-    const hitArea = this.scene.add.rectangle(cx, y, cw, height, COLORS.HIGHLIGHT, 0);
-    hitArea.setOrigin(0, 0);
-    hitArea.setInteractive({ useHandCursor: true });
-    this.container.add(hitArea);
-
-    // Hover effects
-    hitArea.on('pointerover', () => {
-      if (this.scorecard.isAvailable(category.id)) {
-        // Bring row elements to top so border isn't hidden by next row
-        this.container.bringToTop(background);
-        this.container.bringToTop(nameText);
-        this.container.bringToTop(potentialText);
-        this.container.bringToTop(scoreText);
-        this.container.bringToTop(hitArea);
-
-        // In gauntlet mode, keep the green styling
-        if (this.isGauntletMode) {
-          background.setFillStyle(PALETTE.green[700]); // Brighter green on hover
-          background.setStrokeStyle(2, PALETTE.green[400]);
-          nameText.setColor(COLORS.TEXT_SUCCESS); // Keep green text
-        } else {
-          background.setFillStyle(PANEL_COLORS.rowHover);
-          background.setStrokeStyle(2, PALETTE.green[500]);
-          nameText.setColor(COLORS.TEXT_PRIMARY);
-        }
-        potentialText.setFontStyle('bold');
-        this.events.emit('ui:categoryHover', { categoryId: category.id });
-      }
-    });
-
-    hitArea.on('pointerout', () => {
-      const cat = this.scorecard.getCategory(category.id);
-      potentialText.setFontStyle('normal');
-
-      if (cat && cat.score !== null) {
-        background.setFillStyle(PANEL_COLORS.rowFilled);
-        background.setStrokeStyle(0);
-        nameText.setColor(COLORS.TEXT_SECONDARY);
-      } else if (this.isGauntletMode && this.scorecard.isAvailable(category.id)) {
-        // Restore gauntlet mode green styling
-        background.setFillStyle(PALETTE.green[900]);
-        background.setStrokeStyle(2, PALETTE.green[500], 0.8);
-        nameText.setColor(COLORS.TEXT_SUCCESS);
-      } else {
-        background.setFillStyle(rowColor);
-        background.setStrokeStyle(0);
-        nameText.setColor(COLORS.TEXT_PRIMARY);
-      }
-      this.events.emit('ui:categoryHover', { categoryId: null });
-    });
-
-    // Click to score
-    hitArea.on('pointerdown', () => {
-      if (this.isInputLocked) return; // Prevent multi-click exploit
-      if (this.scorecard.isAvailable(category.id)) {
-        this.lockInput(); // Lock immediately on selection
-        this.events.emit('score:category', { categoryId: category.id, dice: this.currentDice });
-      }
-    });
-
-    // Store row reference
-    this.categoryRows.set(category.id, {
-      id: category.id,
-      nameText,
-      scoreText,
-      potentialText,
-      lockIcon,
-      background,
-      hitArea,
-      rowColor,
-    });
-
-    return y + height;
-  }
-
-  private addBonusRow(y: number): number {
-    const { x: cx, width: cw } = this.contentBounds;
-    const width = this.config.width!;
-    const height = this.rowHeight;
-
-    // Background - subtle gold tint
-    const background = this.scene.add.rectangle(cx, y, cw, height, PALETTE.gold[900], 0.4);
-    background.setOrigin(0, 0);
-    this.container.add(background);
-
-    // Label: "Bonus" with threshold hint
-    const labelText = createText(this.scene,cx + 14, y + height / 2, 'Bonus (≥63 = +35)', {
-      fontSize: this.fontSize,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_WARNING,
-    });
-    labelText.setOrigin(0, 0.5);
-    this.container.add(labelText);
-
-    // Progress: "12/63" style, positioned like potential score
-    this.bonusProgressText = createText(this.scene,width - cx - 85, y + height / 2, '0/63', {
-      fontSize: this.fontSize,
+    // Bonus earned text
+    const bonusX = isTwoCol
+      ? row.x + row.width - 12
+      : this.layoutConfig.width - row.x - 32;
+    this.bonusText = createText(this.scene, bonusX, row.y + row.height / 2, '+0', {
+      fontSize: this.layoutConfig.scoreFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_MUTED,
-    });
-    this.bonusProgressText.setOrigin(0.5, 0.5);
-    this.container.add(this.bonusProgressText);
-
-    // Bonus earned: positioned like score column
-    this.bonusText = createText(this.scene,width - cx - 32, y + height / 2, '', {
-      fontSize: this.scoreFontSize,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_SUCCESS,
       fontStyle: 'bold',
     });
-    this.bonusText.setOrigin(0.5, 0.5);
+    this.bonusText.setOrigin(isTwoCol ? 1 : 0.5, 0.5);
     this.container.add(this.bonusText);
-
-    return y + height;
   }
 
-  private addTotalRow(y: number): number {
-    const { x: cx, width: cw } = this.contentBounds;
-    const height = this.totalRowHeight;
+  /** Render total row */
+  private renderTotalRow(row: RowLayout, isTwoCol: boolean): void {
+    // Divider line above (for single-column)
+    if (!isTwoCol) {
+      const divider = this.scene.add.rectangle(row.x, row.y - 1, row.width, 1, PALETTE.purple[500], 0.5);
+      divider.setOrigin(0, 0);
+      this.container.add(divider);
+    }
 
-    // Simple line above total
-    const divider = this.scene.add.rectangle(cx, y, cw, 1, PALETTE.green[500], 0.6);
-    divider.setOrigin(0, 0);
-    this.container.add(divider);
+    const background = this.scene.add.rectangle(row.x, row.y, row.width, row.height, PALETTE.purple[700], 0.4);
+    background.setOrigin(0, 0);
+    this.container.add(background);
 
-    const labelText = createText(this.scene, cx + 14, y + height / 2, 'TOTAL', {
-      fontSize: this.isCompact ? FONTS.SIZE_TINY : FONTS.SIZE_SMALL,
+    // Total label with threshold
+    const labelX = row.x + (isTwoCol ? 6 : 14);
+    const thresholdLabel = createText(this.scene, labelX, row.y + row.height / 2, `TOTAL (${this.passThreshold}+ to pass)`, {
+      fontSize: this.layoutConfig.smallFontSize,
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TEXT_SECONDARY,
+    });
+    thresholdLabel.setOrigin(0, 0.5);
+    this.container.add(thresholdLabel);
+
+    // Progress text for gauntlet (X/13)
+    if (this.stateManager.getGauntletMode()) {
+      this.categoryProgressText = createText(this.scene, row.x + row.width / 2, row.y + row.height / 2, '0/13', {
+        fontSize: this.layoutConfig.smallFontSize,
+        fontFamily: FONTS.FAMILY,
+        color: COLORS.TEXT_SECONDARY,
+      });
+      this.categoryProgressText.setOrigin(0.5, 0.5);
+      this.container.add(this.categoryProgressText);
+    }
+
+    // Total score
+    const totalX = isTwoCol
+      ? row.x + row.width - 12
+      : this.layoutConfig.width - row.x - 32;
+    this.totalText = createText(this.scene, totalX, row.y + row.height / 2, '0', {
+      fontSize: this.layoutConfig.scoreFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SUCCESS,
       fontStyle: 'bold',
     });
-    labelText.setOrigin(0, 0.5);
-    this.container.add(labelText);
-
-    // Threshold indicator (e.g., "/ 250")
-    const thresholdText = createText(this.scene, cx + cw - 60, y + height / 2, `/ ${this.passThreshold}`, {
-      fontSize: this.isCompact ? FONTS.SIZE_TINY : FONTS.SIZE_SMALL,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_WARNING,
-    });
-    thresholdText.setOrigin(0, 0.5);
-    this.container.add(thresholdText);
-
-    // Total score (left of threshold)
-    this.totalText = createText(this.scene, cx + cw - 65, y + height / 2, '0', {
-      fontSize: this.isCompact ? FONTS.SIZE_SMALL : FONTS.SIZE_BUTTON,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_SUCCESS,
-      fontStyle: 'bold',
-    });
-    this.totalText.setOrigin(1, 0.5);
+    this.totalText.setOrigin(isTwoCol ? 1 : 0.5, 0.5);
     this.container.add(this.totalText);
+  }
 
-    return y + height;
+  /** Get row color based on section and isEven flag from RowLayout */
+  private getRowColorFromLayout(row: RowLayout): number {
+    const colors = {
+      upper: { even: PANEL_COLORS.upperRowEven, odd: PANEL_COLORS.upperRowOdd },
+      lower: { even: PANEL_COLORS.lowerRowEven, odd: PANEL_COLORS.lowerRowOdd },
+      special: { even: PANEL_COLORS.specialRowEven, odd: PANEL_COLORS.specialRowOdd },
+    };
+    const section = row.section as 'upper' | 'lower' | 'special';
+    return row.isEven ? colors[section].even : colors[section].odd;
+  }
+
+  /** Get short category name for compact display */
+  private getShortCategoryName(id: CategoryId): string {
+    const shortNames: Record<string, string> = {
+      ones: '1s', twos: '2s', threes: '3s', fours: '4s', fives: '5s', sixes: '6s',
+      threeOfAKind: '3 of Kind', fourOfAKind: '4 of Kind', fullHouse: 'Full House',
+      smallStraight: 'Sm Straight', largeStraight: 'Lg Straight', fiveDice: '5 Dice!',
+      chance: 'Chance', twoPair: 'Two Pair', allOdd: 'All Odd', allEven: 'All Even', allHigh: 'All High',
+    };
+    return shortNames[id] || id;
   }
 
   // ===========================================================================
@@ -1140,7 +849,7 @@ export class ScorecardPanel {
    * Update dice values
    */
   setDice(dice: number[]): void {
-    this.currentDice = [...dice];
+    this.stateManager.setDice(dice);
     this.updateDisplay();
   }
 
@@ -1153,7 +862,7 @@ export class ScorecardPanel {
       const cat = this.scorecard.getCategory(id);
       if (!cat) continue;
 
-      const isLocked = this.lockedCategories.has(id);
+      const isLocked = this.stateManager.isLocked(id);
 
       if (cat.score !== null) {
         // Category already scored
@@ -1175,7 +884,7 @@ export class ScorecardPanel {
         row.nameText.setColor(COLORS.TEXT_DISABLED);
       } else {
         // Category available
-        const potential = this.scorecard.calculatePotential(id, this.currentDice);
+        const potential = this.scorecard.calculatePotential(id, this.stateManager.getDice());
         row.scoreText.setText('');
         row.potentialText.setText(potential > 0 ? `+${potential}` : '0');
         row.potentialText.setColor(potential > 0 ? PANEL_COLORS.textPotential : COLORS.TEXT_MUTED);
@@ -1187,7 +896,7 @@ export class ScorecardPanel {
         row.background.setStrokeStyle(0);
 
         // Gauntlet mode: highlight available categories in green with pulse
-        if (this.isGauntletMode) {
+        if (this.stateManager.getGauntletMode()) {
           row.nameText.setColor(COLORS.TEXT_SUCCESS);
           row.background.setFillStyle(PALETTE.green[900]);
           row.background.setStrokeStyle(2, PALETTE.green[500], 0.8);
@@ -1197,12 +906,12 @@ export class ScorecardPanel {
     }
 
     // Gauntlet mode: Manage pulse tweens for available categories
-    if (this.isGauntletMode) {
+    if (this.stateManager.getGauntletMode()) {
       // Build set of currently available category IDs
       const availableIds = new Set<CategoryId>();
       for (const [id] of this.categoryRows) {
         const cat = this.scorecard.getCategory(id);
-        const isLocked = this.lockedCategories.has(id);
+        const isLocked = this.stateManager.isLocked(id);
         if (cat && cat.score === null && !isLocked) {
           availableIds.add(id);
         }
@@ -1306,11 +1015,10 @@ export class ScorecardPanel {
    */
   reset(): void {
     this.scorecard.reset();
-    this.lockedCategories.clear();
+    this.stateManager.reset(); // Resets dice, locked categories, gauntlet mode, input, etc.
     // Stop gauntlet pulse tweens
     this.gauntletPulseTweens.forEach(tween => tween.stop());
     this.gauntletPulseTweens.clear();
-    this.isGauntletMode = false;
 
     for (const [, row] of this.categoryRows) {
       row.hitArea.setInteractive({ useHandCursor: true });
@@ -1326,7 +1034,7 @@ export class ScorecardPanel {
    * Enable/disable gauntlet mode (Mode 4 - limited categories with pulsing)
    */
   setGauntletMode(enabled: boolean): void {
-    this.isGauntletMode = enabled;
+    this.stateManager.setGauntletMode(enabled);
     if (!enabled) {
       this.gauntletPulseTweens.forEach(tween => tween.stop());
       this.gauntletPulseTweens.clear();
@@ -1341,7 +1049,7 @@ export class ScorecardPanel {
    * Set which categories are locked (Modes 3 & 4)
    */
   setLockedCategories(locked: Set<CategoryId>): void {
-    this.lockedCategories = new Set(locked);
+    this.stateManager.setLockedCategories(locked);
     this.updateDisplay();
 
     // Animate the category rows that just got locked
@@ -1370,7 +1078,7 @@ export class ScorecardPanel {
    * Check if a category is locked
    */
   isCategoryLocked(categoryId: CategoryId): boolean {
-    return this.lockedCategories.has(categoryId);
+    return this.stateManager.isLocked(categoryId);
   }
 
   /**
@@ -1381,18 +1089,31 @@ export class ScorecardPanel {
   }
 
   /**
+   * Get the bounding box of the scorecard panel
+   */
+  getBounds(): { x: number; y: number; width: number; height: number } {
+    // Use layoutConfig dimensions (computed from modular layout calculator)
+    return {
+      x: this.config.x,
+      y: this.config.y,
+      width: this.layoutConfig.width,
+      height: this.layoutConfig.height,
+    };
+  }
+
+  /**
    * Lock input to prevent multi-click exploit after scoring
    * Call this immediately after a category is selected
    */
   lockInput(): void {
-    this.isInputLocked = true;
+    this.stateManager.lockInput();
   }
 
   /**
    * Unlock input after dice are rolled
    */
   unlockInput(): void {
-    this.isInputLocked = false;
+    this.stateManager.unlockInput();
   }
 
   /**
@@ -1402,6 +1123,81 @@ export class ScorecardPanel {
     for (const row of this.categoryRows.values()) {
       row.hitArea.disableInteractive();
     }
+  }
+
+  // ===========================================================================
+  // TUTORIAL MODE CONTROLS
+  // ===========================================================================
+
+  /**
+   * Set which categories can be clicked (null = all available)
+   * Used by tutorial to restrict selection to specific categories
+   */
+  setAllowedCategories(categories: CategoryId[] | null): void {
+    this.stateManager.setAllowedCategories(categories);
+  }
+
+  /**
+   * Enable/disable hover visual effects
+   * Used by tutorial to prevent distracting hover states
+   */
+  setHoverEnabled(enabled: boolean): void {
+    this.stateManager.setHoverEnabled(enabled);
+  }
+
+  /**
+   * Highlight a specific category (cleanup only - TutorialOverlay handles the visual)
+   */
+  highlightCategory(_categoryId: CategoryId | null): void {
+    // Clear existing highlight
+    if (this.highlightPulseTween) {
+      this.highlightPulseTween.stop();
+      this.highlightPulseTween = null;
+    }
+    if (this.highlightGraphics) {
+      this.highlightGraphics.destroy();
+      this.highlightGraphics = null;
+    }
+    // Visual highlight is now handled by TutorialOverlay
+  }
+
+  /**
+   * Get the bounds of a specific category row for tutorial highlighting
+   */
+  getCategoryBounds(categoryId: CategoryId): Bounds | null {
+    const row = this.categoryRows.get(categoryId);
+    if (!row) return null;
+
+    // Get the background rectangle bounds
+    const bg = row.background;
+    return {
+      x: this.config.x + bg.x,
+      y: this.config.y + bg.y,
+      width: bg.width,
+      height: bg.height,
+    };
+  }
+
+  // ===========================================================================
+  // TUTORIAL INTERFACE METHODS
+  // ===========================================================================
+
+  /**
+   * Set tutorial mode restrictions (implements TutorialControllableScorecard)
+   */
+  setTutorialMode(actions: ScorecardAllowedActions): void {
+    this.setAllowedCategories(actions.allowedCategories);
+    this.setHoverEnabled(actions.hoverEnabled);
+    this.highlightCategory(actions.highlightCategory);
+  }
+
+  /**
+   * Reset all tutorial mode restrictions (implements TutorialControllableScorecard)
+   */
+  resetTutorialMode(): void {
+    this.setAllowedCategories(null);
+    this.setHoverEnabled(true);
+    this.highlightCategory(null);
   }
 
   /**
@@ -1420,6 +1216,16 @@ export class ScorecardPanel {
       if (tween.isPlaying()) tween.stop();
     });
     this.flashTweens = [];
+
+    // Clean up tutorial highlight
+    if (this.highlightPulseTween) {
+      this.highlightPulseTween.stop();
+      this.highlightPulseTween = null;
+    }
+    if (this.highlightGraphics) {
+      this.highlightGraphics.destroy();
+      this.highlightGraphics = null;
+    }
 
     this.container.destroy();
   }

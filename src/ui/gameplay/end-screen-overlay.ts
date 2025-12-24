@@ -44,8 +44,9 @@ export class EndScreenOverlay {
     const metrics = getViewportMetrics(scene);
     this.isMobile = metrics.isMobile;
 
-    // Dark overlay
+    // Dark overlay - blocks clicks to elements behind (like pause button)
     this.overlay = this.scene.add.rectangle(width / 2, height / 2, width, height, PALETTE.purple[900], 0.95);
+    this.overlay.setInteractive();
     this.overlay.setDepth(100);
 
     // Panel dimensions - responsive for mobile

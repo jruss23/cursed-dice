@@ -35,7 +35,6 @@ import { DiceManager } from '@/systems/dice-manager';
 import { AudioManager } from '@/systems/audio-manager';
 import { ScorecardPanel } from '@/ui/scorecard-panel';
 import {
-  getGameProgression,
   resetGameProgression,
   PASS_THRESHOLD,
   GAUNTLET_LOCKED_THRESHOLD,
@@ -48,10 +47,12 @@ import {
   type BlessingManager,
 } from '@/systems/blessings';
 import { createLogger } from '@/systems/logger';
-import { getSaveManager } from '@/systems/save-manager';
 import { InputManager } from '@/systems/input-manager';
 import { getModeMechanics, type ModeMechanicsManager } from '@/systems/mode-mechanics';
 import { BlessingChoicePanel } from '@/ui/blessing-choice-panel';
+import { GameStateMachine } from '@/systems/state-machine';
+import { Services, getProgression, getSave } from '@/systems/services';
+import { CommandInvoker, ScoreCategoryCommand } from '@/systems/commands';
 
 const log = createLogger('GameplayScene');
 import { PauseMenu } from '@/ui/pause-menu';
@@ -69,6 +70,8 @@ export class GameplayScene extends Phaser.Scene {
   private diceManager!: DiceManager;
   private audioManager: AudioManager | null = null;
   private blessingManager!: BlessingManager;
+  private stateMachine!: GameStateMachine;
+  private commandInvoker!: CommandInvoker;
 
   // UI components
   private scorecardPanel: ScorecardPanel | null = null;
@@ -93,8 +96,6 @@ export class GameplayScene extends Phaser.Scene {
 
   // Pause state
   private pauseMenu: PauseMenu | null = null;
-  private isPaused: boolean = false;
-  private isTransitioning: boolean = false; // Prevent actions during scene transitions
 
   // Input handling
   private inputManager: InputManager | null = null;
@@ -121,7 +122,7 @@ export class GameplayScene extends Phaser.Scene {
 
   init(data: { difficulty?: Difficulty }): void {
     // Get current mode from progression system
-    const progression = getGameProgression();
+    const progression = getProgression();
     this.currentMode = progression.getCurrentMode();
     this.modeConfig = progression.getCurrentModeConfig();
 
@@ -132,10 +133,14 @@ export class GameplayScene extends Phaser.Scene {
     this.timeRemaining = DIFFICULTIES[this.difficulty].timeMs;
     this.warningsPlayed = new Set();
 
-    // Reset pause/transition state
-    this.isPaused = false;
-    this.isTransitioning = false;
+    // Reset timer pulse tween
     this.timerPulseTween = null;
+
+    // Create state machine
+    this.stateMachine = new GameStateMachine();
+
+    // Create command invoker for undo support
+    this.commandInvoker = new CommandInvoker();
 
     // Create fresh instances for this game session
     this.scorecard = createScorecard();
@@ -178,6 +183,12 @@ export class GameplayScene extends Phaser.Scene {
     // Setup event listeners
     this.setupEventListeners();
 
+    // Setup state machine callbacks
+    this.setupStateMachine();
+
+    // Register services for dependency injection
+    this.registerServices();
+
     // Setup audio
     this.setupAudio();
 
@@ -189,6 +200,60 @@ export class GameplayScene extends Phaser.Scene {
 
     // Start the game
     this.startGame();
+  }
+
+  /**
+   * Setup state machine callbacks
+   */
+  private setupStateMachine(): void {
+    // Pause state
+    this.stateMachine.onEnter('paused', () => {
+      if (this.timerEvent) this.timerEvent.paused = true;
+      this.audioManager?.pause();
+      this.diceManager?.setEnabled(false);
+      this.pauseMenu?.show();
+    });
+
+    this.stateMachine.onExit('paused', () => {
+      if (this.timerEvent) this.timerEvent.paused = false;
+      this.audioManager?.resume();
+      this.diceManager?.setEnabled(true);
+      this.pauseMenu?.hide();
+    });
+
+    // Rolling state
+    this.stateMachine.onEnter('rolling', () => {
+      this.diceManager?.setEnabled(false); // Can't click dice during roll
+    });
+
+    this.stateMachine.onExit('rolling', () => {
+      this.diceManager?.setEnabled(true);
+    });
+
+    // Game over state
+    this.stateMachine.onEnter('game-over', () => {
+      this.diceManager?.setEnabled(false);
+      this.scorecardPanel?.disableInteractivity();
+      if (this.timerEvent) {
+        this.timerEvent.destroy();
+        this.timerEvent = null;
+      }
+    });
+
+    // Mode transition state
+    this.stateMachine.onEnter('mode-transition', () => {
+      this.audioManager?.stop();
+    });
+  }
+
+  /**
+   * Register services for dependency injection
+   */
+  private registerServices(): void {
+    Services.register('scorecard', this.scorecard);
+    Services.register('events', this.gameEvents);
+    Services.register('stateMachine', this.stateMachine);
+    Services.register('commandInvoker', this.commandInvoker);
   }
 
   private initialAspectRatio: number = 1;
@@ -249,7 +314,7 @@ export class GameplayScene extends Phaser.Scene {
 
   private buildUI(): void {
     const { width, height } = this.cameras.main;
-    const progression = getGameProgression();
+    const progression = getProgression();
 
     // Fade in
     this.cameras.main.fadeIn(SIZES.FADE_DURATION_MS, 0, 0, 0);
@@ -500,15 +565,15 @@ export class GameplayScene extends Phaser.Scene {
 
     // Bind game actions
     this.inputManager.bind('roll', () => {
-      if (!this.isPaused && !this.isTransitioning) {
+      if (this.stateMachine.isPlayable()) {
         this.diceManager?.roll(false);
       }
     });
 
     this.inputManager.bind('pause', () => {
-      if (this.isPaused) {
+      if (this.stateMachine.is('paused')) {
         this.resumeGame();
-      } else {
+      } else if (this.stateMachine.isPlayable()) {
         this.pauseGame();
       }
     });
@@ -549,6 +614,7 @@ export class GameplayScene extends Phaser.Scene {
     // Create DiceManager and render its UI
     // DiceManager.createUI creates: dice, helper text, rerolls text, roll button
     this.diceManager = new DiceManager(this, this.gameEvents);
+    Services.register('diceManager', this.diceManager);
 
     // If sixth blessing is chosen, enable the blessing slot in controls panel
     const hasSixthBlessing = this.blessingManager.getChosenBlessingId() === 'sixth';
@@ -646,12 +712,17 @@ export class GameplayScene extends Phaser.Scene {
     // Initialize mode-specific mechanics
     this.initializeModeMechanics();
 
+    // Transition to rolling state
+    this.stateMachine.transition('rolling');
+
     // Initial roll
     this.diceManager.roll(true);
 
     // Apply mode mechanics after initial roll (e.g., curse die for Mode 2)
     this.time.delayedCall(SIZES.ROLL_DURATION_MS + 100, () => {
       this.modeMechanics.onAfterInitialRoll(this.diceManager);
+      // Transition to selecting state after roll completes
+      this.stateMachine.transition('selecting');
     });
 
     // Start timer
@@ -803,10 +874,17 @@ export class GameplayScene extends Phaser.Scene {
       return;
     }
 
-    const points = this.scorecard.score(categoryId, dice);
-    if (points < 0) return; // Category already filled
+    // Use command pattern for scoring (enables undo)
+    const command = new ScoreCategoryCommand({
+      scorecard: this.scorecard,
+      categoryId,
+      dice,
+    });
 
-    log.log(`Scored ${points} in ${categoryId}`);
+    const points = this.commandInvoker.executeWithResult(command);
+    if (points === null || points < 0) return; // Command failed or category already filled
+
+    log.log(`Scored ${points} in ${categoryId} (history: ${this.commandInvoker.getHistorySize()})`);
 
     // Deactivate Sixth Blessing if it was active (after scoring, not after rolling)
     if (this.diceManager.isSixthDieActive()) {
@@ -954,14 +1032,8 @@ export class GameplayScene extends Phaser.Scene {
   // ===========================================================================
 
   private endGame(completed: boolean): void {
-    // Disable all game interactions
-    this.diceManager.setEnabled(false);
-    this.scorecardPanel?.disableInteractivity();
-
-    if (this.timerEvent) {
-      this.timerEvent.destroy();
-      this.timerEvent = null;
-    }
+    // Transition to game-over state (callbacks handle disabling interactions)
+    this.stateMachine.transition('game-over');
 
     if (this.audioManager) {
       this.audioManager.fadeOut(500);
@@ -976,7 +1048,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private showEndScreen(completed: boolean): void {
-    const progression = getGameProgression();
+    const progression = getProgression();
     const modeScore = this.scorecard.getTotal();
 
     // Complete the mode in the progression system
@@ -985,7 +1057,7 @@ export class GameplayScene extends Phaser.Scene {
     const totalScore = progression.getTotalScore();
 
     // Save high scores
-    const saveManager = getSaveManager();
+    const saveManager = getSave();
     const isNewHighScore = saveManager.recordModeScore(this.difficulty, modeScore);
     let isNewBestRun = false;
     if (isRunComplete) {
@@ -1043,16 +1115,12 @@ export class GameplayScene extends Phaser.Scene {
    */
   private startNextMode(skipFade = false): void {
     // Prevent double-transitions
-    if (this.isTransitioning) {
+    if (this.stateMachine.is('mode-transition')) {
       log.debug('startNextMode blocked: already transitioning');
       return;
     }
-    this.isTransitioning = true;
+    this.stateMachine.transition('mode-transition');
     log.log('Starting transition to next mode');
-
-    if (this.audioManager) {
-      this.audioManager.stop();
-    }
 
     if (this.timerEvent) {
       this.timerEvent.destroy();
@@ -1095,75 +1163,38 @@ export class GameplayScene extends Phaser.Scene {
   // ===========================================================================
 
   private pauseGame(): void {
-    if (this.isPaused) {
-      log.debug('pauseGame blocked: already paused');
-      return;
+    // Use state machine - callbacks handle the actual pause logic
+    const previousState = this.stateMachine.getState();
+    if (this.stateMachine.transition('paused')) {
+      log.log(`Game paused (was: ${previousState})`);
     }
-    if (this.isTransitioning) {
-      log.debug('pauseGame blocked: scene transitioning');
-      return;
-    }
-    this.isPaused = true;
-    log.log('Game paused');
-
-    // Pause timer
-    if (this.timerEvent) {
-      this.timerEvent.paused = true;
-    }
-
-    // Pause audio
-    if (this.audioManager) {
-      this.audioManager.pause();
-    }
-
-    // Disable dice interaction
-    this.diceManager.setEnabled(false);
-
-    // Show pause menu
-    this.pauseMenu?.show();
   }
 
   private resumeGame(): void {
-    if (!this.isPaused) {
+    if (!this.stateMachine.is('paused')) {
       log.debug('resumeGame blocked: not paused');
       return;
     }
-    this.isPaused = false;
-    log.log('Game resumed');
 
-    // Resume timer
-    if (this.timerEvent) {
-      this.timerEvent.paused = false;
+    // Resume to previous state
+    const previousState = this.stateMachine.getPreviousState();
+    if (this.stateMachine.transition(previousState)) {
+      log.log(`Game resumed to: ${previousState}`);
     }
-
-    // Resume audio
-    if (this.audioManager) {
-      this.audioManager.resume();
-    }
-
-    // Re-enable dice interaction
-    this.diceManager.setEnabled(true);
-
-    // Hide pause menu
-    this.pauseMenu?.hide();
   }
 
   private returnToMenu(): void {
     // Prevent double-transitions
-    if (this.isTransitioning) {
+    if (this.stateMachine.is('mode-transition')) {
       log.debug('returnToMenu blocked: already transitioning');
       return;
     }
-    this.isTransitioning = true;
+    this.stateMachine.transition('mode-transition');
     log.log('Returning to menu');
 
     // Hide pause menu if visible
     if (this.pauseMenu?.isVisible()) {
       this.pauseMenu.hide();
-    }
-
-    if (this.audioManager) {
-      this.audioManager.stop();
     }
 
     if (this.timerEvent) {
@@ -1201,6 +1232,18 @@ export class GameplayScene extends Phaser.Scene {
       this.audioManager.dispose();
       this.audioManager = null;
     }
+
+    // Cleanup state machine
+    if (this.stateMachine) {
+      this.stateMachine.clearCallbacks();
+    }
+
+    // Unregister scene-scoped services (keep global services like save, progression)
+    Services.unregister('scorecard');
+    Services.unregister('events');
+    Services.unregister('stateMachine');
+    Services.unregister('commandInvoker');
+    Services.unregister('diceManager');
 
     // Destroy event emitter
     if (this.gameEvents) {

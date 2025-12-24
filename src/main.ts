@@ -6,10 +6,15 @@
 import Phaser from 'phaser';
 import { DEV, COLORS } from '@/config';
 import { createLogger } from '@/systems/logger';
+import { initializeGlobalServices } from '@/systems/services';
 import { MenuScene } from '@/scenes/MenuScene';
 import { GameplayScene } from '@/scenes/GameplayScene';
+import { TutorialScene } from '@/scenes/TutorialScene';
 
 const log = createLogger('Main');
+
+// Initialize global services (save, progression) before anything else
+initializeGlobalServices();
 
 // =============================================================================
 // GLOBAL ERROR HANDLING
@@ -82,7 +87,7 @@ const phaserConfig: Phaser.Types.Core.GameConfig = {
       capture: true, // Better touch support for mobile
     },
   },
-  scene: [MenuScene, GameplayScene],
+  scene: [MenuScene, GameplayScene, TutorialScene],
 };
 
 // Initialize Phaser game

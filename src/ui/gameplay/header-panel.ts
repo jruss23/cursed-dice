@@ -27,6 +27,12 @@ export class HeaderPanel {
   private timerGlow: Phaser.GameObjects.Text | null = null;
   private totalScoreText: Phaser.GameObjects.Text | null = null;
 
+  // Panel bounds for highlighting
+  private panelX = 0;
+  private panelY = 0;
+  private panelWidth = 0;
+  private panelHeight = 0;
+
   constructor(scene: Phaser.Scene, centerX: number, config: HeaderPanelConfig) {
     this.scene = scene;
     this.container = this.scene.add.container(0, 0);
@@ -51,6 +57,12 @@ export class HeaderPanel {
 
     const panelX = centerX - panelWidth / 2;
     const panelY = (metrics?.safeArea.top ?? 0) + 10;
+
+    // Store panel bounds for getBounds()
+    this.panelX = panelX;
+    this.panelY = panelY;
+    this.panelWidth = panelWidth;
+    this.panelHeight = panelHeight;
 
     // Font scaling for mobile - bigger labels, tighter spacing
     const fontScale = Math.max(0.75, Math.min(1, scale));
@@ -205,6 +217,18 @@ export class HeaderPanel {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }
+
+  /**
+   * Get panel bounds for tutorial highlighting
+   */
+  getBounds(): { x: number; y: number; width: number; height: number } {
+    return {
+      x: this.panelX,
+      y: this.panelY,
+      width: this.panelWidth,
+      height: this.panelHeight,
+    };
   }
 
   destroy(): void {

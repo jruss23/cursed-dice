@@ -41,7 +41,7 @@ const DEFAULT_SAVE: SaveData = {
  * Save Manager Singleton
  * Provides type-safe access to localStorage data
  */
-class SaveManagerClass {
+export class SaveManagerClass {
   private data: SaveData;
 
   constructor() {

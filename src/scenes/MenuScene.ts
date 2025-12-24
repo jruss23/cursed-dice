@@ -143,8 +143,12 @@ export class MenuScene extends Phaser.Scene {
       repeatDelay: Phaser.Math.Between(3000, 6000),
     });
 
+    // "Learn to Play" button - above the difficulty section
+    const learnBtnY = isMobile ? 168 : 200;
+    this.createLearnToPlayButton(width, learnBtnY, isMobile);
+
     // Difficulty selection header with spooky styling
-    const selectY = isMobile ? 170 : 200;
+    const selectY = isMobile ? 215 : 255;
     const selectGlow = createText(this,width / 2, selectY, 'CHOOSE YOUR FATE', {
       fontSize: headerSize,
       fontFamily: FONTS.FAMILY,
@@ -173,9 +177,9 @@ export class MenuScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
 
-    // Create spooky difficulty buttons - more spacing on desktop
-    const buttonStartY = isMobile ? 235 : 270;
-    const buttonSpacing = isMobile ? 82 : 110;
+    // Create spooky difficulty buttons
+    const buttonStartY = isMobile ? 265 : 310;
+    const buttonSpacing = isMobile ? 68 : 100;
 
     this.difficultyButtons = [];
     DIFFICULTY_LIST.forEach((diffKey, index) => {
@@ -195,7 +199,7 @@ export class MenuScene extends Phaser.Scene {
     // High Scores Panel - centered on mobile, left-aligned on desktop
     if (isMobile) {
       const lastButtonY = buttonStartY + buttonSpacing * 2;
-      new HighScoresPanel(this, { x: (width - 170) / 2, y: lastButtonY + 70 });
+      new HighScoresPanel(this, { x: (width - 170) / 2, y: lastButtonY + 65 });
     } else {
       new HighScoresPanel(this, { x: 20, y: height - 210 });
     }
@@ -203,8 +207,8 @@ export class MenuScene extends Phaser.Scene {
     // Mode info - positioned just below last button
     const lastButtonY = buttonStartY + buttonSpacing * 2;
     const modeInfoY = isMobile
-      ? lastButtonY + 53  // Below last button, above high scores
-      : lastButtonY + 68; // Right under buttons on desktop
+      ? lastButtonY + 50  // Below last button, above high scores
+      : lastButtonY + 60; // Right under buttons on desktop
     const modeInfoSize = isMobile ? FONTS.SIZE_LABEL : FONTS.SIZE_BODY;
     const modeInfoText = isMobile ? 'Score 250+ each curse' : '4 Curses await... Score 250+ to survive each';
 
@@ -244,6 +248,7 @@ export class MenuScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
 
+
     // Version - centered, below title
     const versionY = isMobile ? 95 : 115;
     const credit = createText(this, width / 2, versionY, 'v1.0.0', {
@@ -258,6 +263,83 @@ export class MenuScene extends Phaser.Scene {
 
     // Fade in
     this.cameras.main.fadeIn(800, 0, 0, 0);
+  }
+
+  private createLearnToPlayButton(width: number, y: number, isMobile: boolean): void {
+    const btnWidth = isMobile ? 160 : 180;
+    const btnHeight = isMobile ? 36 : 40;
+
+    const container = this.add.container(width / 2, y);
+    container.setDepth(50);
+
+    // Outer glow for emphasis
+    const glow = this.add.rectangle(0, 0, btnWidth + 8, btnHeight + 8, 0x4a9a4a, 0.15);
+    container.add(glow);
+
+    // Background with green accent (stands out from purple theme)
+    const bg = this.add.rectangle(0, 0, btnWidth, btnHeight, 0x2a4a2a, 0.9);
+    bg.setStrokeStyle(2, 0x4a9a4a, 0.8);
+    bg.setInteractive({ useHandCursor: true });
+    container.add(bg);
+
+    // Text (centered)
+    const text = createText(this, 0, 0, 'LEARN TO PLAY', {
+      fontSize: isMobile ? FONTS.SIZE_SMALL : FONTS.SIZE_BODY,
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TEXT_SUCCESS,
+      fontStyle: 'bold',
+    });
+    text.setOrigin(0.5, 0.5);
+    container.add(text);
+
+    // Subtle pulse animation to draw attention
+    this.tweens.add({
+      targets: glow,
+      alpha: { from: 0.15, to: 0.3 },
+      scaleX: { from: 1, to: 1.05 },
+      scaleY: { from: 1, to: 1.05 },
+      duration: 1500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+
+    // Hover effects
+    bg.on('pointerover', () => {
+      bg.setFillStyle(0x3a5a3a, 0.95);
+      bg.setStrokeStyle(2, 0x6aba6a, 1);
+    });
+
+    bg.on('pointerout', () => {
+      bg.setFillStyle(0x2a4a2a, 0.9);
+      bg.setStrokeStyle(2, 0x4a9a4a, 0.8);
+    });
+
+    bg.on('pointerdown', () => {
+      log.log('Starting tutorial');
+      this.startTutorial();
+    });
+  }
+
+  private startTutorial(): void {
+    // Fade out menu music
+    if (this.menuMusic) {
+      this.tweens.add({
+        targets: this.menuMusic,
+        volume: 0,
+        duration: SIZES.FADE_DURATION_MS,
+        onComplete: () => {
+          this.menuMusic?.stop();
+        },
+      });
+    }
+
+    // Transition to tutorial
+    this.cameras.main.fadeOut(SIZES.FADE_DURATION_MS, 0, 0, 0);
+
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.scene.start('TutorialScene');
+    });
   }
 
   private createPulsingVignette(width: number, height: number, isMobile: boolean): void {

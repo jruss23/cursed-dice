@@ -55,7 +55,38 @@
 
 ---
 
-## Recent Session Work (Dec 22, 2025 - Evening)
+## Recent Session Work (Dec 23, 2025)
+
+### Tutorial System - Complete Implementation
+- [x] Full interactive tutorial with 13 guided steps
+- [x] Context-first approach: Welcome → Header → Scorecard → Dice explanation
+- [x] Scripted dice rolls for consistent learning experience
+- [x] "No luck" step to show realistic reroll failures
+- [x] 5 Dice celebration (50 points!)
+- [x] Zero-out scenario with junk roll [1,1,2,3,3] - teaches sacrificing 4 of a Kind
+- [x] Practice mode after tutorial completion
+
+### Tutorial Overlay System
+- [x] Gold pulsing highlight border (3px, PALETTE.gold[500])
+- [x] No padding - border hugs highlighted elements tightly
+- [x] Synchronized fade transitions (120ms out, 150ms in)
+- [x] Highlight targets: header, scorecard, dice, roll-button, specific categories
+- [x] Graphics-based rendering for proper stroke display
+
+### Tutorial Controls
+- [x] Dice locking restricted to only valid dice (1s) throughout tutorial
+- [x] setLockableIndices([]) prevents locking during reroll steps
+- [x] Forced roll values for consistent tutorial experience
+- [x] Score display updates properly with updateDisplay() call
+- [x] Proper reset() before zero-out scenario to clear locks
+
+### New Files
+- `src/scenes/TutorialScene.ts` - Full tutorial scene
+- `src/ui/tutorial/tutorial-overlay.ts` - Popup and highlight system
+
+---
+
+## Previous Session Work (Dec 22, 2025 - Evening)
 
 ### Sixth Blessing Implementation
 - [x] Full implementation of "The Sixth" blessing - roll 6 dice, score with best 5
@@ -201,7 +232,8 @@ src/
 ├── config.ts               # Game constants, colors, sizes
 ├── scenes/
 │   ├── MenuScene.ts        # Main menu with difficulty selection
-│   └── GameplayScene.ts    # Core gameplay (all 4 modes)
+│   ├── GameplayScene.ts    # Core gameplay (all 4 modes)
+│   └── TutorialScene.ts    # Interactive tutorial
 ├── systems/
 │   ├── audio-manager.ts    # Audio handling with fade/transitions
 │   ├── dice-manager.ts     # Dice UI and logic
@@ -228,12 +260,14 @@ src/
     │   ├── end-screen-overlay.ts
     │   ├── header-panel.ts
     │   └── sixth-blessing-button.ts
-    └── menu/               # Menu UI components
-        ├── index.ts            # Barrel export
-        ├── difficulty-button.ts
-        ├── flickering-title.ts
-        ├── high-scores-panel.ts
-        └── spooky-background.ts
+    ├── menu/               # Menu UI components
+    │   ├── index.ts            # Barrel export
+    │   ├── difficulty-button.ts
+    │   ├── flickering-title.ts
+    │   ├── high-scores-panel.ts
+    │   └── spooky-background.ts
+    └── tutorial/           # Tutorial UI components
+        └── tutorial-overlay.ts # Popup and highlight system
 ```
 
 ---
@@ -274,7 +308,7 @@ assets/sounds/
 
 ### Soon - Polish
 3. [ ] Add sound effects (dice roll, score, UI clicks)
-4. [ ] Tutorial scene with coach marks
+4. [x] ~~Tutorial scene with coach marks~~ **COMPLETE** (Dec 23, 2025)
 
 ### Later
 5. [ ] Create BaseScene abstract class

@@ -67,7 +67,7 @@ export interface ProgressionState {
  * Game Progression Manager
  * Singleton to persist across scenes
  */
-class GameProgressionManager {
+export class GameProgressionManager {
   private state: ProgressionState;
 
   constructor() {

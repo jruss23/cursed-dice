@@ -510,6 +510,30 @@ export class Scorecard {
   }
 
   /**
+   * Remove a score from a category (for tutorial undo)
+   * Returns true if the category was cleared, false if it wasn't scored
+   */
+  unscore(id: CategoryId): boolean {
+    const cat = this.state.categories.get(id);
+    if (!cat) {
+      log.warn(`unscore: unknown category "${id}"`);
+      return false;
+    }
+    if (cat.score === null) {
+      log.debug(`unscore: category "${id}" was not scored`);
+      return false;
+    }
+
+    log.log(`Unscoring category "${id}" (was ${cat.score})`);
+    cat.score = null;
+
+    // Recalculate upper bonus
+    this.recheckUpperBonus();
+
+    return true;
+  }
+
+  /**
    * Debug: overwrite a category score (ignores if already filled)
    */
   debugOverwriteScore(id: CategoryId, dice: number[]): number {
@@ -540,6 +564,20 @@ export class Scorecard {
     if (upperSum >= GAME_RULES.UPPER_BONUS_THRESHOLD && this.state.upperBonus === 0) {
       this.state.upperBonus = GAME_RULES.UPPER_BONUS_AMOUNT;
       log.log(`Upper bonus awarded! (+${GAME_RULES.UPPER_BONUS_AMOUNT} for reaching ${upperSum}/${GAME_RULES.UPPER_BONUS_THRESHOLD})`);
+    }
+  }
+
+  /**
+   * Recalculate upper bonus (used when unscoring)
+   */
+  private recheckUpperBonus(): void {
+    const upperSum = this.getUpperSection()
+      .filter((c) => c.score !== null)
+      .reduce((sum, c) => sum + (c.score || 0), 0);
+
+    if (upperSum < GAME_RULES.UPPER_BONUS_THRESHOLD && this.state.upperBonus > 0) {
+      log.log(`Upper bonus removed (upper sum now ${upperSum})`);
+      this.state.upperBonus = 0;
     }
   }
 

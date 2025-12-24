@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phaser 3.90 Text Sharpness Test</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, Arial, sans-serif;
+      background: #0a0a1a;
+      color: #fff;
+      padding: 15px;
+    }
+    h1 { text-align: center; margin-bottom: 10px; color: #aa88ff; font-size: 1.4em; }
+    .info {
+      background: #1a1a2e;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      border-left: 4px solid #6644aa;
+      max-width: 100%;
+    }
+    .info p { margin: 4px 0; font-size: 13px; }
+    .info strong { color: #aa88ff; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .panel {
+      background: #1a1a2e;
+      padding: 8px;
+      border-radius: 8px;
+      border: 2px solid #333;
+    }
+    .panel h2 {
+      text-align: center;
+      margin-bottom: 4px;
+      padding: 4px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+    .panel .subtitle {
+      text-align: center;
+      font-size: 9px;
+      color: #888;
+      margin-bottom: 4px;
+      min-height: 24px;
+    }
+    .panel.col1 h2 { background: #4a2222; color: #ff6666; }
+    .panel.col2 h2 { background: #224a22; color: #66ff66; }
+    .panel.col3 h2 { background: #22334a; color: #66aaff; }
+    .panel.col4 h2 { background: #4a3a22; color: #ffaa66; }
+    .panel.col5 h2 { background: #3a224a; color: #cc66ff; }
+    .game-container {
+      background: #0a0a1a;
+      border-radius: 4px;
+      min-height: 400px;
+    }
+    .game-container canvas { display: block; }
+    .legend {
+      padding: 12px;
+      background: #1a1a2e;
+      border-radius: 8px;
+    }
+    .legend h3 { color: #888; margin-bottom: 8px; font-size: 13px; }
+    .legend-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+    .legend-item {
+      font-size: 10px;
+      line-height: 1.4;
+    }
+    .legend-item strong { color: #aa88ff; }
+    .legend code {
+      background: #2a2a4a;
+      padding: 1px 3px;
+      border-radius: 3px;
+      color: #aa88ff;
+      font-size: 9px;
+    }
+    @media (max-width: 1600px) {
+      .grid { grid-template-columns: repeat(3, 1fr); }
+      .legend-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 1000px) {
+      .grid { grid-template-columns: repeat(2, 1fr); }
+      .legend-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 700px) {
+      .grid { grid-template-columns: 1fr; }
+      .legend-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Text Rendering Comparison</h1>
+
+  <div class="info">
+    <p><strong>Device Pixel Ratio:</strong> <span id="dpr"></span> | <strong>Focus on:</strong> Curves on 'S', 'O', 'C' - look for both sharpness AND smoothness</p>
+  </div>
+
+  <div class="grid">
+    <div class="panel col1">
+      <h2>1. DEFAULT</h2>
+      <div class="subtitle">No fix (blurry)</div>
+      <div id="game1" class="game-container"></div>
+    </div>
+
+    <div class="panel col2">
+      <h2>2. RES × 2</h2>
+      <div class="subtitle">setResolution(DPR×2)<br>(crisp but jagged)</div>
+      <div id="game2" class="game-container"></div>
+    </div>
+
+    <div class="panel col3">
+      <h2>3. RES × 1</h2>
+      <div class="subtitle">resolution: DPR in style<br>(from guide)</div>
+      <div id="game3" class="game-container"></div>
+    </div>
+
+    <div class="panel col4">
+      <h2>4. RES + SYS FONT</h2>
+      <div class="subtitle">resolution: DPR<br>+ -apple-system</div>
+      <div id="game4" class="game-container"></div>
+    </div>
+
+    <div class="panel col5">
+      <h2>5. DPR + PADDING</h2>
+      <div class="subtitle">resolution: DPR<br>+ padding: 4</div>
+      <div id="game5" class="game-container"></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <h3>Settings Applied</h3>
+    <div class="legend-grid">
+      <div class="legend-item">
+        <strong>Column 1:</strong> Default<br>
+        <code>resolution: 1</code>
+      </div>
+      <div class="legend-item">
+        <strong>Column 2:</strong> Current fix<br>
+        <code>setResolution(DPR×2)</code>
+      </div>
+      <div class="legend-item">
+        <strong>Column 3:</strong> Guide<br>
+        <code>resolution: DPR</code>
+      </div>
+      <div class="legend-item">
+        <strong>Column 4:</strong> Sys font<br>
+        <code>-apple-system</code>
+      </div>
+      <div class="legend-item">
+        <strong>Column 5:</strong> DPR + Padding<br>
+        <code>resolution: DPR</code><br>
+        <code>padding: {x:4, y:4}</code>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/jjcapellan/phaser3-bitmapfont-factory@2.2.0/dist/bmff.umd.js"></script>
+  <script>
+    const DPR = window.devicePixelRatio || 1;
+    const WIDTH = 280;
+    const HEIGHT = 400;
+
+    document.getElementById('dpr').textContent = DPR.toFixed(2);
+
+    const TEXT_SAMPLES = [
+      { text: '2:45', size: 48, y: 35 },
+      { text: 'CURSED DICE', size: 32, y: 80 },
+      { text: 'Score: 1,250', size: 22, y: 120 },
+      { text: 'Choose Your Fate', size: 16, y: 155 },
+      { text: 'Roll the dice to begin', size: 14, y: 185 },
+      { text: 'Rerolls remaining: 3', size: 13, y: 212 },
+      { text: 'Upper Section Bonus', size: 12, y: 238 },
+      { text: 'Mode 1 of 4 | Normal', size: 11, y: 262 },
+      { text: 'ABCDEFGHIJKLMNO', size: 11, y: 290 },
+      { text: 'SCOsco 0123456', size: 13, y: 318 },
+      { text: 'Smooth curves test', size: 10, y: 345 },
+    ];
+
+    const FONT_SIZES = [...new Set(TEXT_SAMPLES.map(s => s.size))].sort((a, b) => b - a);
+    const CHARS = ' ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789:,.!?|';
+    const SYS_FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial';
+
+    // Scene 1: DEFAULT - No fix
+    class Scene1 extends Phaser.Scene {
+      constructor() { super({ key: 'Scene1' }); }
+      create() {
+        this.add.rectangle(WIDTH/2, HEIGHT/2, WIDTH, HEIGHT, 0x0a0a1a);
+        TEXT_SAMPLES.forEach(s => {
+          this.add.text(WIDTH/2, s.y, s.text, {
+            fontSize: s.size + 'px',
+            fontFamily: 'Arial',
+            color: '#ffffff'
+          }).setOrigin(0.5, 0.5);
+        });
+        this.add.text(6, HEIGHT - 14, 'res: 1', { fontSize: '8px', color: '#ff6666' });
+      }
+    }
+
+    // Scene 2: setResolution(DPR × 2)
+    class Scene2 extends Phaser.Scene {
+      constructor() { super({ key: 'Scene2' }); }
+      create() {
+        this.add.rectangle(WIDTH/2, HEIGHT/2, WIDTH, HEIGHT, 0x0a0a1a);
+        TEXT_SAMPLES.forEach(s => {
+          const t = this.add.text(WIDTH/2, s.y, s.text, {
+            fontSize: s.size + 'px',
+            fontFamily: 'Arial',
+            color: '#ffffff'
+          }).setOrigin(0.5, 0.5);
+          t.setResolution(DPR * 2);
+        });
+        const label = this.add.text(6, HEIGHT - 14, `res: ${DPR * 2}`, { fontSize: '8px', color: '#66ff66' });
+        label.setResolution(DPR * 2);
+      }
+    }
+
+    // Scene 3: resolution in style
+    class Scene3 extends Phaser.Scene {
+      constructor() { super({ key: 'Scene3' }); }
+      create() {
+        this.add.rectangle(WIDTH/2, HEIGHT/2, WIDTH, HEIGHT, 0x0a0a1a);
+        TEXT_SAMPLES.forEach(s => {
+          this.add.text(WIDTH/2, s.y, s.text, {
+            fontSize: s.size + 'px',
+            fontFamily: 'Arial',
+            color: '#ffffff',
+            resolution: DPR
+          }).setOrigin(0.5, 0.5);
+        });
+        this.add.text(6, HEIGHT - 14, `res: ${DPR}`, { fontSize: '8px', color: '#66aaff', resolution: DPR });
+      }
+    }
+
+    // Scene 4: System font with DPR resolution
+    class Scene4 extends Phaser.Scene {
+      constructor() { super({ key: 'Scene4' }); }
+      create() {
+        this.add.rectangle(WIDTH/2, HEIGHT/2, WIDTH, HEIGHT, 0x0a0a1a);
+        TEXT_SAMPLES.forEach(s => {
+          this.add.text(WIDTH/2, s.y, s.text, {
+            fontSize: s.size + 'px',
+            fontFamily: SYS_FONT,
+            color: '#ffffff',
+            resolution: DPR
+          }).setOrigin(0.5, 0.5);
+        });
+        this.add.text(6, HEIGHT - 14, `sys font`, { fontSize: '8px', color: '#ffaa66', resolution: DPR });
+      }
+    }
+
+    // Custom retina-aware bitmap font generator
+    // BMFFactory doesn't handle DPR, so we make our own
+    function createRetinaBitmapFont(scene, key, fontFamily, chars, fontSize, color) {
+      const dpr = window.devicePixelRatio || 1;
+
+      // Create hi-res canvas
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      // Measure glyphs at target size * DPR
+      const hiResSize = fontSize * dpr;
+      ctx.font = `${hiResSize}px ${fontFamily}`;
+
+      // Calculate canvas size needed
+      const glyphData = [];
+      let totalWidth = 0;
+      const padding = 2 * dpr;
+
+      for (const char of chars) {
+        const metrics = ctx.measureText(char);
+        const width = Math.ceil(metrics.width) + padding * 2;
+        glyphData.push({ char, width, x: totalWidth });
+        totalWidth += width;
+      }
+
+      const lineHeight = Math.ceil(hiResSize * 1.2);
+      canvas.width = totalWidth;
+      canvas.height = lineHeight + padding * 2;
+
+      // Scale canvas for retina
+      canvas.style.width = (totalWidth / dpr) + 'px';
+      canvas.style.height = ((lineHeight + padding * 2) / dpr) + 'px';
+
+      // Render glyphs
+      ctx.font = `${hiResSize}px ${fontFamily}`;
+      ctx.fillStyle = color;
+      ctx.textBaseline = 'top';
+
+      glyphData.forEach(g => {
+        ctx.fillText(g.char, g.x + padding, padding);
+      });
+
+      // Create Phaser texture from canvas
+      scene.textures.addCanvas(key + '_tex', canvas);
+
+      // Build bitmap font data
+      const xmlData = {
+        font: key,
+        size: fontSize, // Report original size, not hi-res
+        lineHeight: lineHeight / dpr,
+        chars: {}
+      };
+
+      glyphData.forEach(g => {
+        xmlData.chars[g.char.charCodeAt(0)] = {
+          x: g.x,
+          y: 0,
+          width: g.width,
+          height: lineHeight + padding * 2,
+          xoffset: 0,
+          yoffset: 0,
+          xadvance: g.width / dpr
+        };
+      });
+
+      // Register bitmap font
+      const fontData = Phaser.GameObjects.BitmapText.ParseFromAtlas(
+        scene, key, key + '_tex', null, xmlData
+      );
+
+      return fontData;
+    }
+
+    // Scene 5: Test resolution: DPR with padding for smoother edges
+    class Scene5 extends Phaser.Scene {
+      constructor() { super({ key: 'Scene5' }); }
+      create() {
+        this.add.rectangle(WIDTH/2, HEIGHT/2, WIDTH, HEIGHT, 0x0a0a1a);
+
+        TEXT_SAMPLES.forEach(s => {
+          this.add.text(WIDTH/2, s.y, s.text, {
+            fontSize: s.size + 'px',
+            fontFamily: SYS_FONT,
+            color: '#ffffff',
+            resolution: DPR,
+            padding: { x: 4, y: 4 }  // Extra padding for anti-aliased edges
+          }).setOrigin(0.5, 0.5);
+        });
+
+        this.add.text(6, HEIGHT - 14, 'DPR + padding', {
+          fontSize: '8px', color: '#cc66ff', resolution: DPR
+        });
+      }
+    }
+
+    // Common config
+    const baseConfig = {
+      type: Phaser.WEBGL,
+      backgroundColor: 0x0a0a1a,
+      scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        width: WIDTH,
+        height: HEIGHT,
+      },
+      render: {
+        antialias: true,
+        antialiasGL: true,
+        pixelArt: false,
+        roundPixels: false,
+      },
+    };
+
+    new Phaser.Game({ ...baseConfig, parent: 'game1', scene: Scene1 });
+    new Phaser.Game({ ...baseConfig, parent: 'game2', scene: Scene2 });
+    new Phaser.Game({ ...baseConfig, parent: 'game3', scene: Scene3 });
+    new Phaser.Game({ ...baseConfig, parent: 'game4', scene: Scene4 });
+    new Phaser.Game({ ...baseConfig, parent: 'game5', scene: Scene5 });
+  </script>
+</body>
+</html>
