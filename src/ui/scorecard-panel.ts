@@ -101,8 +101,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
   private totalText: Phaser.GameObjects.Text | null = null;
   private bonusText: Phaser.GameObjects.Text | null = null;
   private bonusProgressText: Phaser.GameObjects.Text | null = null;
-  private categoryProgressText: Phaser.GameObjects.Text | null = null; // Shows "X/13 filled" in Gauntlet
-  private expansionProgressText: Phaser.GameObjects.Text | null = null; // Shows "X/13 Scored" in expansion header
+  private categoriesFilledText: Phaser.GameObjects.Text | null = null; // Always shows "X/13" next to title
 
   // Tween tracking
   private flashTweens: Phaser.Tweens.Tween[] = [];
@@ -338,6 +337,23 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     title.setOrigin(0.5, 0.5);
     this.container.add(title);
 
+    // Categories filled counter (always visible, next to title)
+    // Always 13 - even with Expansion blessing, players choose 13 from 17 options
+    const filledCount = this.scorecard.getFilledCount();
+    this.categoriesFilledText = createText(
+      this.scene,
+      lc.width - 10,
+      lc.titleY,
+      `${filledCount}/13`,
+      {
+        fontSize: lc.smallFontSize,
+        fontFamily: FONTS.FAMILY,
+        color: COLORS.TEXT_SECONDARY,
+      }
+    );
+    this.categoriesFilledText.setOrigin(1, 0.5);
+    this.container.add(this.categoriesFilledText);
+
     // Divider before special section (if enabled)
     if (lc.hasSpecialSection && lc.specialHeaderY !== undefined) {
       const dividerY = lc.specialHeaderY - lc.dividerHeight / 2;
@@ -393,37 +409,16 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     bg.setStrokeStyle(1, borderColors[section], 0.5);
     this.container.add(bg);
 
-    // For expansion header, we add helper text too
-    if (row.label === 'EXPANSION') {
-      // Title on left
-      const headerText = createText(this.scene, row.x + 8, row.y + row.height / 2, 'EXPANSION', {
-        fontSize: FONTS.SIZE_SMALL,
-        fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_WARNING,
-        fontStyle: 'bold',
-      });
-      headerText.setOrigin(0, 0.5);
-      this.container.add(headerText);
-
-      // Progress text on right
-      this.expansionProgressText = createText(this.scene, row.x + row.width - 8, row.y + row.height / 2, '0/13 Scored', {
-        fontSize: FONTS.SIZE_SMALL,
-        fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_SECONDARY,
-      });
-      this.expansionProgressText.setOrigin(1, 0.5);
-      this.container.add(this.expansionProgressText);
-    } else {
-      // Normal header
-      const headerText = createText(this.scene, row.x + 8, row.y + row.height / 2, row.label || '', {
-        fontSize: FONTS.SIZE_SMALL,
-        fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_SECONDARY,
-        fontStyle: 'bold',
-      });
-      headerText.setOrigin(0, 0.5);
-      this.container.add(headerText);
-    }
+    // Header text (styled differently for expansion)
+    const isExpansion = row.label === 'EXPANSION';
+    const headerText = createText(this.scene, row.x + 8, row.y + row.height / 2, row.label || '', {
+      fontSize: FONTS.SIZE_SMALL,
+      fontFamily: FONTS.FAMILY,
+      color: isExpansion ? COLORS.TEXT_WARNING : COLORS.TEXT_SECONDARY,
+      fontStyle: 'bold',
+    });
+    headerText.setOrigin(0, 0.5);
+    this.container.add(headerText);
   }
 
   /** Render a category row (upper, lower, or special section) */
@@ -600,17 +595,6 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     });
     thresholdLabel.setOrigin(0, 0.5);
     this.container.add(thresholdLabel);
-
-    // Progress text for gauntlet (X/13)
-    if (this.stateManager.getGauntletMode()) {
-      this.categoryProgressText = createText(this.scene, row.x + row.width / 2, row.y + row.height / 2, '0/13', {
-        fontSize: this.layoutConfig.smallFontSize,
-        fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_SECONDARY,
-      });
-      this.categoryProgressText.setOrigin(0.5, 0.5);
-      this.container.add(this.categoryProgressText);
-    }
 
     // Total score
     const totalX = row.x + row.width - style.scoreOffsetFromRight;
@@ -802,16 +786,10 @@ export class ScorecardPanel implements TutorialControllableScorecard {
       }
     }
 
-    // Category progress text is no longer shown
-    if (this.categoryProgressText) {
-      this.categoryProgressText.setVisible(false);
-    }
-
-    // Update expansion progress text (X/13 Scored)
-    if (this.expansionProgressText && this.scorecard.isSpecialSectionEnabled()) {
-      const allCategories = this.scorecard.getCategories();
-      const filledCount = allCategories.filter(c => c.score !== null).length;
-      this.expansionProgressText.setText(`${filledCount}/13 Scored`);
+    // Update categories filled counter (always visible, always /13)
+    if (this.categoriesFilledText) {
+      const filledCount = this.scorecard.getFilledCount();
+      this.categoriesFilledText.setText(`${filledCount}/13`);
     }
   }
 
