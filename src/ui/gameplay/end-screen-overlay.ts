@@ -33,6 +33,7 @@ export class EndScreenOverlay {
   private panel: Phaser.GameObjects.Container;
   private tweens: Phaser.Tweens.Tween[] = [];
   private isMobile: boolean = false;
+  private celebrationParticles: Phaser.GameObjects.Graphics[] = [];
 
   constructor(
     scene: Phaser.Scene,
@@ -61,6 +62,11 @@ export class EndScreenOverlay {
 
     this.build(panelWidth, panelHeight, config, callbacks);
     this.animateEntrance();
+
+    // Victory celebration for beating all 4 curses!
+    if (config.isRunComplete) {
+      this.playVictoryCelebration(width, height);
+    }
   }
 
   private build(
@@ -385,6 +391,68 @@ export class EndScreenOverlay {
     this.tweens.push(fadeTween);
   }
 
+  /**
+   * Victory celebration with screen flash and particle burst
+   */
+  private playVictoryCelebration(width: number, height: number): void {
+    // Screen flash effect
+    this.scene.cameras.main.flash(300, 255, 215, 0, false); // Gold flash
+
+    // Create celebratory particles (confetti-like)
+    const colors = [PALETTE.gold[400], PALETTE.green[400], PALETTE.purple[400], 0xffffff];
+    const particleCount = this.isMobile ? 30 : 50;
+
+    for (let i = 0; i < particleCount; i++) {
+      const particle = this.scene.add.graphics();
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const size = 4 + Math.random() * 6;
+
+      particle.fillStyle(color, 1);
+      particle.fillRect(-size / 2, -size / 2, size, size);
+
+      // Start position - spread across top
+      const startX = Math.random() * width;
+      const startY = -20;
+      particle.setPosition(startX, startY);
+      particle.setDepth(102); // Above panel
+      particle.setRotation(Math.random() * Math.PI * 2);
+
+      this.celebrationParticles.push(particle);
+
+      // Animate falling with slight horizontal movement
+      const targetX = startX + (Math.random() - 0.5) * 100;
+      const targetY = height + 50;
+      const delay = Math.random() * 500;
+      const duration = 2000 + Math.random() * 1000;
+
+      const fallTween = this.scene.tweens.add({
+        targets: particle,
+        x: targetX,
+        y: targetY,
+        rotation: particle.rotation + Math.PI * 2 * (Math.random() > 0.5 ? 1 : -1),
+        delay,
+        duration,
+        ease: 'Quad.easeIn',
+        onComplete: () => {
+          particle.destroy();
+        },
+      });
+      this.tweens.push(fallTween);
+    }
+
+    // Pulse the title with a glow effect
+    const titlePulseTween = this.scene.tweens.add({
+      targets: this.panel.getAt(2), // The title text (after bg and glow)
+      scaleX: 1.1,
+      scaleY: 1.1,
+      duration: 300,
+      yoyo: true,
+      repeat: 2,
+      ease: 'Sine.easeInOut',
+    });
+    this.tweens.push(titlePulseTween);
+  }
+
   destroy(): void {
     // Stop all tweens
     this.tweens.forEach(tween => {
@@ -393,6 +461,10 @@ export class EndScreenOverlay {
       }
     });
     this.tweens = [];
+
+    // Cleanup celebration particles
+    this.celebrationParticles.forEach(p => p.destroy());
+    this.celebrationParticles = [];
 
     this.overlay.destroy();
     this.panel.destroy();

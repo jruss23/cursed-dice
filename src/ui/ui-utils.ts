@@ -28,7 +28,7 @@ export function createText(
   const text = scene.add.text(x, y, content, {
     fontFamily: FONTS.FAMILY, // Default to system font stack
     ...style,                 // Caller can override if needed
-    resolution: dpr,
+    resolution: dpr * 2,      // 2x multiplier for extra sharpness on retina displays
     padding: { x: 4, y: 4 },
   });
   return text;

@@ -53,6 +53,7 @@ import { PauseMenu } from '@/ui/pause-menu';
 import { HeaderPanel, DebugPanel, EndScreenOverlay } from '@/ui/gameplay';
 import { ParticlePool } from '@/systems/particle-pool';
 import { DebugController } from '@/systems/debug-controller';
+import { playScoreConfirmSound, playModeCompleteSound, playVictoryFanfare } from '@/systems/sfx-manager';
 import { SixthBlessing } from '@/systems/blessings/blessing-sixth';
 import { BaseScene } from './BaseScene';
 import {
@@ -725,6 +726,9 @@ export class GameplayScene extends BaseScene {
 
     this.log.log(`Scored ${points} in ${categoryId}`);
 
+    // Play score confirmation sound
+    playScoreConfirmSound();
+
     // Deactivate Sixth Blessing if it was active (after scoring, not after rolling)
     if (this.diceManager.isSixthDieActive()) {
       const blessing = this.blessingManager.getActiveBlessing() as SixthBlessing | null;
@@ -817,6 +821,15 @@ export class GameplayScene extends BaseScene {
     }
     if (isNewBestRun) {
       this.log.log(`New best run: ${totalScore}`);
+    }
+
+    // Play appropriate sound effect
+    if (isRunComplete) {
+      // Victory fanfare for beating all 4 curses!
+      playVictoryFanfare();
+    } else if (passed) {
+      // Mode complete sound for passing a curse
+      playModeCompleteSound();
     }
 
     new EndScreenOverlay(

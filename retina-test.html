@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Retina Text Sharpness Test</title>
+  <title>Text Resolution Fix Verification</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -26,17 +26,18 @@
       text-align: center;
       padding: 10px;
       margin: 20px 0 10px;
-      font-size: 18px;
+      font-size: 16px;
       font-weight: bold;
     }
-    .row-label.current { color: #88ff88; }
-    .row-label.alt { color: #ffaa66; }
+    .row-label.old { color: #ff8888; }
+    .row-label.new { color: #88ff88; }
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 15px;
-      margin-bottom: 20px;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      max-width: 700px;
+      margin: 0 auto 30px;
     }
     .panel {
       background: #1a1a2e;
@@ -51,67 +52,52 @@
       border-radius: 4px;
       font-size: 14px;
     }
-    .panel.dpr1 h2 { background: #2a2a4a; color: #aaaaaa; }
-    .panel.dpr2 h2 { background: #2a3a4a; color: #88aaff; }
-    .panel.dpr3 h2 { background: #3a2a4a; color: #ff88ff; }
+    .panel.old h2 { background: #4a2a2a; color: #ff8888; }
+    .panel.new h2 { background: #2a4a2a; color: #88ff88; }
 
     .game-container {
       background: #0a0a1a;
       border-radius: 4px;
-      min-height: 350px;
+      min-height: 380px;
+      overflow: hidden;
     }
     .game-container canvas { display: block; }
 
-    @media (max-width: 900px) {
-      .grid { grid-template-columns: 1fr; }
+    .note {
+      text-align: center;
+      color: #888;
+      font-size: 12px;
+      margin-top: 20px;
     }
   </style>
 </head>
 <body>
-  <h1>Retina Text Sharpness Test</h1>
+  <h1>Text Resolution: Before vs After Fix</h1>
 
   <div class="info">
-    <p>Your native DPR: <code id="native-dpr"></code> | Each column simulates a specific DPR</p>
+    <p>Your device DPR: <code id="native-dpr"></code> | Compare old <code>resolution: DPR</code> vs new <code>resolution: DPR × 2</code></p>
   </div>
 
-  <div class="row-label current">ROW 1: Current Game Implementation (resolution = DPR × 2)</div>
   <div class="grid">
-    <div class="panel dpr1">
-      <h2>DPR 1 → res: 2</h2>
-      <div id="current-dpr1" class="game-container"></div>
+    <div class="panel old">
+      <h2>OLD: resolution = DPR</h2>
+      <div id="old-approach" class="game-container"></div>
     </div>
-    <div class="panel dpr2">
-      <h2>DPR 2 → res: 4</h2>
-      <div id="current-dpr2" class="game-container"></div>
-    </div>
-    <div class="panel dpr3">
-      <h2>DPR 3 → res: 6</h2>
-      <div id="current-dpr3" class="game-container"></div>
+    <div class="panel new">
+      <h2>NEW: resolution = DPR × 2 ✓</h2>
+      <div id="new-approach" class="game-container"></div>
     </div>
   </div>
 
-  <div class="row-label alt">ROW 2: Alternative - Fixed res: 4 (for all DPRs)</div>
-  <div class="grid">
-    <div class="panel dpr1">
-      <h2>DPR 1 → res: 4</h2>
-      <div id="alt-dpr1" class="game-container"></div>
-    </div>
-    <div class="panel dpr2">
-      <h2>DPR 2 → res: 4</h2>
-      <div id="alt-dpr2" class="game-container"></div>
-    </div>
-    <div class="panel dpr3">
-      <h2>DPR 3 → res: 4</h2>
-      <div id="alt-dpr3" class="game-container"></div>
-    </div>
-  </div>
+  <p class="note">Look at curved letters (S, O, C, e) and small text. The right panel should appear sharper.</p>
 
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
   <script>
-    document.getElementById('native-dpr').textContent = window.devicePixelRatio.toFixed(2);
+    const DPR = window.devicePixelRatio || 1;
+    document.getElementById('native-dpr').textContent = DPR.toFixed(2);
 
-    const WIDTH = 300;
-    const HEIGHT = 350;
+    const WIDTH = 320;
+    const HEIGHT = 380;
     const SYS_FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial';
 
     const TEXT_SAMPLES = [
@@ -123,114 +109,70 @@
       { text: 'SCOsco 0123456789', size: 14, y: 210 },
       { text: 'ABCDEFGHIJKLMNOP', size: 12, y: 240 },
       { text: 'Smooth curves test', size: 11, y: 270 },
-      { text: 'qrstuvwxyz', size: 10, y: 295 },
+      { text: 'qrstuvwxyz 12px', size: 12, y: 300 },
+      { text: 'tiny 9px text sample', size: 9, y: 330 },
     ];
 
-    // =========================================================================
-    // ROW 1: CURRENT GAME IMPLEMENTATION (resolution = DPR × 2)
-    // =========================================================================
-
-    class CurrentScene extends Phaser.Scene {
-      constructor(key, simulatedDPR) {
-        super({ key });
-        this.simulatedDPR = simulatedDPR;
-        this.resolution = simulatedDPR * 2; // Game uses DPR × 2
-      }
-
+    // OLD APPROACH: resolution = DPR only
+    class OldScene extends Phaser.Scene {
+      constructor() { super({ key: 'OldScene' }); }
       create() {
+        const res = DPR;  // Old approach
         this.add.rectangle(WIDTH/2, HEIGHT/2, WIDTH, HEIGHT, 0x0a0a1a);
-
         TEXT_SAMPLES.forEach(s => {
           this.add.text(WIDTH/2, s.y, s.text, {
             fontSize: s.size + 'px',
             fontFamily: SYS_FONT,
             color: '#ffffff',
-            resolution: this.resolution,
+            resolution: res,
             padding: { x: 4, y: 4 }
           }).setOrigin(0.5, 0.5);
         });
-
-        // Label
-        this.add.text(6, HEIGHT - 16, `DPR ${this.simulatedDPR} × 2 = res: ${this.resolution}`, {
-          fontSize: '9px',
-          color: '#88ff88',
-          resolution: this.resolution
-        });
+        this.add.text(WIDTH/2, HEIGHT - 20, `resolution: ${res.toFixed(1)}`, {
+          fontSize: '11px', color: '#ff8888', resolution: res
+        }).setOrigin(0.5, 0.5);
       }
     }
 
-    // =========================================================================
-    // ROW 2: ALTERNATIVE - Fixed resolution: 4
-    // =========================================================================
-
-    class AltScene extends Phaser.Scene {
-      constructor(key, simulatedDPR) {
-        super({ key });
-        this.simulatedDPR = simulatedDPR;
-        this.resolution = 4; // Fixed at 4
-      }
-
+    // NEW APPROACH: resolution = DPR × 2
+    class NewScene extends Phaser.Scene {
+      constructor() { super({ key: 'NewScene' }); }
       create() {
+        const res = DPR * 2;  // New approach (the fix)
         this.add.rectangle(WIDTH/2, HEIGHT/2, WIDTH, HEIGHT, 0x0a0a1a);
-
         TEXT_SAMPLES.forEach(s => {
           this.add.text(WIDTH/2, s.y, s.text, {
             fontSize: s.size + 'px',
             fontFamily: SYS_FONT,
             color: '#ffffff',
-            resolution: this.resolution,
+            resolution: res,
             padding: { x: 4, y: 4 }
           }).setOrigin(0.5, 0.5);
         });
-
-        // Label
-        this.add.text(6, HEIGHT - 16, `Fixed res: ${this.resolution}`, {
-          fontSize: '9px',
-          color: '#ffaa66',
-          resolution: this.resolution
-        });
+        this.add.text(WIDTH/2, HEIGHT - 20, `resolution: ${res.toFixed(1)}`, {
+          fontSize: '11px', color: '#88ff88', resolution: res
+        }).setOrigin(0.5, 0.5);
       }
     }
-
-    // =========================================================================
-    // CREATE GAMES
-    // =========================================================================
 
     const baseConfig = {
       type: Phaser.WEBGL,
       backgroundColor: 0x0a0a1a,
+      width: WIDTH,
+      height: HEIGHT,
       scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: WIDTH,
-        height: HEIGHT,
       },
       render: {
         antialias: true,
         antialiasGL: true,
         pixelArt: false,
-        roundPixels: false,
       },
     };
 
-    // Row 1: Current game implementation (DPR × 2)
-    class Current1 extends CurrentScene { constructor() { super('Current1', 1); } }
-    class Current2 extends CurrentScene { constructor() { super('Current2', 2); } }
-    class Current3 extends CurrentScene { constructor() { super('Current3', 3); } }
-
-    new Phaser.Game({ ...baseConfig, parent: 'current-dpr1', scene: Current1 });
-    new Phaser.Game({ ...baseConfig, parent: 'current-dpr2', scene: Current2 });
-    new Phaser.Game({ ...baseConfig, parent: 'current-dpr3', scene: Current3 });
-
-    // Row 2: Fixed resolution 4
-    class Alt1 extends AltScene { constructor() { super('Alt1', 1); } }
-    class Alt2 extends AltScene { constructor() { super('Alt2', 2); } }
-    class Alt3 extends AltScene { constructor() { super('Alt3', 3); } }
-
-    new Phaser.Game({ ...baseConfig, parent: 'alt-dpr1', scene: Alt1 });
-    new Phaser.Game({ ...baseConfig, parent: 'alt-dpr2', scene: Alt2 });
-    new Phaser.Game({ ...baseConfig, parent: 'alt-dpr3', scene: Alt3 });
-
+    new Phaser.Game({ ...baseConfig, parent: 'old-approach', scene: OldScene });
+    new Phaser.Game({ ...baseConfig, parent: 'new-approach', scene: NewScene });
   </script>
 </body>
 </html>

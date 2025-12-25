@@ -9,6 +9,7 @@ import { SIZES, FONTS, GAME_RULES, COLORS, type ScaledSizes, getViewportMetrics 
 import { createText } from '@/ui/ui-utils';
 import { GameEventEmitter } from './game-events';
 import { createLogger } from './logger';
+import { playDiceRollSound } from './sfx-manager';
 import { DiceControls } from '@/ui/dice';
 import { DiceRenderer, type DiceSprite, type DiceSizeConfig } from './dice';
 import type {
@@ -683,6 +684,9 @@ export class DiceManager implements TutorialControllableDice {
     }
 
     log.log(`Rolling dice (initial: ${initial}, rerolls left: ${this.state.rerollsLeft}, sixthDieActive: ${this.state.sixthDieActive})`);
+
+    // Play dice roll sound effect
+    playDiceRollSound();
 
     // Update rerolls text immediately
     this.updateRerollText();
