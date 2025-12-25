@@ -74,7 +74,9 @@ const phaserConfig: Phaser.Types.Core.GameConfig = {
   },
   render: {
     antialias: true,
+    antialiasGL: true,
     pixelArt: false,
+    roundPixels: false,
   },
   audio: {
     disableWebAudio: false, // Enable audio for music

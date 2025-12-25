@@ -4,7 +4,8 @@
  * Pure TypeScript class that can be unit tested
  */
 
-import type { Scorecard, CategoryId, Category } from '@/systems/scorecard';
+import type { Scorecard, Category } from '@/systems/scorecard';
+import type { CategoryId } from '@/data/categories';
 import type { RowDisplayState, BonusDisplayState, TotalDisplayState } from './layout-config';
 
 // =============================================================================

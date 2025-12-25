@@ -5,7 +5,8 @@
 
 import Phaser from 'phaser';
 import { FONTS, COLORS, SIZES, getViewportMetrics, type Difficulty } from '@/config';
-import { type Scorecard, type CategoryId } from '@/systems/scorecard';
+import type { Scorecard } from '@/systems/scorecard';
+import { CATEGORY_ID, type CategoryId } from '@/data/categories';
 import { type GameMode, resetGameProgression, debugSetMode } from '@/systems/game-progression';
 import { resetBlessingManager, debugSetBlessing } from '@/systems/blessings/blessing-manager';
 import { getSave } from '@/systems/services';
@@ -139,7 +140,14 @@ export class DebugController {
    * Score perfect upper section (all 5-of-a-kind for each number)
    */
   perfectUpper(): void {
-    const upperCategories: CategoryId[] = ['ones', 'twos', 'threes', 'fours', 'fives', 'sixes'];
+    const upperCategories: CategoryId[] = [
+      CATEGORY_ID.ONES,
+      CATEGORY_ID.TWOS,
+      CATEGORY_ID.THREES,
+      CATEGORY_ID.FOURS,
+      CATEGORY_ID.FIVES,
+      CATEGORY_ID.SIXES,
+    ];
     const scorecard = this.deps.getScorecard();
     let scored = 0;
 
@@ -208,40 +216,40 @@ export class DebugController {
    */
   getPerfectDiceForCategory(categoryId: CategoryId): number[] {
     switch (categoryId) {
-      case 'ones':
+      case CATEGORY_ID.ONES:
         return [1, 1, 1, 1, 1];
-      case 'twos':
+      case CATEGORY_ID.TWOS:
         return [2, 2, 2, 2, 2];
-      case 'threes':
+      case CATEGORY_ID.THREES:
         return [3, 3, 3, 3, 3];
-      case 'fours':
+      case CATEGORY_ID.FOURS:
         return [4, 4, 4, 4, 4];
-      case 'fives':
+      case CATEGORY_ID.FIVES:
         return [5, 5, 5, 5, 5];
-      case 'sixes':
+      case CATEGORY_ID.SIXES:
         return [6, 6, 6, 6, 6];
-      case 'threeOfAKind':
+      case CATEGORY_ID.THREE_OF_A_KIND:
         return [6, 6, 6, 5, 5]; // 29 points
-      case 'fourOfAKind':
+      case CATEGORY_ID.FOUR_OF_A_KIND:
         return [6, 6, 6, 6, 5]; // 29 points
-      case 'fullHouse':
+      case CATEGORY_ID.FULL_HOUSE:
         return [6, 6, 6, 5, 5]; // 25 points
-      case 'smallStraight':
+      case CATEGORY_ID.SMALL_STRAIGHT:
         return [1, 2, 3, 4, 6]; // 30 points
-      case 'largeStraight':
+      case CATEGORY_ID.LARGE_STRAIGHT:
         return [1, 2, 3, 4, 5]; // 40 points
-      case 'fiveDice':
+      case CATEGORY_ID.FIVE_DICE:
         return [6, 6, 6, 6, 6]; // 50 points
-      case 'chance':
+      case CATEGORY_ID.CHANCE:
         return [6, 6, 6, 6, 6]; // 30 points
       // Special section (Blessing of Expansion)
-      case 'twoPair':
+      case CATEGORY_ID.TWO_PAIR:
         return [3, 3, 5, 5, 6]; // 22 points (two pair)
-      case 'allOdd':
+      case CATEGORY_ID.ALL_ODD:
         return [1, 3, 3, 5, 5]; // 17 points (all odd)
-      case 'allEven':
+      case CATEGORY_ID.ALL_EVEN:
         return [2, 4, 4, 6, 6]; // 22 points (all even)
-      case 'allHigh':
+      case CATEGORY_ID.ALL_HIGH:
         return [4, 5, 5, 6, 6]; // 26 points (all high 4-6)
       default:
         return [6, 6, 6, 6, 6];

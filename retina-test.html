@@ -136,6 +136,40 @@
     </div>
   </div>
 
+  <h2 style="text-align: center; color: #ffaa66; margin: 20px 0 10px;">DPR 3 Experiments</h2>
+
+  <div class="grid">
+    <div class="panel col4">
+      <h2>6. SCALED PAD</h2>
+      <div class="subtitle">res: 3, padding: 12<br>(4 × DPR)</div>
+      <div id="game6" class="game-container"></div>
+    </div>
+
+    <div class="panel col2">
+      <h2>7. RES 4</h2>
+      <div class="subtitle">res: DPR+1 = 4<br>+ padding: 4</div>
+      <div id="game7" class="game-container"></div>
+    </div>
+
+    <div class="panel col3">
+      <h2>8. RES 4.5</h2>
+      <div class="subtitle">res: DPR×1.5 = 4.5<br>+ padding: 4</div>
+      <div id="game8" class="game-container"></div>
+    </div>
+
+    <div class="panel col5">
+      <h2>9. BIG PAD</h2>
+      <div class="subtitle">res: 3<br>+ padding: 8</div>
+      <div id="game9" class="game-container"></div>
+    </div>
+
+    <div class="panel col2">
+      <h2>10. RES×2 + PAD</h2>
+      <div class="subtitle">res: 6 + sysfont<br>+ padding: 4</div>
+      <div id="game10" class="game-container"></div>
+    </div>
+  </div>
+
   <div class="legend">
     <h3>Settings Applied</h3>
     <div class="legend-grid">
@@ -166,7 +200,9 @@
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/jjcapellan/phaser3-bitmapfont-factory@2.2.0/dist/bmff.umd.js"></script>
   <script>
-    const DPR = window.devicePixelRatio || 1;
+    // Force DPR 3 for testing high-DPI devices (iPhone Pro, etc.)
+    // Change to `window.devicePixelRatio || 1` to use native DPR
+    const DPR = 3;
     const WIDTH = 280;
     const HEIGHT = 400;
 
@@ -353,6 +389,104 @@
       }
     }
 
+    // =========================================================================
+    // DPR 3 EXPERIMENTS (Row 2)
+    // =========================================================================
+
+    // Scene 6: Scaled padding (padding × DPR)
+    class Scene6 extends Phaser.Scene {
+      constructor() { super({ key: 'Scene6' }); }
+      create() {
+        this.add.rectangle(WIDTH/2, HEIGHT/2, WIDTH, HEIGHT, 0x0a0a1a);
+        const scaledPad = 4 * DPR; // 12 at DPR 3
+        TEXT_SAMPLES.forEach(s => {
+          this.add.text(WIDTH/2, s.y, s.text, {
+            fontSize: s.size + 'px',
+            fontFamily: SYS_FONT,
+            color: '#ffffff',
+            resolution: DPR,
+            padding: { x: scaledPad, y: scaledPad }
+          }).setOrigin(0.5, 0.5);
+        });
+        this.add.text(6, HEIGHT - 14, `pad: ${scaledPad}`, { fontSize: '8px', color: '#ffaa66', resolution: DPR });
+      }
+    }
+
+    // Scene 7: Resolution DPR + 1 with padding
+    class Scene7 extends Phaser.Scene {
+      constructor() { super({ key: 'Scene7' }); }
+      create() {
+        this.add.rectangle(WIDTH/2, HEIGHT/2, WIDTH, HEIGHT, 0x0a0a1a);
+        const res = DPR + 1; // 4 at DPR 3
+        TEXT_SAMPLES.forEach(s => {
+          this.add.text(WIDTH/2, s.y, s.text, {
+            fontSize: s.size + 'px',
+            fontFamily: SYS_FONT,
+            color: '#ffffff',
+            resolution: res,
+            padding: { x: 4, y: 4 }
+          }).setOrigin(0.5, 0.5);
+        });
+        this.add.text(6, HEIGHT - 14, `res: ${res}`, { fontSize: '8px', color: '#66ff66', resolution: res });
+      }
+    }
+
+    // Scene 8: Resolution DPR × 1.5 with padding
+    class Scene8 extends Phaser.Scene {
+      constructor() { super({ key: 'Scene8' }); }
+      create() {
+        this.add.rectangle(WIDTH/2, HEIGHT/2, WIDTH, HEIGHT, 0x0a0a1a);
+        const res = DPR * 1.5; // 4.5 at DPR 3
+        TEXT_SAMPLES.forEach(s => {
+          this.add.text(WIDTH/2, s.y, s.text, {
+            fontSize: s.size + 'px',
+            fontFamily: SYS_FONT,
+            color: '#ffffff',
+            resolution: res,
+            padding: { x: 4, y: 4 }
+          }).setOrigin(0.5, 0.5);
+        });
+        this.add.text(6, HEIGHT - 14, `res: ${res}`, { fontSize: '8px', color: '#66aaff', resolution: res });
+      }
+    }
+
+    // Scene 9: Bigger padding (8px)
+    class Scene9 extends Phaser.Scene {
+      constructor() { super({ key: 'Scene9' }); }
+      create() {
+        this.add.rectangle(WIDTH/2, HEIGHT/2, WIDTH, HEIGHT, 0x0a0a1a);
+        TEXT_SAMPLES.forEach(s => {
+          this.add.text(WIDTH/2, s.y, s.text, {
+            fontSize: s.size + 'px',
+            fontFamily: SYS_FONT,
+            color: '#ffffff',
+            resolution: DPR,
+            padding: { x: 8, y: 8 }
+          }).setOrigin(0.5, 0.5);
+        });
+        this.add.text(6, HEIGHT - 14, 'pad: 8', { fontSize: '8px', color: '#cc66ff', resolution: DPR });
+      }
+    }
+
+    // Scene 10: Resolution × 2 with system font AND padding
+    class Scene10 extends Phaser.Scene {
+      constructor() { super({ key: 'Scene10' }); }
+      create() {
+        this.add.rectangle(WIDTH/2, HEIGHT/2, WIDTH, HEIGHT, 0x0a0a1a);
+        const res = DPR * 2; // 6 at DPR 3
+        TEXT_SAMPLES.forEach(s => {
+          this.add.text(WIDTH/2, s.y, s.text, {
+            fontSize: s.size + 'px',
+            fontFamily: SYS_FONT,
+            color: '#ffffff',
+            resolution: res,
+            padding: { x: 4, y: 4 }
+          }).setOrigin(0.5, 0.5);
+        });
+        this.add.text(6, HEIGHT - 14, `res: ${res} + pad`, { fontSize: '8px', color: '#66ff66', resolution: res });
+      }
+    }
+
     // Common config
     const baseConfig = {
       type: Phaser.WEBGL,
@@ -376,6 +510,13 @@
     new Phaser.Game({ ...baseConfig, parent: 'game3', scene: Scene3 });
     new Phaser.Game({ ...baseConfig, parent: 'game4', scene: Scene4 });
     new Phaser.Game({ ...baseConfig, parent: 'game5', scene: Scene5 });
+
+    // DPR 3 Experiments (Row 2)
+    new Phaser.Game({ ...baseConfig, parent: 'game6', scene: Scene6 });
+    new Phaser.Game({ ...baseConfig, parent: 'game7', scene: Scene7 });
+    new Phaser.Game({ ...baseConfig, parent: 'game8', scene: Scene8 });
+    new Phaser.Game({ ...baseConfig, parent: 'game9', scene: Scene9 });
+    new Phaser.Game({ ...baseConfig, parent: 'game10', scene: Scene10 });
   </script>
 </body>
 </html>

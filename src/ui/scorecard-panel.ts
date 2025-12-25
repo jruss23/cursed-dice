@@ -4,8 +4,8 @@
  */
 
 import Phaser from 'phaser';
-import { type Scorecard, type CategoryId } from '@/systems/scorecard';
-import { getCategoryShortName } from '@/data/categories';
+import type { Scorecard } from '@/systems/scorecard';
+import { getCategoryShortName, type CategoryId } from '@/data/categories';
 import { GameEventEmitter } from '@/systems/game-events';
 import { FONTS, SIZES, PALETTE, COLORS, type ScorecardLayout } from '@/config';
 import { createText } from '@/ui/ui-utils';
@@ -106,6 +106,9 @@ export class ScorecardPanel implements TutorialControllableScorecard {
 
   // Tween tracking
   private flashTweens: Phaser.Tweens.Tween[] = [];
+
+  // Performance: reusable Set for gauntlet mode (avoids allocation per updateDisplay)
+  private gauntletAvailableIds: Set<CategoryId> = new Set();
 
   // Bound event handlers for cleanup
   private onDiceRolled: (payload: { values: number[] }) => void;
@@ -597,7 +600,10 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     });
   }
 
-  /** Render bonus row */
+  /**
+   * Render bonus row for Numbers section.
+   * Shows progress toward 63-point threshold and the +35 bonus value.
+   */
   private renderBonusRow(row: RowLayout): void {
     const style = this.layoutConfig.rowStyle;
 
@@ -605,19 +611,19 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     background.setOrigin(0, 0);
     this.container.add(background);
 
-    // Label with progress
+    // Label with progress (updated in updateDisplay)
     const labelX = row.x + style.labelPaddingLeft;
     this.bonusProgressText = createText(this.scene, labelX, row.y + row.height / 2, 'Bonus (0/63)', {
       fontSize: this.layoutConfig.smallFontSize,
       fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_SECONDARY,
+      color: COLORS.TEXT_WARNING,
     });
     this.bonusProgressText.setOrigin(0, 0.5);
     this.container.add(this.bonusProgressText);
 
-    // Bonus earned text
+    // Bonus value - always shows +35 (muted until earned, green when earned)
     const bonusX = row.x + row.width - style.scoreOffsetFromRight;
-    this.bonusText = createText(this.scene, bonusX, row.y + row.height / 2, '+0', {
+    this.bonusText = createText(this.scene, bonusX, row.y + row.height / 2, '+35', {
       fontSize: this.layoutConfig.scoreFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_MUTED,
@@ -743,19 +749,19 @@ export class ScorecardPanel implements TutorialControllableScorecard {
 
     // Gauntlet mode: Manage pulse tweens for available categories
     if (this.stateManager.getGauntletMode()) {
-      // Build set of currently available category IDs
-      const availableIds = new Set<CategoryId>();
+      // Reuse Set to avoid allocation (clear + refill instead of new Set)
+      this.gauntletAvailableIds.clear();
       for (const [id] of this.categoryRows) {
         const cat = this.scorecard.getCategory(id);
         const isLocked = this.stateManager.isLocked(id);
         if (cat && cat.score === null && !isLocked) {
-          availableIds.add(id);
+          this.gauntletAvailableIds.add(id);
         }
       }
 
       // Remove tweens for categories that are no longer available
       for (const [id, tween] of this.gauntletPulseTweens) {
-        if (!availableIds.has(id)) {
+        if (!this.gauntletAvailableIds.has(id)) {
           tween.stop();
           const row = this.categoryRows.get(id);
           if (row) row.nameText.setAlpha(1);
@@ -764,7 +770,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
       }
 
       // Add tweens for newly available categories
-      for (const id of availableIds) {
+      for (const id of this.gauntletAvailableIds) {
         if (!this.gauntletPulseTweens.has(id)) {
           const row = this.categoryRows.get(id);
           if (row) {
@@ -788,37 +794,42 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     const bonus = this.scorecard.getUpperBonus();
 
     if (this.bonusProgressText && this.bonusText) {
-      // Check if all upper categories are filled
+      // Check if all Numbers section categories are filled
       const upperCategories = this.scorecard.getUpperSection();
-      const allUppersFilled = upperCategories.every(c => c.score !== null);
+      const allNumbersFilled = upperCategories.every(c => c.score !== null);
 
-      // Two-column: inline format "Bonus (X/63)"
+      // Always show +35 to indicate bonus value - muted until earned
       if (this.layout === 'two-column') {
+        // Two-column: "Bonus (X/63)" with +35 on right
         this.bonusProgressText.setText(`Bonus (${upperSubtotal}/63)`);
-        // Keep label gold/amber - only the score value turns green
         this.bonusProgressText.setColor(COLORS.TEXT_WARNING);
-        // Show 35 if earned, 0 if all filled but not earned, empty if still in progress
         if (bonus > 0) {
-          this.bonusText.setText('35');
+          this.bonusText.setText('+35');
           this.bonusText.setColor(COLORS.TEXT_SUCCESS);
-        } else if (allUppersFilled) {
+        } else if (allNumbersFilled) {
+          // Missed the bonus - show 0
           this.bonusText.setText('0');
-          this.bonusText.setColor(COLORS.TEXT_PRIMARY);
+          this.bonusText.setColor(COLORS.TEXT_MUTED);
         } else {
-          this.bonusText.setText('');
+          // Show +35 in muted to indicate potential bonus
+          this.bonusText.setText('+35');
+          this.bonusText.setColor(COLORS.TEXT_MUTED);
         }
       } else {
-        // Single-column: progress format "X/63"
+        // Single-column: "X/63" with +35 on right
         this.bonusProgressText.setText(`${upperSubtotal}/63`);
         this.bonusProgressText.setColor(upperSubtotal >= 63 ? COLORS.TEXT_SUCCESS : COLORS.TEXT_MUTED);
         if (bonus > 0) {
           this.bonusText.setText('+35');
           this.bonusText.setColor(COLORS.TEXT_SUCCESS);
-        } else if (allUppersFilled) {
+        } else if (allNumbersFilled) {
+          // Missed the bonus - show 0
           this.bonusText.setText('0');
-          this.bonusText.setColor(COLORS.TEXT_PRIMARY);
+          this.bonusText.setColor(COLORS.TEXT_MUTED);
         } else {
-          this.bonusText.setText('');
+          // Show +35 in muted to indicate potential bonus
+          this.bonusText.setText('+35');
+          this.bonusText.setColor(COLORS.TEXT_MUTED);
         }
       }
     }

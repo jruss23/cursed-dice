@@ -7,7 +7,8 @@
 import Phaser from 'phaser';
 import { SIZES } from '@/config';
 import { createLogger } from '@/systems/logger';
-import type { CategoryId, Scorecard } from '@/systems/scorecard';
+import type { Scorecard } from '@/systems/scorecard';
+import { CATEGORY_ID, type CategoryId } from '@/data/categories';
 import type { GameEventEmitter } from '@/systems/game-events';
 import type {
   Bounds,
@@ -317,7 +318,7 @@ export class TutorialController {
         message:
           'All five dice match - that\'s called "5 Dice" and it\'s worth 50 points! Tap the "5 Dice" row on the scorecard to claim it.',
         highlightTarget: 'category',
-        highlightCategory: 'fiveDice',
+        highlightCategory: CATEGORY_ID.FIVE_DICE,
         showNextButton: false,
         advanceOn: 'score',
         onEnter: () => {
@@ -326,9 +327,9 @@ export class TutorialController {
           this.scorecard.setTutorialLock(false);
           this.scorecard.unlockInput();
           this.scorecard.setTutorialMode({
-            allowedCategories: ['fiveDice'],
+            allowedCategories: [CATEGORY_ID.FIVE_DICE],
             hoverEnabled: false,
-            highlightCategory: 'fiveDice',
+            highlightCategory: CATEGORY_ID.FIVE_DICE,
           });
         },
       },
@@ -355,7 +356,7 @@ export class TutorialController {
         message:
           "Chance is your backup plan! It scores the sum of ALL dice, no matter what you roll. Save it for when nothing else fits.",
         highlightTarget: 'category',
-        highlightCategory: 'chance',
+        highlightCategory: CATEGORY_ID.CHANCE,
         showNextButton: true,
         onEnter: () => {
           this.dice.setEnabled(false);
@@ -363,7 +364,7 @@ export class TutorialController {
           this.scorecard.setTutorialMode({
             allowedCategories: null,
             hoverEnabled: false,
-            highlightCategory: 'chance',
+            highlightCategory: CATEGORY_ID.CHANCE,
           });
         },
       },
@@ -376,13 +377,13 @@ export class TutorialController {
         showNextButton: true,
         onEnter: () => {
           // Pre-fill number categories (1s-6s) and CHANCE so zeroing out makes sense
-          this.scorecardData.score('ones', [1, 1, 1, 2, 3]); // 3 pts
-          this.scorecardData.score('twos', [2, 2, 3, 4, 5]); // 4 pts
-          this.scorecardData.score('threes', [3, 3, 3, 1, 2]); // 9 pts
-          this.scorecardData.score('fours', [4, 4, 1, 2, 3]); // 8 pts
-          this.scorecardData.score('fives', [5, 5, 5, 1, 2]); // 15 pts
-          this.scorecardData.score('sixes', [6, 6, 6, 1, 2]); // 18 pts
-          this.scorecardData.score('chance', [3, 4, 2, 5, 6]); // 20 pts - Chance already used!
+          this.scorecardData.score(CATEGORY_ID.ONES, [1, 1, 1, 2, 3]); // 3 pts
+          this.scorecardData.score(CATEGORY_ID.TWOS, [2, 2, 3, 4, 5]); // 4 pts
+          this.scorecardData.score(CATEGORY_ID.THREES, [3, 3, 3, 1, 2]); // 9 pts
+          this.scorecardData.score(CATEGORY_ID.FOURS, [4, 4, 1, 2, 3]); // 8 pts
+          this.scorecardData.score(CATEGORY_ID.FIVES, [5, 5, 5, 1, 2]); // 15 pts
+          this.scorecardData.score(CATEGORY_ID.SIXES, [6, 6, 6, 1, 2]); // 18 pts
+          this.scorecardData.score(CATEGORY_ID.CHANCE, [3, 4, 2, 5, 6]); // 20 pts - Chance already used!
           this.onUpdateScore(this.scorecardData.getTotal());
           this.scorecard.updateDisplay();
 
@@ -402,7 +403,7 @@ export class TutorialController {
         message:
           'You MUST pick a category every turn. When Chance is gone, sacrifice a hard category for 0 points. Tap "4 of a Kind".',
         highlightTarget: 'category',
-        highlightCategory: 'fourOfAKind',
+        highlightCategory: CATEGORY_ID.FOUR_OF_A_KIND,
         showNextButton: false,
         advanceOn: 'score',
         onEnter: () => {
@@ -411,9 +412,9 @@ export class TutorialController {
           this.scorecard.setTutorialLock(false);
           this.scorecard.unlockInput();
           this.scorecard.setTutorialMode({
-            allowedCategories: ['fourOfAKind'],
+            allowedCategories: [CATEGORY_ID.FOUR_OF_A_KIND],
             hoverEnabled: false,
-            highlightCategory: 'fourOfAKind',
+            highlightCategory: CATEGORY_ID.FOUR_OF_A_KIND,
           });
         },
       },
@@ -428,15 +429,15 @@ export class TutorialController {
           // Re-enable tutorial lock while showing this step
           this.scorecard.setTutorialLock(true);
           // Undo all scored categories for fresh practice
-          this.scorecardData.unscore('fourOfAKind');
-          this.scorecardData.unscore('fiveDice');
-          this.scorecardData.unscore('ones');
-          this.scorecardData.unscore('twos');
-          this.scorecardData.unscore('threes');
-          this.scorecardData.unscore('fours');
-          this.scorecardData.unscore('fives');
-          this.scorecardData.unscore('sixes');
-          this.scorecardData.unscore('chance');
+          this.scorecardData.unscore(CATEGORY_ID.FOUR_OF_A_KIND);
+          this.scorecardData.unscore(CATEGORY_ID.FIVE_DICE);
+          this.scorecardData.unscore(CATEGORY_ID.ONES);
+          this.scorecardData.unscore(CATEGORY_ID.TWOS);
+          this.scorecardData.unscore(CATEGORY_ID.THREES);
+          this.scorecardData.unscore(CATEGORY_ID.FOURS);
+          this.scorecardData.unscore(CATEGORY_ID.FIVES);
+          this.scorecardData.unscore(CATEGORY_ID.SIXES);
+          this.scorecardData.unscore(CATEGORY_ID.CHANCE);
           this.onUpdateScore(this.scorecardData.getTotal());
           this.scorecard.updateDisplay();
           this.dice.setEnabled(false);

@@ -4,38 +4,20 @@
  * Special section unlocked via "Blessing of Expansion" after Mode 1
  */
 
-import { GAME_RULES, SCORING } from '@/config';
+import { GAME_RULES } from '@/config';
 import { createLogger } from '@/systems/logger';
+import { ALL_CATEGORIES, type CategoryId, type CategorySection } from '@/data/categories';
 
 const log = createLogger('Scorecard');
 
-export type CategoryId =
-  // Upper section
-  | 'ones'
-  | 'twos'
-  | 'threes'
-  | 'fours'
-  | 'fives'
-  | 'sixes'
-  // Lower section
-  | 'threeOfAKind'
-  | 'fourOfAKind'
-  | 'fullHouse'
-  | 'smallStraight'
-  | 'largeStraight'
-  | 'fiveDice'
-  | 'chance'
-  // Special section (Blessing of Expansion)
-  | 'twoPair'
-  | 'allOdd'
-  | 'allEven'
-  | 'allHigh';
+// NOTE: CategoryId and CATEGORY_ID should be imported from @/data/categories
+// This file only exports Scorecard, Category, and createScorecard
 
 export interface Category {
   id: CategoryId;
   name: string;
   description: string;
-  section: 'upper' | 'lower' | 'special';
+  section: CategorySection;
   score: number | null; // null = not filled yet
   calculate: (dice: number[]) => number;
 }
@@ -49,277 +31,89 @@ export interface ScorecardState {
 // Number of categories required to complete the game
 export const CATEGORIES_TO_COMPLETE = 13;
 
-/**
- * Calculate sum of specific die value
- */
-function sumOfValue(dice: number[], value: number): number {
-  return dice.filter((d) => d === value).reduce((sum, d) => sum + d, 0);
-}
+// =============================================================================
+// 6-DICE HELPERS (Sixth Blessing) - Optimized for minimal allocation
+// =============================================================================
 
 /**
- * Count occurrences of each die value
+ * Reusable subset array - avoids allocation on every calculatePotential call.
+ * We only need one 5-element array since we evaluate one subset at a time.
  */
-function getCounts(dice: number[]): Map<number, number> {
-  const counts = new Map<number, number>();
-  for (const d of dice) {
-    counts.set(d, (counts.get(d) || 0) + 1);
-  }
-  return counts;
-}
+const reusableSubset: number[] = [0, 0, 0, 0, 0];
 
 /**
- * Check if dice contain N of a kind
+ * Fill reusableSubset with dice values excluding index `skipIndex`.
+ * Mutates reusableSubset in place - no allocation.
  */
-function hasNOfAKind(dice: number[], n: number): boolean {
-  const counts = getCounts(dice);
-  return Array.from(counts.values()).some((count) => count >= n);
-}
-
-/**
- * Check for small straight (4 consecutive)
- */
-function hasSmallStraight(dice: number[]): boolean {
-  const unique = [...new Set(dice)].sort((a, b) => a - b).join('');
-  return unique.includes('1234') || unique.includes('2345') || unique.includes('3456');
-}
-
-/**
- * Check for large straight (5 consecutive)
- */
-function hasLargeStraight(dice: number[]): boolean {
-  const sorted = [...dice].sort((a, b) => a - b).join('');
-  return sorted === '12345' || sorted === '23456';
-}
-
-/**
- * Check for full house (3 of one kind + 2 of another)
- */
-function hasFullHouse(dice: number[]): boolean {
-  const counts = Array.from(getCounts(dice).values()).sort((a, b) => b - a);
-  return counts[0] === 3 && counts[1] === 2;
-}
-
-/**
- * Sum all dice
- */
-function sumAll(dice: number[]): number {
-  return dice.reduce((sum, d) => sum + d, 0);
-}
-
-/**
- * Generate all 5-dice subsets from 6 dice
- * Used by Sixth Blessing to find the best 5 of 6 for each category
- * Returns 6 possible combinations (dropping each die once)
- */
-function get5of6Subsets(dice: number[]): number[][] {
-  if (dice.length !== 6) return [dice];
-
-  const subsets: number[][] = [];
+function fillSubsetExcluding(dice: number[], skipIndex: number): void {
+  let j = 0;
   for (let i = 0; i < 6; i++) {
-    // Create subset excluding index i
-    const subset = [...dice.slice(0, i), ...dice.slice(i + 1)];
-    subsets.push(subset);
+    if (i !== skipIndex) {
+      reusableSubset[j++] = dice[i];
+    }
   }
-  return subsets;
 }
 
 /**
- * Find the best score for a category across all 5-of-6 subsets
- * Used by Sixth Blessing scoring
+ * Find the best score for a category across all 5-of-6 subsets.
+ * Optimized: reuses single array instead of creating 6 new arrays per call.
+ *
+ * @param dice - Array of 6 dice values
+ * @param calculate - Scoring function for the category
+ * @param needSubset - If true, returns the best subset (allocates). If false, only returns score.
  */
-function findBestScoreFor6Dice(dice: number[], calculate: (d: number[]) => number): { score: number; subset: number[] } {
-  const subsets = get5of6Subsets(dice);
+function findBestScoreFor6Dice(
+  dice: number[],
+  calculate: (d: number[]) => number,
+  needSubset: boolean = false
+): { score: number; subset: number[] } {
   let bestScore = -1;
-  let bestSubset = dice.slice(0, 5);
+  let bestSkipIndex = 0;
 
-  for (const subset of subsets) {
-    const score = calculate(subset);
+  // Evaluate all 6 possible 5-dice subsets without allocating new arrays
+  for (let skipIndex = 0; skipIndex < 6; skipIndex++) {
+    fillSubsetExcluding(dice, skipIndex);
+    const score = calculate(reusableSubset);
     if (score > bestScore) {
       bestScore = score;
-      bestSubset = subset;
+      bestSkipIndex = skipIndex;
     }
   }
 
-  return { score: bestScore, subset: bestSubset };
+  // Only allocate the result subset if caller needs it (for logging/display)
+  if (needSubset) {
+    const subset: number[] = [];
+    for (let i = 0; i < 6; i++) {
+      if (i !== bestSkipIndex) subset.push(dice[i]);
+    }
+    return { score: bestScore, subset };
+  }
+
+  // Return empty array reference when subset not needed (calculatePotential)
+  return { score: bestScore, subset: reusableSubset };
 }
 
 // =============================================================================
-// SPECIAL SECTION DETECTION (Blessing of Expansion)
+// CATEGORY INITIALIZATION
 // =============================================================================
 
 /**
- * Check for two pair (two different pairs, NOT full house or 4-of-a-kind)
- * Examples: [3,3,5,5,2] = true, [3,3,3,5,5] = false (full house takes precedence)
- */
-function hasTwoPair(dice: number[]): boolean {
-  const counts = Array.from(getCounts(dice).values()).sort((a, b) => b - a);
-  // Need at least 2 pairs, but NOT a full house or 4-of-a-kind
-  const pairCount = counts.filter((c) => c >= 2).length;
-  return pairCount >= 2 && !hasFullHouse(dice) && !hasNOfAKind(dice, 4);
-}
-
-/**
- * Create initial category definitions
+ * Create initial category definitions from centralized config
+ * Adds runtime `score` state to each CategoryConfig
  */
 function createCategories(): Map<CategoryId, Category> {
   const categories = new Map<CategoryId, Category>();
 
-  // Upper section
-  categories.set('ones', {
-    id: 'ones',
-    name: 'Ones',
-    description: 'Sum of all ones',
-    section: 'upper',
-    score: null,
-    calculate: (dice) => sumOfValue(dice, 1),
-  });
-
-  categories.set('twos', {
-    id: 'twos',
-    name: 'Twos',
-    description: 'Sum of all twos',
-    section: 'upper',
-    score: null,
-    calculate: (dice) => sumOfValue(dice, 2),
-  });
-
-  categories.set('threes', {
-    id: 'threes',
-    name: 'Threes',
-    description: 'Sum of all threes',
-    section: 'upper',
-    score: null,
-    calculate: (dice) => sumOfValue(dice, 3),
-  });
-
-  categories.set('fours', {
-    id: 'fours',
-    name: 'Fours',
-    description: 'Sum of all fours',
-    section: 'upper',
-    score: null,
-    calculate: (dice) => sumOfValue(dice, 4),
-  });
-
-  categories.set('fives', {
-    id: 'fives',
-    name: 'Fives',
-    description: 'Sum of all fives',
-    section: 'upper',
-    score: null,
-    calculate: (dice) => sumOfValue(dice, 5),
-  });
-
-  categories.set('sixes', {
-    id: 'sixes',
-    name: 'Sixes',
-    description: 'Sum of all sixes',
-    section: 'upper',
-    score: null,
-    calculate: (dice) => sumOfValue(dice, 6),
-  });
-
-  // Lower section
-  categories.set('threeOfAKind', {
-    id: 'threeOfAKind',
-    name: '3 of a Kind',
-    description: 'Sum of all dice if 3+ match',
-    section: 'lower',
-    score: null,
-    calculate: (dice) => (hasNOfAKind(dice, 3) ? sumAll(dice) : 0),
-  });
-
-  categories.set('fourOfAKind', {
-    id: 'fourOfAKind',
-    name: '4 of a Kind',
-    description: 'Sum of all dice if 4+ match',
-    section: 'lower',
-    score: null,
-    calculate: (dice) => (hasNOfAKind(dice, 4) ? sumAll(dice) : 0),
-  });
-
-  categories.set('fullHouse', {
-    id: 'fullHouse',
-    name: 'Full House',
-    description: '3 of one + 2 of another = 25',
-    section: 'lower',
-    score: null,
-    calculate: (dice) => (hasFullHouse(dice) ? 25 : 0),
-  });
-
-  categories.set('smallStraight', {
-    id: 'smallStraight',
-    name: 'Sm Straight',
-    description: '4 in sequence = 30',
-    section: 'lower',
-    score: null,
-    calculate: (dice) => (hasSmallStraight(dice) ? 30 : 0),
-  });
-
-  categories.set('largeStraight', {
-    id: 'largeStraight',
-    name: 'Lg Straight',
-    description: '5 in sequence = 40',
-    section: 'lower',
-    score: null,
-    calculate: (dice) => (hasLargeStraight(dice) ? 40 : 0),
-  });
-
-  categories.set('fiveDice', {
-    id: 'fiveDice',
-    name: 'Five Dice',
-    description: '5 of a kind = 50',
-    section: 'lower',
-    score: null,
-    calculate: (dice) => (hasNOfAKind(dice, 5) ? 50 : 0),
-  });
-
-  categories.set('chance', {
-    id: 'chance',
-    name: 'Chance',
-    description: 'Sum of all dice',
-    section: 'lower',
-    score: null,
-    calculate: (dice) => sumAll(dice),
-  });
-
-  // Special section (Blessing of Expansion - unlocked after Mode 1)
-  // All expansion categories score SCORING.SPECIAL_CATEGORY pts when condition is met
-  categories.set('twoPair', {
-    id: 'twoPair',
-    name: 'Two Pair',
-    description: `2 different pairs = ${SCORING.SPECIAL_CATEGORY} pts`,
-    section: 'special',
-    score: null,
-    calculate: (dice) => (hasTwoPair(dice) ? SCORING.SPECIAL_CATEGORY : 0),
-  });
-
-  categories.set('allOdd', {
-    id: 'allOdd',
-    name: 'All Odd',
-    description: `All dice 1, 3, or 5 = ${SCORING.SPECIAL_CATEGORY} pts`,
-    section: 'special',
-    score: null,
-    calculate: (dice) => (dice.every((d) => d % 2 === 1) ? SCORING.SPECIAL_CATEGORY : 0),
-  });
-
-  categories.set('allEven', {
-    id: 'allEven',
-    name: 'All Even',
-    description: `All dice 2, 4, or 6 = ${SCORING.SPECIAL_CATEGORY} pts`,
-    section: 'special',
-    score: null,
-    calculate: (dice) => (dice.every((d) => d % 2 === 0) ? SCORING.SPECIAL_CATEGORY : 0),
-  });
-
-  categories.set('allHigh', {
-    id: 'allHigh',
-    name: 'All High',
-    description: `All dice 4, 5, or 6 = ${SCORING.SPECIAL_CATEGORY} pts`,
-    section: 'special',
-    score: null,
-    calculate: (dice) => (dice.every((d) => d >= 4) ? SCORING.SPECIAL_CATEGORY : 0),
-  });
+  for (const config of ALL_CATEGORIES) {
+    categories.set(config.id, {
+      id: config.id,
+      name: config.name,
+      description: config.description,
+      section: config.section,
+      score: null,
+      calculate: config.calculate,
+    });
+  }
 
   return categories;
 }
@@ -427,16 +221,17 @@ export class Scorecard {
   }
 
   /**
-   * Calculate potential score for a category with given dice
-   * If 6 dice are passed (Sixth Blessing), finds the best 5 of 6 for this category
+   * Calculate potential score for a category with given dice.
+   * If 6 dice are passed (Sixth Blessing), finds the best 5 of 6 for this category.
+   * Optimized: no allocation when calculating potentials.
    */
   calculatePotential(id: CategoryId, dice: number[]): number {
     const cat = this.state.categories.get(id);
     if (!cat) return 0;
 
-    // If 6 dice, find the best 5-of-6 subset for this category
+    // If 6 dice, find the best 5-of-6 subset (no allocation - needSubset=false)
     if (dice.length === 6) {
-      return findBestScoreFor6Dice(dice, cat.calculate).score;
+      return findBestScoreFor6Dice(dice, cat.calculate, false).score;
     }
 
     return cat.calculate(dice);
@@ -461,9 +256,9 @@ export class Scorecard {
     let points: number;
     let usedDice: number[];
 
-    // If 6 dice, find the best 5-of-6 subset for this category
+    // If 6 dice, find the best 5-of-6 subset (needSubset=true for logging)
     if (dice.length === 6) {
-      const result = findBestScoreFor6Dice(dice, cat.calculate);
+      const result = findBestScoreFor6Dice(dice, cat.calculate, true);
       points = result.score;
       usedDice = result.subset;
       log.log(`Sixth Blessing: best 5 of [${dice.join(', ')}] for "${id}" is [${usedDice.join(', ')}] = ${points}`);

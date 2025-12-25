@@ -10,7 +10,7 @@
  * This manager owns all mode-specific state and logic, keeping GameplayScene clean.
  */
 
-import { type CategoryId } from './scorecard';
+import { type CategoryId } from '@/data/categories';
 import { type DiceManager } from './dice-manager';
 import { type GameEventEmitter } from './game-events';
 import { createLogger } from './logger';

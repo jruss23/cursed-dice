@@ -4,7 +4,7 @@
  */
 
 import Phaser from 'phaser';
-import type { CategoryId } from './scorecard';
+import type { CategoryId } from '@/data/categories';
 
 // =============================================================================
 // EVENT TYPES

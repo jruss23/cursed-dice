@@ -3,7 +3,7 @@
  * Pure data structures defining layout values - no Phaser dependency
  */
 
-import type { CategoryId } from '@/systems/scorecard';
+import type { CategoryId } from '@/data/categories';
 
 // =============================================================================
 // LAYOUT TYPES

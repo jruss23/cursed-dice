@@ -13,7 +13,8 @@ import {
   getScaledSizes,
   getPortraitLayout,
 } from '@/config';
-import { createScorecard, type Scorecard, type CategoryId } from '@/systems/scorecard';
+import { createScorecard, type Scorecard } from '@/systems/scorecard';
+import type { CategoryId } from '@/data/categories';
 import { createGameEvents, type GameEventEmitter } from '@/systems/game-events';
 import { DiceManager } from '@/systems/dice-manager';
 import { ScorecardPanel } from '@/ui/scorecard-panel';

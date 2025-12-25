@@ -3,7 +3,7 @@
  * Defines contracts for components that can be highlighted and controlled during tutorials
  */
 
-import type { CategoryId } from '@/systems/scorecard';
+import type { CategoryId } from '@/data/categories';
 
 // =============================================================================
 // BOUNDS & HIGHLIGHT

@@ -15,6 +15,7 @@ import { PALETTE, FONTS, COLORS } from '@/config';
  * Always use this instead of scene.add.text() directly
  *
  * Column 5 approach: resolution: DPR with padding for crisp + smooth text
+ * Default fontFamily ensures consistent rendering even if caller doesn't specify
  */
 export function createText(
   scene: Phaser.Scene,
@@ -25,7 +26,8 @@ export function createText(
 ): Phaser.GameObjects.Text {
   const dpr = window.devicePixelRatio || 1;
   const text = scene.add.text(x, y, content, {
-    ...style,
+    fontFamily: FONTS.FAMILY, // Default to system font stack
+    ...style,                 // Caller can override if needed
     resolution: dpr,
     padding: { x: 4, y: 4 },
   });
