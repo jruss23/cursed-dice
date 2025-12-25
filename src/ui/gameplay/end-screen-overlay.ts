@@ -392,15 +392,15 @@ export class EndScreenOverlay {
   }
 
   /**
-   * Victory celebration with screen flash and particle burst
+   * Victory celebration with screen flash, confetti, and fireworks
    */
   private playVictoryCelebration(width: number, height: number): void {
     // Screen flash effect
     this.scene.cameras.main.flash(300, 255, 215, 0, false); // Gold flash
 
-    // Create celebratory particles (confetti-like)
+    // Create celebratory particles (confetti-like) - lots over extended time
     const colors = [PALETTE.gold[400], PALETTE.green[400], PALETTE.purple[400], 0xffffff];
-    const particleCount = this.isMobile ? 30 : 50;
+    const particleCount = this.isMobile ? 120 : 200;
 
     for (let i = 0; i < particleCount; i++) {
       const particle = this.scene.add.graphics();
@@ -419,10 +419,10 @@ export class EndScreenOverlay {
 
       this.celebrationParticles.push(particle);
 
-      // Animate falling with slight horizontal movement
+      // Animate falling with slight horizontal movement - staggered over 5 seconds
       const targetX = startX + (Math.random() - 0.5) * 100;
       const targetY = height + 50;
-      const delay = Math.random() * 500;
+      const delay = Math.random() * 5000;
       const duration = 2000 + Math.random() * 1000;
 
       const fallTween = this.scene.tweens.add({
@@ -440,6 +440,9 @@ export class EndScreenOverlay {
       this.tweens.push(fallTween);
     }
 
+    // Firework explosions!
+    this.launchFireworks(width, height);
+
     // Pulse the title with a glow effect
     const titlePulseTween = this.scene.tweens.add({
       targets: this.panel.getAt(2), // The title text (after bg and glow)
@@ -451,6 +454,90 @@ export class EndScreenOverlay {
       ease: 'Sine.easeInOut',
     });
     this.tweens.push(titlePulseTween);
+  }
+
+  /**
+   * Launch firework explosions at random positions
+   */
+  private launchFireworks(width: number, height: number): void {
+    const fireworkCount = this.isMobile ? 12 : 20;
+    const fireworkColors = [
+      PALETTE.gold[300], PALETTE.gold[500],
+      PALETTE.green[300], PALETTE.green[500],
+      PALETTE.purple[300], PALETTE.purple[500],
+      0xff6b6b, 0x4ecdc4, 0xffe66d
+    ];
+
+    for (let f = 0; f < fireworkCount; f++) {
+      const delay = f * 250 + Math.random() * 100; // Spread over 5 seconds
+
+      this.scene.time.delayedCall(delay, () => {
+        // Random explosion point (avoid edges and center panel area)
+        const explosionX = 50 + Math.random() * (width - 100);
+        const explosionY = 50 + Math.random() * (height * 0.4);
+
+        // Pick a random color for this firework
+        const baseColor = fireworkColors[Math.floor(Math.random() * fireworkColors.length)];
+        const sparkCount = this.isMobile ? 12 : 20;
+
+        // Create explosion sparks
+        for (let i = 0; i < sparkCount; i++) {
+          const spark = this.scene.add.graphics();
+          const sparkSize = 3 + Math.random() * 4;
+
+          spark.fillStyle(baseColor, 1);
+          spark.fillCircle(0, 0, sparkSize);
+
+          spark.setPosition(explosionX, explosionY);
+          spark.setDepth(103); // Above confetti
+          spark.setAlpha(1);
+
+          this.celebrationParticles.push(spark);
+
+          // Explode outward in all directions
+          const angle = (i / sparkCount) * Math.PI * 2 + Math.random() * 0.3;
+          const distance = 60 + Math.random() * 80;
+          const targetX = explosionX + Math.cos(angle) * distance;
+          const targetY = explosionY + Math.sin(angle) * distance + 40; // Slight gravity
+
+          const sparkTween = this.scene.tweens.add({
+            targets: spark,
+            x: targetX,
+            y: targetY,
+            alpha: 0,
+            scaleX: 0.3,
+            scaleY: 0.3,
+            duration: 800 + Math.random() * 400,
+            ease: 'Quad.easeOut',
+            onComplete: () => {
+              spark.destroy();
+            },
+          });
+          this.tweens.push(sparkTween);
+        }
+
+        // Add a brief flash at explosion center
+        const flash = this.scene.add.graphics();
+        flash.fillStyle(0xffffff, 0.8);
+        flash.fillCircle(0, 0, 15);
+        flash.setPosition(explosionX, explosionY);
+        flash.setDepth(103);
+        this.celebrationParticles.push(flash);
+
+        const flashTween = this.scene.tweens.add({
+          targets: flash,
+          alpha: 0,
+          scaleX: 2,
+          scaleY: 2,
+          duration: 200,
+          ease: 'Quad.easeOut',
+          onComplete: () => {
+            flash.destroy();
+          },
+        });
+        this.tweens.push(flashTween);
+      });
+    }
   }
 
   destroy(): void {

@@ -21,6 +21,26 @@ export type { Difficulty };
 
 const log = createLogger('MusicManager');
 
+// Persist music enabled state across scene restarts
+const STORAGE_KEY = 'cursed-dice-music-enabled';
+
+function loadMusicEnabled(): boolean {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored === null ? true : stored === 'true';
+  } catch {
+    return true;
+  }
+}
+
+function saveMusicEnabled(enabled: boolean): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, String(enabled));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 // ============================================================================
 // MUSIC CONFIGURATION
 // ============================================================================
@@ -64,7 +84,10 @@ export class MusicManager {
   private musicEnabled: boolean = true;
   private currentVolume: number = 0.5;
 
-  constructor() {}
+  constructor() {
+    // Load persisted music setting
+    this.musicEnabled = loadMusicEnabled();
+  }
 
   // ==========================================================================
   // PUBLIC API
@@ -210,6 +233,7 @@ export class MusicManager {
   /** Toggle music on/off */
   toggle(): boolean {
     this.musicEnabled = !this.musicEnabled;
+    saveMusicEnabled(this.musicEnabled);
     if (!this.musicEnabled) this.stop();
     return this.musicEnabled;
   }

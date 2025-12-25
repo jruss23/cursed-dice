@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:,">
+  <title>Cursed Dice - Music Test</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0a0a1a 0%, #1a0a2a 100%);
+      color: #e0e0ff;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #c4b5fd;
+      margin-bottom: 30px;
+      text-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      display: grid;
+      gap: 24px;
+    }
+    .section {
+      background: rgba(30, 20, 50, 0.9);
+      border: 2px solid #7c3aed;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 0 30px rgba(124, 58, 237, 0.2);
+    }
+    .section h2 {
+      margin: 0 0 8px 0;
+      color: #a78bfa;
+      font-size: 1.4rem;
+      border-bottom: 1px solid #4c1d95;
+      padding-bottom: 8px;
+    }
+    .section p {
+      color: #a0a0c0;
+      margin: 0 0 16px 0;
+      font-size: 0.9rem;
+    }
+    .button-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+    }
+    button {
+      padding: 12px 16px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    button:hover {
+      transform: translateY(-2px);
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    button small {
+      display: block;
+      font-weight: 400;
+      font-size: 0.7rem;
+      opacity: 0.8;
+      margin-top: 4px;
+      text-transform: none;
+    }
+    .btn-music {
+      background: linear-gradient(135deg, #7c3aed, #6d28d9);
+      color: white;
+      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+    }
+    .btn-music:hover {
+      background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+      box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4);
+    }
+    .btn-source {
+      background: linear-gradient(135deg, #0891b2, #0e7490);
+      color: white;
+      box-shadow: 0 4px 12px rgba(8, 145, 178, 0.3);
+    }
+    .btn-source:hover {
+      background: linear-gradient(135deg, #06b6d4, #0891b2);
+      box-shadow: 0 6px 16px rgba(8, 145, 178, 0.4);
+    }
+    .btn-stop {
+      background: linear-gradient(135deg, #dc2626, #b91c1c);
+      color: white;
+      box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+    }
+    .btn-stop:hover {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+    }
+    .controls-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+      align-items: center;
+    }
+    .volume-control {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .volume-control label {
+      font-size: 0.9rem;
+      color: #a0a0c0;
+    }
+    .volume-control input[type="range"] {
+      flex: 1;
+      height: 6px;
+      -webkit-appearance: none;
+      background: #4c1d95;
+      border-radius: 3px;
+      outline: none;
+    }
+    .volume-control input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      background: #a78bfa;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .status {
+      text-align: center;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 6px;
+      font-size: 0.85rem;
+      color: #888;
+      margin-top: 12px;
+    }
+    .status.playing {
+      color: #4ade80;
+    }
+    .note {
+      background: rgba(124, 58, 237, 0.15);
+      border-left: 3px solid #7c3aed;
+      padding: 12px 16px;
+      font-size: 0.85rem;
+      color: #c4b5fd;
+    }
+    .code-block {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid #4c1d95;
+      border-radius: 6px;
+      padding: 12px;
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 0.8rem;
+      color: #a78bfa;
+      overflow-x: auto;
+      margin-top: 12px;
+    }
+    .time-display {
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 1.2rem;
+      color: #4ade80;
+      text-align: center;
+      padding: 8px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 4px;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎵 Cursed Dice Music Test</h1>
+
+  <div class="container">
+    <!-- Original Source Files -->
+    <div class="section">
+      <h2>🎼 Original Sources</h2>
+      <p>Raw source files from test-sources/ before manipulation.</p>
+      <div class="button-grid">
+        <button class="btn-source" onclick="playTestSource('Keep')">Keep</button>
+        <button class="btn-source" onclick="playTestSource('Beware')">Beware</button>
+        <button class="btn-source" onclick="playTestSource('Battling')">Battling</button>
+        <button class="btn-source" onclick="playTestSource('Dungeon')">Dungeon</button>
+        <button class="btn-stop" onclick="stopMusic()">Stop</button>
+      </div>
+      <div class="time-display" id="time-display">0:00 / 0:00</div>
+      <div class="status" id="source-status">Click a track to test</div>
+    </div>
+
+    <!-- Manipulated Tracks by Mode -->
+    <div class="section">
+      <h2>🎚 Manipulated Tracks (test-sources/)</h2>
+      <p>Processed versions ready for stitching. Compare levels between tracks.</p>
+
+      <h3 style="color: #8b5cf6; margin: 16px 0 8px 0; font-size: 1rem;">Intense Mode</h3>
+      <div class="button-grid">
+        <button class="btn-source" onclick="playTestSource('intense_keep')">Keep</button>
+        <button class="btn-source" onclick="playTestSource('intense_beware')">Beware</button>
+        <button class="btn-source" onclick="playTestSource('intense_battling')">Battling</button>
+      </div>
+
+      <h3 style="color: #8b5cf6; margin: 16px 0 8px 0; font-size: 1rem;">Normal Mode</h3>
+      <div class="button-grid">
+        <button class="btn-source" onclick="playTestSource('normal_keep')">Keep</button>
+        <button class="btn-source" onclick="playTestSource('normal_beware')">Beware</button>
+        <button class="btn-source" onclick="playTestSource('normal_battling')">Battling</button>
+      </div>
+
+      <h3 style="color: #8b5cf6; margin: 16px 0 8px 0; font-size: 1rem;">Chill Mode</h3>
+      <div class="button-grid">
+        <button class="btn-source" onclick="playTestSource('chill_keep')">Keep</button>
+        <button class="btn-source" onclick="playTestSource('chill_beware')">Beware</button>
+        <button class="btn-source" onclick="playTestSource('chill_battling')">Battling</button>
+      </div>
+
+      <h3 style="color: #8b5cf6; margin: 16px 0 8px 0; font-size: 1rem;">Menu</h3>
+      <div class="button-grid">
+        <button class="btn-source" onclick="playTestSource('menu_original')">Original</button>
+        <button class="btn-source" onclick="playTestSource('menu_processed')">Processed</button>
+        <button class="btn-stop" onclick="stopMusic()">Stop</button>
+      </div>
+
+      <!-- Track Volume Adjustment -->
+      <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #4c1d95;">
+        <h3 style="color: #8b5cf6; margin: 0 0 12px 0; font-size: 1rem;">🎚 Volume Adjustment Test</h3>
+        <p style="color: #a0a0c0; font-size: 0.85rem; margin: 0 0 12px 0;">
+          Apply volume multiplier to currently playing track.
+        </p>
+        <div class="volume-control">
+          <label>Track Volume:</label>
+          <input type="range" id="beware-volume" min="50" max="150" value="100" onchange="setTrackVolume(this.value)">
+          <span id="beware-volume-display">100%</span>
+        </div>
+        <div class="code-block" style="margin-top: 12px;">
+          FFmpeg: <span id="ffmpeg-volume-cmd">-filter:a "volume=1.00"</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- NEW Stitched Tracks (beware at 50%) -->
+    <div class="section" style="border-color: #22c55e; box-shadow: 0 0 30px rgba(34, 197, 94, 0.2);">
+      <h2 style="color: #4ade80;">✅ New Stitched Tracks (Beware @ 50%)</h2>
+      <p>Newly stitched versions with beware at 50% volume. Compare these to verify the fix.</p>
+      <div class="button-grid">
+        <button class="btn-source" style="background: linear-gradient(135deg, #22c55e, #16a34a);" onclick="playNewStitch('chill_new')">
+          Chill NEW
+          <small>beware @ 50%</small>
+        </button>
+        <button class="btn-source" style="background: linear-gradient(135deg, #22c55e, #16a34a);" onclick="playNewStitch('normal_new')">
+          Normal NEW
+          <small>beware @ 50%</small>
+        </button>
+        <button class="btn-source" style="background: linear-gradient(135deg, #22c55e, #16a34a);" onclick="playNewStitch('intense_new')">
+          Intense NEW
+          <small>beware @ 50%</small>
+        </button>
+        <button class="btn-stop" onclick="stopMusic()">Stop</button>
+      </div>
+      <div class="status" id="new-stitch-status">Test the newly stitched tracks</div>
+      <div class="note" style="margin-top: 12px;">
+        <strong>If these sound good:</strong> Copy <code>*_new.mp3</code> files to <code>dist/sounds/</code> (renamed to chill.mp3, normal.mp3, intense.mp3)
+      </div>
+    </div>
+
+    <!-- Combined Tracks Section -->
+    <div class="section">
+      <h2>🎵 Combined Tracks (in-game)</h2>
+      <p>Final stitched tracks currently used in the game.</p>
+      <div class="button-grid">
+        <button class="btn-music" onclick="playMusic('chill')">
+          Chill Mode
+          <small>chill.mp3</small>
+        </button>
+        <button class="btn-music" onclick="playMusic('normal')">
+          Normal Mode
+          <small>normal.mp3</small>
+        </button>
+        <button class="btn-music" onclick="playMusic('intense')">
+          Intense Mode
+          <small>intense.mp3</small>
+        </button>
+        <button class="btn-music" onclick="playMusic('menu')">
+          Menu
+          <small>menu.mp3</small>
+        </button>
+        <button class="btn-stop" onclick="stopMusic()">Stop</button>
+      </div>
+      <div class="status" id="music-status">No music playing</div>
+    </div>
+
+    <!-- Volume Control -->
+    <div class="section">
+      <h2>🔊 Volume</h2>
+      <div class="volume-control">
+        <label>Volume:</label>
+        <input type="range" id="volume" min="0" max="100" value="50" onchange="setVolume(this.value)">
+        <span id="volume-display">50%</span>
+      </div>
+    </div>
+
+    <!-- FFmpeg Commands -->
+    <div class="section">
+      <h2>🛠 FFmpeg Stitch Commands</h2>
+      <p>Commands to combine source tracks. Run from <code>dev-assets/audio-sources/final/</code></p>
+
+      <h3 style="color: #8b5cf6; margin: 16px 0 8px 0; font-size: 1rem;">Intense Mode (fix beware volume)</h3>
+      <p style="color: #a0a0c0; font-size: 0.85rem;">Run from <code>dev-assets/audio-sources/test-sources/</code></p>
+      <div class="code-block" id="intense-cmd">
+# Step 1: Lower beware volume (adjust 0.75 as needed)<br>
+ffmpeg -i intense_beware.mp3 -filter:a "volume=0.75" intense_beware_adj.mp3<br><br>
+
+# Step 2: Stitch with crossfade<br>
+ffmpeg -i intense_keep.mp3 -i intense_beware_adj.mp3 -i intense_battling.mp3 \<br>
+&nbsp;&nbsp;-filter_complex "[0:a][1:a]acrossfade=d=2:c1=tri:c2=tri[a01]; \<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[a01][2:a]acrossfade=d=2:c1=tri:c2=tri[aout]" \<br>
+&nbsp;&nbsp;-map "[aout]" intense_new.mp3
+      </div>
+
+      <h3 style="color: #8b5cf6; margin: 16px 0 8px 0; font-size: 1rem;">One-liner (volume + stitch)</h3>
+      <div class="code-block">
+ffmpeg -i intense_keep.mp3 -i intense_beware.mp3 -i intense_battling.mp3 \<br>
+&nbsp;&nbsp;-filter_complex "[1:a]volume=0.75[beware]; \<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[0:a][beware]acrossfade=d=2:c1=tri:c2=tri[a01]; \<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[a01][2:a]acrossfade=d=2:c1=tri:c2=tri[aout]" \<br>
+&nbsp;&nbsp;-map "[aout]" intense_new.mp3
+      </div>
+
+      <h3 style="color: #8b5cf6; margin: 16px 0 8px 0; font-size: 1rem;">Simple concat (no crossfade)</h3>
+      <div class="code-block">
+ffmpeg -i intense_keep.mp3 -i intense_beware.mp3 -i intense_battling.mp3 \<br>
+&nbsp;&nbsp;-filter_complex "[1:a]volume=0.75[beware]; \<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[0:a][beware][2:a]concat=n=3:v=0:a=1[aout]" \<br>
+&nbsp;&nbsp;-map "[aout]" intense_new.mp3
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>Workflow:</strong> Test source tracks above, adjust ffmpeg settings, stitch together, then test the combined result.
+    </div>
+  </div>
+
+  <script>
+    let currentAudio = null;
+    let currentVolume = 0.5;
+    let timeUpdateInterval = null;
+
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function updateTimeDisplay() {
+      if (currentAudio) {
+        const current = formatTime(currentAudio.currentTime);
+        const total = formatTime(currentAudio.duration || 0);
+        document.getElementById('time-display').textContent = `${current} / ${total}`;
+      }
+    }
+
+    let trackVolume = 1.0; // Track volume multiplier
+    let currentTrack = null;
+
+    function setTrackVolume(value) {
+      trackVolume = value / 100;
+      document.getElementById('beware-volume-display').textContent = value + '%';
+      document.getElementById('ffmpeg-volume-cmd').textContent = `-filter:a "volume=${trackVolume.toFixed(2)}"`;
+      // Update live
+      if (currentAudio) {
+        currentAudio.volume = currentVolume * trackVolume;
+      }
+    }
+
+    function playTestSource(track) {
+      stopMusic();
+      currentTrack = track;
+
+      const status = document.getElementById('source-status');
+
+      currentAudio = new Audio();
+      currentAudio.volume = currentVolume * trackVolume;
+
+      currentAudio.onplay = () => {
+        status.textContent = `Playing: ${track}`;
+        status.className = 'status playing';
+        timeUpdateInterval = setInterval(updateTimeDisplay, 100);
+      };
+
+      currentAudio.onended = () => {
+        status.textContent = 'Finished';
+        status.className = 'status';
+        clearInterval(timeUpdateInterval);
+      };
+
+      currentAudio.onerror = () => {
+        status.textContent = `Error loading ${track}`;
+        status.className = 'status';
+      };
+
+      currentAudio.src = `dev-assets/audio-sources/test-sources/${track}.mp3`;
+      currentAudio.play().catch(e => {
+        status.textContent = `Error: ${e.message}`;
+      });
+    }
+
+    function playNewStitch(track) {
+      stopMusic();
+      currentTrack = track;
+
+      const status = document.getElementById('new-stitch-status');
+      const displayName = track.replace('_new', ' (NEW)').toUpperCase();
+
+      currentAudio = new Audio();
+      currentAudio.volume = currentVolume;
+
+      currentAudio.onplay = () => {
+        status.textContent = `Playing: ${displayName}`;
+        status.className = 'status playing';
+        timeUpdateInterval = setInterval(updateTimeDisplay, 100);
+      };
+
+      currentAudio.onended = () => {
+        status.textContent = 'Finished';
+        status.className = 'status';
+        clearInterval(timeUpdateInterval);
+      };
+
+      currentAudio.onerror = () => {
+        status.textContent = `Error loading ${track}`;
+        status.className = 'status';
+      };
+
+      currentAudio.src = `dev-assets/audio-sources/test-sources/${track}.mp3`;
+      currentAudio.play().catch(e => {
+        status.textContent = `Error: ${e.message}`;
+      });
+    }
+
+    function playMusic(mode) {
+      stopMusic();
+
+      const status = document.getElementById('music-status');
+      const modeNames = { chill: 'Chill', normal: 'Normal', intense: 'Intense', menu: 'Menu' };
+
+      currentAudio = new Audio();
+      currentAudio.volume = currentVolume;
+      currentAudio.loop = true;
+
+      currentAudio.onplay = () => {
+        status.textContent = `Playing: ${modeNames[mode]} Mode`;
+        status.className = 'status playing';
+      };
+
+      currentAudio.onerror = () => {
+        // Try alternate path
+        currentAudio.src = `assets/sounds/${mode}.mp3`;
+        currentAudio.play().catch(() => {
+          status.textContent = `Error loading ${mode}`;
+          status.className = 'status';
+        });
+      };
+
+      currentAudio.src = `dist/sounds/${mode}.mp3`;
+      currentAudio.play().catch(() => {});
+    }
+
+    function stopMusic() {
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        currentAudio = null;
+      }
+      if (timeUpdateInterval) {
+        clearInterval(timeUpdateInterval);
+        timeUpdateInterval = null;
+      }
+      document.getElementById('source-status').textContent = 'Click a track to test';
+      document.getElementById('source-status').className = 'status';
+      document.getElementById('new-stitch-status').textContent = 'Test the newly stitched tracks';
+      document.getElementById('new-stitch-status').className = 'status';
+      document.getElementById('music-status').textContent = 'No music playing';
+      document.getElementById('music-status').className = 'status';
+      document.getElementById('time-display').textContent = '0:00 / 0:00';
+    }
+
+    function setVolume(value) {
+      currentVolume = value / 100;
+      document.getElementById('volume-display').textContent = value + '%';
+      if (currentAudio) {
+        currentAudio.volume = currentVolume;
+      }
+    }
+  </script>
+</body>
+</html>

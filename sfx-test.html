@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:,">
+  <title>Cursed Dice - SFX Test</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0a0a1a 0%, #1a0a2a 100%);
+      color: #e0e0ff;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #c4b5fd;
+      margin-bottom: 30px;
+      text-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      display: grid;
+      gap: 24px;
+    }
+    .section {
+      background: rgba(30, 20, 50, 0.9);
+      border: 2px solid #7c3aed;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 0 30px rgba(124, 58, 237, 0.2);
+    }
+    .section h2 {
+      margin: 0 0 8px 0;
+      color: #a78bfa;
+      font-size: 1.4rem;
+      border-bottom: 1px solid #4c1d95;
+      padding-bottom: 8px;
+    }
+    .section h3 {
+      margin: 16px 0 12px 0;
+      color: #8b5cf6;
+      font-size: 1.1rem;
+    }
+    .section p {
+      color: #a0a0c0;
+      margin: 0 0 16px 0;
+      font-size: 0.9rem;
+    }
+    .button-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+    }
+    .button-grid-wide {
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+    button {
+      padding: 12px 16px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    button:hover {
+      transform: translateY(-2px);
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    button small {
+      display: block;
+      font-weight: 400;
+      font-size: 0.7rem;
+      opacity: 0.8;
+      margin-top: 4px;
+      text-transform: none;
+    }
+    .btn-dice {
+      background: linear-gradient(135deg, #0891b2, #0e7490);
+      color: white;
+      box-shadow: 0 4px 12px rgba(8, 145, 178, 0.3);
+    }
+    .btn-dice:hover {
+      background: linear-gradient(135deg, #06b6d4, #0891b2);
+      box-shadow: 0 6px 16px rgba(8, 145, 178, 0.4);
+    }
+    .btn-sfx {
+      background: linear-gradient(135deg, #059669, #047857);
+      color: white;
+      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+    }
+    .btn-sfx:hover {
+      background: linear-gradient(135deg, #10b981, #059669);
+      box-shadow: 0 6px 16px rgba(5, 150, 105, 0.4);
+    }
+    .btn-music {
+      background: linear-gradient(135deg, #7c3aed, #6d28d9);
+      color: white;
+      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+    }
+    .btn-music:hover {
+      background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+      box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4);
+    }
+    .btn-stop {
+      background: linear-gradient(135deg, #dc2626, #b91c1c);
+      color: white;
+      box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+    }
+    .btn-stop:hover {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+    }
+    .controls-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+      align-items: center;
+    }
+    .volume-control {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .volume-control label {
+      font-size: 0.9rem;
+      color: #a0a0c0;
+    }
+    .volume-control input[type="range"] {
+      flex: 1;
+      height: 6px;
+      -webkit-appearance: none;
+      background: #4c1d95;
+      border-radius: 3px;
+      outline: none;
+    }
+    .volume-control input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      background: #a78bfa;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .status {
+      text-align: center;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 6px;
+      font-size: 0.85rem;
+      color: #888;
+      margin-top: 12px;
+    }
+    .status.playing {
+      color: #4ade80;
+    }
+    .note {
+      background: rgba(124, 58, 237, 0.15);
+      border-left: 3px solid #7c3aed;
+      padding: 12px 16px;
+      margin-top: 20px;
+      font-size: 0.85rem;
+      color: #c4b5fd;
+    }
+    .divider {
+      border-top: 1px solid #4c1d95;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎲 Cursed Dice SFX Test</h1>
+
+  <div class="container">
+    <!-- Dice Roll Variations Section -->
+    <div class="section">
+      <h2>🎲 Dice Roll Variations (Pick Your Favorite!)</h2>
+      <p>10 different dice roll sounds to choose from. Click each to hear the difference.</p>
+
+      <div class="button-grid button-grid-wide">
+        <button class="btn-dice" onclick="playDiceVariation(1)">
+          #1 Dark Tumble
+          <small>Low rumbling hits</small>
+        </button>
+        <button class="btn-dice" onclick="playDiceVariation(2)">
+          #2 Cursed Rattle
+          <small>Ominous shaking</small>
+        </button>
+        <button class="btn-dice" onclick="playDiceVariation(3)">
+          #3 Stone Drop
+          <small>Heavy stone dice</small>
+        </button>
+        <button class="btn-dice" onclick="playDiceVariation(4)">
+          #4 Deep Thud
+          <small>Very heavy impact</small>
+        </button>
+        <button class="btn-dice" onclick="playDiceVariation(5)">
+          #5 Whisper Roll
+          <small>Subtle, eerie</small>
+        </button>
+        <button class="btn-dice" onclick="playDiceVariation(6)">
+          #6 Doom Roll
+          <small>Extended ominous roll</small>
+        </button>
+        <button class="btn-dice" onclick="playDiceVariation(7)">
+          #7 Quick Strike
+          <small>Short, dark punch</small>
+        </button>
+        <button class="btn-dice" onclick="playDiceVariation(8)">
+          #8 Bone Bounce
+          <small>Skeletal dice bouncing</small>
+        </button>
+        <button class="btn-dice" onclick="playDiceVariation(9)">
+          #9 Hollow Echo
+          <small>Dark resonance</small>
+        </button>
+        <button class="btn-dice" onclick="playDiceVariation(10)">
+          #10 Shadow Roll
+          <small>Quiet, menacing</small>
+        </button>
+      </div>
+      <div class="controls-row">
+        <div class="volume-control">
+          <label>SFX Volume:</label>
+          <input type="range" id="sfx-volume" min="0" max="200" value="100" onchange="setSfxVolume(this.value)">
+          <span id="sfx-volume-display">100%</span>
+        </div>
+      </div>
+      <div class="status" id="dice-status">Click a variation to test</div>
+    </div>
+
+    <!-- Other SFX Section -->
+    <div class="section">
+      <h2>🔊 Other Sound Effects</h2>
+      <p>Game feedback sounds. Score confirm is now 1 octave lower (C4→E4).</p>
+      <div class="button-grid">
+        <button class="btn-sfx" onclick="playSFX('scoreConfirm')">
+          Score Confirm
+          <small>C4→E4 (lowered)</small>
+        </button>
+        <button class="btn-sfx" onclick="playSFX('modeComplete')">Mode Complete</button>
+        <button class="btn-sfx" onclick="playSFX('victoryFanfare')">Victory Fanfare</button>
+      </div>
+      <div class="status" id="sfx-status">Click a button to test</div>
+    </div>
+
+    <div class="note">
+      <strong>How to choose:</strong> Listen to each dice roll variation a few times.
+      Pick the one that feels most satisfying for repeated use during gameplay.
+      Tell me the number (1-10) of your favorite!
+    </div>
+  </div>
+
+  <script>
+    // ==========================================================================
+    // AUDIO CONTEXT
+    // ==========================================================================
+
+    let audioContext = null;
+    let sfxVolume = 1.0; // Global SFX volume multiplier
+
+    function setSfxVolume(value) {
+      sfxVolume = value / 100;
+      document.getElementById('sfx-volume-display').textContent = value + '%';
+    }
+
+    function getAudioContext() {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioContext.state === 'suspended') {
+        audioContext.resume();
+      }
+      return audioContext;
+    }
+
+    // ==========================================================================
+    // DICE ROLL VARIATIONS
+    // ==========================================================================
+
+    function playDiceVariation(num) {
+      const status = document.getElementById('dice-status');
+      const names = {
+        1: 'Dark Tumble',
+        2: 'Cursed Rattle',
+        3: 'Stone Drop',
+        4: 'Deep Thud',
+        5: 'Whisper Roll',
+        6: 'Doom Roll',
+        7: 'Quick Strike',
+        8: 'Bone Bounce',
+        9: 'Hollow Echo',
+        10: 'Shadow Roll'
+      };
+
+      switch(num) {
+        case 1: diceClickClack(); break;
+        case 2: diceWoodenTumble(); break;
+        case 3: dicePlasticRattle(); break;
+        case 4: diceHeavyThud(); break;
+        case 5: diceLightShake(); break;
+        case 6: diceCasinoRoll(); break;
+        case 7: diceQuickSnap(); break;
+        case 8: diceBouncy(); break;
+        case 9: diceMetallic(); break;
+        case 10: diceSoftRoll(); break;
+      }
+
+      status.textContent = `Playing: #${num} ${names[num]}`;
+      status.className = 'status playing';
+
+      setTimeout(() => {
+        status.textContent = 'Click a variation to test';
+        status.className = 'status';
+      }, 1500);
+    }
+
+    // All dice sounds use C3-C4 range (130-260Hz) for dark/cursed theme
+
+    // #1 Dark Tumble - Low rumbling hits
+    function diceClickClack() {
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+
+      const hits = [
+        { time: 0, freq: 196, duration: 0.04 },      // G3
+        { time: 0.035, freq: 165, duration: 0.035 }, // E3
+        { time: 0.07, freq: 220, duration: 0.04 },   // A3
+        { time: 0.11, freq: 175, duration: 0.035 },  // F3
+        { time: 0.14, freq: 147, duration: 0.05 },   // D3
+      ];
+
+      hits.forEach(({ time, freq, duration }) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+
+        const gain = ctx.createGain();
+        const startTime = now + time;
+        gain.gain.setValueAtTime(0.15, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      });
+
+      // Deep thud
+      const thud = ctx.createOscillator();
+      thud.type = 'sine';
+      thud.frequency.setValueAtTime(80, now);
+      thud.frequency.exponentialRampToValueAtTime(40, now + 0.08);
+
+      const thudGain = ctx.createGain();
+      thudGain.gain.setValueAtTime(0.18, now);
+      thudGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+      thud.connect(thudGain);
+      thudGain.connect(ctx.destination);
+      thud.start(now);
+      thud.stop(now + 0.1);
+    }
+
+    // #2 Cursed Rattle - Ominous shaking
+    function diceWoodenTumble() {
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+
+      const hits = [
+        { time: 0, freq: 131, duration: 0.06 },     // C3
+        { time: 0.05, freq: 147, duration: 0.05 },  // D3
+        { time: 0.1, freq: 131, duration: 0.055 },  // C3
+        { time: 0.16, freq: 165, duration: 0.07 },  // E3
+      ];
+
+      hits.forEach(({ time, freq, duration }) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.value = freq;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 300;
+
+        const gain = ctx.createGain();
+        const startTime = now + time;
+        gain.gain.setValueAtTime(0.12, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      });
+
+      // Rumble
+      const rumble = ctx.createOscillator();
+      rumble.type = 'sine';
+      rumble.frequency.setValueAtTime(65, now);
+      rumble.frequency.exponentialRampToValueAtTime(45, now + 0.15);
+
+      const rumbleGain = ctx.createGain();
+      rumbleGain.gain.setValueAtTime(0.2, now);
+      rumbleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+      rumble.connect(rumbleGain);
+      rumbleGain.connect(ctx.destination);
+      rumble.start(now);
+      rumble.stop(now + 0.18);
+    }
+
+    // #3 Stone Drop - Heavy stone dice
+    function dicePlasticRattle() {
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+
+      const drops = [
+        { time: 0, freq: 175, duration: 0.03 },
+        { time: 0.025, freq: 196, duration: 0.025 },
+        { time: 0.055, freq: 165, duration: 0.03 },
+        { time: 0.09, freq: 185, duration: 0.028 },
+        { time: 0.12, freq: 156, duration: 0.035 },
+      ];
+
+      drops.forEach(({ time, freq, duration }) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+
+        const gain = ctx.createGain();
+        const startTime = now + time;
+        gain.gain.setValueAtTime(0.12, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      });
+
+      // Impact
+      const impact = ctx.createOscillator();
+      impact.type = 'sine';
+      impact.frequency.setValueAtTime(100, now);
+      impact.frequency.exponentialRampToValueAtTime(50, now + 0.06);
+
+      const impactGain = ctx.createGain();
+      impactGain.gain.setValueAtTime(0.15, now);
+      impactGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+      impact.connect(impactGain);
+      impact.connect(ctx.destination);
+      impact.start(now);
+      impact.stop(now + 0.08);
+    }
+
+    // #4 Deep Thud - Very heavy impact
+    function diceHeavyThud() {
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+
+      // Massive bass thud
+      const bass = ctx.createOscillator();
+      bass.type = 'sine';
+      bass.frequency.setValueAtTime(80, now);
+      bass.frequency.exponentialRampToValueAtTime(25, now + 0.2);
+
+      const bassGain = ctx.createGain();
+      bassGain.gain.setValueAtTime(0.35, now);
+      bassGain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+      bass.connect(bassGain);
+      bassGain.connect(ctx.destination);
+      bass.start(now);
+      bass.stop(now + 0.25);
+
+      // Mid hit
+      const mid = ctx.createOscillator();
+      mid.type = 'triangle';
+      mid.frequency.value = 131; // C3
+
+      const midGain = ctx.createGain();
+      midGain.gain.setValueAtTime(0.1, now);
+      midGain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+      mid.connect(midGain);
+      midGain.connect(ctx.destination);
+      mid.start(now);
+      mid.stop(now + 0.05);
+
+      // Second thud
+      const thud2 = ctx.createOscillator();
+      thud2.type = 'sine';
+      thud2.frequency.setValueAtTime(65, now + 0.12);
+      thud2.frequency.exponentialRampToValueAtTime(30, now + 0.28);
+
+      const thud2Gain = ctx.createGain();
+      thud2Gain.gain.setValueAtTime(0.2, now + 0.12);
+      thud2Gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+      thud2.connect(thud2Gain);
+      thud2Gain.connect(ctx.destination);
+      thud2.start(now + 0.12);
+      thud2.stop(now + 0.3);
+    }
+
+    // #5 Whisper Roll - Subtle, eerie
+    function diceLightShake() {
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+
+      for (let i = 0; i < 6; i++) {
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = 130 + Math.random() * 80; // C3-G3 range
+
+        const gain = ctx.createGain();
+        const startTime = now + i * 0.02;
+        gain.gain.setValueAtTime(0.06, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.025);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + 0.025);
+      }
+
+      // Soft hum
+      const hum = ctx.createOscillator();
+      hum.type = 'sine';
+      hum.frequency.value = 98; // G2
+
+      const humGain = ctx.createGain();
+      humGain.gain.setValueAtTime(0.08, now);
+      humGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+      hum.connect(humGain);
+      humGain.connect(ctx.destination);
+      hum.start(now);
+      hum.stop(now + 0.1);
+    }
+
+    // #6 Doom Roll - Extended ominous roll
+    function diceCasinoRoll() {
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+
+      // Extended low rattle
+      for (let i = 0; i < 10; i++) {
+        const osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.value = 130 + Math.random() * 100; // C3-E4 range
+
+        const gain = ctx.createGain();
+        const startTime = now + i * 0.03;
+        const volume = i < 5 ? 0.05 + i * 0.015 : 0.125 - (i - 5) * 0.02;
+        gain.gain.setValueAtTime(volume, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.035);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + 0.035);
+      }
+
+      // Final doom thud
+      const thud = ctx.createOscillator();
+      thud.type = 'sine';
+      thud.frequency.setValueAtTime(98, now + 0.3);  // G2
+      thud.frequency.exponentialRampToValueAtTime(40, now + 0.45);
+
+      const thudGain = ctx.createGain();
+      thudGain.gain.setValueAtTime(0.25, now + 0.3);
+      thudGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+
+      thud.connect(thudGain);
+      thudGain.connect(ctx.destination);
+      thud.start(now + 0.3);
+      thud.stop(now + 0.5);
+    }
+
+    // #7 Quick Strike - Short, dark punch
+    function diceQuickSnap() {
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+
+      // Sharp low attack
+      const snap = ctx.createOscillator();
+      snap.type = 'sawtooth';
+      snap.frequency.value = 196; // G3
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 400;
+
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+      snap.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      snap.start(now);
+      snap.stop(now + 0.05);
+
+      // Deep thump
+      const thump = ctx.createOscillator();
+      thump.type = 'sine';
+      thump.frequency.setValueAtTime(130, now); // C3
+      thump.frequency.exponentialRampToValueAtTime(50, now + 0.06);
+
+      const thumpGain = ctx.createGain();
+      thumpGain.gain.setValueAtTime(0.2, now);
+      thumpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+      thump.connect(thumpGain);
+      thumpGain.connect(ctx.destination);
+      thump.start(now);
+      thump.stop(now + 0.08);
+    }
+
+    // #8 Bone Bounce - Skeletal dice bouncing
+    function diceBouncy() {
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+
+      const bounces = [
+        { time: 0, freq: 196, duration: 0.07 },     // G3
+        { time: 0.09, freq: 175, duration: 0.06 },  // F3
+        { time: 0.16, freq: 156, duration: 0.05 },  // Eb3
+        { time: 0.22, freq: 147, duration: 0.04 },  // D3
+        { time: 0.27, freq: 131, duration: 0.035 }, // C3
+      ];
+
+      bounces.forEach(({ time, freq, duration }, i) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + time);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.7, now + time + duration);
+
+        const gain = ctx.createGain();
+        const vol = (0.18 - i * 0.025) * sfxVolume;
+        gain.gain.setValueAtTime(vol, now + time);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + time + duration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + time);
+        osc.stop(now + time + duration);
+      });
+
+      // Base thud
+      const thud = ctx.createOscillator();
+      thud.type = 'sine';
+      thud.frequency.setValueAtTime(65, now);
+      thud.frequency.exponentialRampToValueAtTime(35, now + 0.1);
+
+      const thudGain = ctx.createGain();
+      thudGain.gain.setValueAtTime(0.15 * sfxVolume, now);
+      thudGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+      thud.connect(thudGain);
+      thudGain.connect(ctx.destination);
+      thud.start(now);
+      thud.stop(now + 0.12);
+    }
+
+    // #9 Hollow Echo - Dark resonance
+    function diceMetallic() {
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+
+      const hits = [
+        { time: 0, freq: 165, duration: 0.08 },     // E3
+        { time: 0.06, freq: 196, duration: 0.07 },  // G3
+        { time: 0.12, freq: 147, duration: 0.08 },  // D3
+        { time: 0.19, freq: 175, duration: 0.06 },  // F3
+      ];
+
+      hits.forEach(({ time, freq, duration }) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.value = freq;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 350;
+        filter.Q.value = 5; // Resonance for hollow sound
+
+        const gain = ctx.createGain();
+        const startTime = now + time;
+        gain.gain.setValueAtTime(0.1, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+
+        // Octave below for depth
+        const sub = ctx.createOscillator();
+        sub.type = 'sine';
+        sub.frequency.value = freq / 2;
+
+        const subGain = ctx.createGain();
+        subGain.gain.setValueAtTime(0.08, startTime);
+        subGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration * 1.3);
+
+        sub.connect(subGain);
+        subGain.connect(ctx.destination);
+        sub.start(startTime);
+        sub.stop(startTime + duration * 1.3);
+      });
+    }
+
+    // #10 Shadow Roll - Quiet, menacing
+    function diceSoftRoll() {
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+
+      const taps = [
+        { time: 0, freq: 131, duration: 0.05 },     // C3
+        { time: 0.06, freq: 147, duration: 0.045 }, // D3
+        { time: 0.11, freq: 139, duration: 0.05 },  // C#3
+        { time: 0.17, freq: 156, duration: 0.055 }, // Eb3
+      ];
+
+      taps.forEach(({ time, freq, duration }) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+
+        const gain = ctx.createGain();
+        const startTime = now + time;
+        gain.gain.setValueAtTime(0.08, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      });
+
+      // Deep whisper
+      const whisper = ctx.createOscillator();
+      whisper.type = 'sine';
+      whisper.frequency.setValueAtTime(55, now); // A1
+      whisper.frequency.exponentialRampToValueAtTime(40, now + 0.15);
+
+      const whisperGain = ctx.createGain();
+      whisperGain.gain.setValueAtTime(0.1, now);
+      whisperGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+      whisper.connect(whisperGain);
+      whisper.connect(ctx.destination);
+      whisper.start(now);
+      whisper.stop(now + 0.18);
+    }
+
+    // ==========================================================================
+    // OTHER SFX
+    // ==========================================================================
+
+    function playScoreConfirmSound() {
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+
+      // C4 -> E4 (lowered 1 octave from original)
+      const notes = [261.63, 329.63];
+      const duration = 0.08;
+
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+
+        const gain = ctx.createGain();
+        const startTime = now + i * 0.06;
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(0.15, startTime + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      });
+    }
+
+    function playModeCompleteSound() {
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+
+      // C3 -> E3 -> G3 -> C4 (lowered 1 octave)
+      const notes = [130.81, 164.81, 196.00, 261.63];
+      const duration = 0.2;
+
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+
+        const gain = ctx.createGain();
+        const startTime = now + i * 0.08;
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(0.12, startTime + 0.02);
+        gain.gain.setValueAtTime(0.12, startTime + duration * 0.7);
+        gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      });
+    }
+
+    function playVictoryFanfare() {
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+
+      // Extended triumphant fanfare with more notes (dark/cursed theme)
+      const fanfareNotes = [
+        // Opening phrase
+        { freq: 130.81, start: 0, duration: 0.15 },      // C3
+        { freq: 164.81, start: 0.12, duration: 0.15 },   // E3
+        { freq: 196.00, start: 0.24, duration: 0.15 },   // G3
+        { freq: 261.63, start: 0.36, duration: 0.2 },    // C4
+        // Second phrase (variation)
+        { freq: 196.00, start: 0.52, duration: 0.12 },   // G3
+        { freq: 220.00, start: 0.62, duration: 0.12 },   // A3
+        { freq: 246.94, start: 0.72, duration: 0.12 },   // B3
+        { freq: 261.63, start: 0.82, duration: 0.25 },   // C4
+        // Climax phrase
+        { freq: 196.00, start: 1.04, duration: 0.1 },    // G3
+        { freq: 261.63, start: 1.12, duration: 0.1 },    // C4
+        { freq: 329.63, start: 1.2, duration: 0.1 },     // E4
+        { freq: 392.00, start: 1.28, duration: 0.4 },    // G4 (hold)
+      ];
+
+      // Final resolving chord
+      const chordNotes = [
+        { freq: 130.81, start: 1.6, duration: 0.8 },  // C3
+        { freq: 196.00, start: 1.6, duration: 0.8 },  // G3
+        { freq: 261.63, start: 1.6, duration: 0.8 },  // C4
+      ];
+
+      [...fanfareNotes, ...chordNotes].forEach(({ freq, start, duration }) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+
+        const gain = ctx.createGain();
+        const startTime = now + start;
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(0.1, startTime + 0.02);
+        gain.gain.setValueAtTime(0.1, startTime + duration * 0.8);
+        gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      });
+    }
+
+    function playSFX(type) {
+      const status = document.getElementById('sfx-status');
+      const names = {
+        scoreConfirm: 'Score Confirm (C4→E4)',
+        modeComplete: 'Mode Complete',
+        victoryFanfare: 'Victory Fanfare'
+      };
+
+      switch(type) {
+        case 'scoreConfirm': playScoreConfirmSound(); break;
+        case 'modeComplete': playModeCompleteSound(); break;
+        case 'victoryFanfare': playVictoryFanfare(); break;
+      }
+
+      status.textContent = `Playing: ${names[type]}`;
+      status.className = 'status playing';
+
+      setTimeout(() => {
+        status.textContent = 'Click a button to test';
+        status.className = 'status';
+      }, 1500);
+    }
+  </script>
+</body>
+</html>
