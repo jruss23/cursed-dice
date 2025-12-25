@@ -33,6 +33,7 @@ export class TutorialOverlay {
   private titleText: Phaser.GameObjects.Text | null = null;
   private messageText: Phaser.GameObjects.Text | null = null;
   private nextButton: Phaser.GameObjects.Container | null = null;
+  private actionPromptText: Phaser.GameObjects.Text | null = null;
 
   private isVisible: boolean = false;
   private isTransitioning: boolean = false;
@@ -168,6 +169,17 @@ export class TutorialOverlay {
       () => this.config.onNext()
     );
     this.popupContainer.add(this.nextButton);
+
+    // Action prompt text (shown when user needs to do something, hidden when NEXT button is shown)
+    this.actionPromptText = createText(this.scene, 0, buttonY, 'Try it now!', {
+      fontSize: FONTS.SIZE_BODY,
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TEXT_WARNING,
+      fontStyle: 'bold italic',
+    });
+    this.actionPromptText.setOrigin(0.5, 0.5);
+    this.actionPromptText.setVisible(false);
+    this.popupContainer.add(this.actionPromptText);
   }
 
   private addCornerAccents(width: number, height: number): void {
@@ -355,7 +367,7 @@ export class TutorialOverlay {
       this.messageText.setText(step.message);
     }
 
-    // Show/hide next button based on step type
+    // Show/hide next button and action prompt based on step type
     if (this.nextButton) {
       this.nextButton.setVisible(step.showNextButton);
 
@@ -364,6 +376,11 @@ export class TutorialOverlay {
       if (nextText && nextText.setText) {
         nextText.setText(step.id === 'freeplay' ? 'GOT IT!' : 'NEXT');
       }
+    }
+
+    // Show action prompt when user needs to do something (no NEXT button)
+    if (this.actionPromptText) {
+      this.actionPromptText.setVisible(!step.showNextButton);
     }
 
     // Position popup based on highlight and position preference

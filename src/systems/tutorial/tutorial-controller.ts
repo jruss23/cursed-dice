@@ -240,7 +240,7 @@ export class TutorialController {
         id: 'lock-ones',
         title: 'Lock the 1s!',
         message:
-          "Tap each die showing a 1 to lock it. Locked dice turn green and won't change when you reroll. Try it now!",
+          "Tap each die showing a 1 to lock it. Locked dice turn green and won't change when you reroll.",
         highlightTarget: 'dice',
         showNextButton: false,
         advanceOn: 'lock-count',
