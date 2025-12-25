@@ -17,6 +17,7 @@ export class ScorecardStateManager {
   private lockedCategories: Set<CategoryId> = new Set();
   private isGauntletMode: boolean = false;
   private isInputLocked: boolean = false;
+  private isTutorialLocked: boolean = false; // Persistent lock during tutorial
   private allowedCategories: Set<CategoryId> | null = null;
   private hoverEnabled: boolean = true;
   private passThreshold: number = 250;
@@ -75,11 +76,28 @@ export class ScorecardStateManager {
   }
 
   unlockInput(): void {
+    // Don't unlock if tutorial lock is active
+    if (this.isTutorialLocked) return;
     this.isInputLocked = false;
   }
 
   isInputLockedState(): boolean {
-    return this.isInputLocked;
+    return this.isInputLocked || this.isTutorialLocked;
+  }
+
+  /**
+   * Tutorial lock persists across dice rolls
+   * Unlike normal lockInput, this won't be cleared by unlockInput()
+   */
+  setTutorialLock(locked: boolean): void {
+    this.isTutorialLocked = locked;
+    if (locked) {
+      this.isInputLocked = true;
+    }
+  }
+
+  isTutorialLockActive(): boolean {
+    return this.isTutorialLocked;
   }
 
   // ===========================================================================
@@ -228,6 +246,7 @@ export class ScorecardStateManager {
     this.lockedCategories.clear();
     this.isGauntletMode = false;
     this.isInputLocked = false;
+    this.isTutorialLocked = false;
     this.allowedCategories = null;
     this.hoverEnabled = true;
     this.currentDice = [1, 1, 1, 1, 1];

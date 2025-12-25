@@ -89,6 +89,7 @@ export interface TutorialControllableScorecard {
   resetTutorialMode(): void;
   lockInput(): void;
   unlockInput(): void;
+  setTutorialLock(locked: boolean): void;
   setDice(values: number[]): void;
   updateDisplay(): void;
   getBounds(): Bounds;
@@ -96,6 +97,7 @@ export interface TutorialControllableScorecard {
   getCategoriesCounterBounds(): Bounds;
   getBonusRowBounds(): Bounds | null;
   getTotalRowBounds(): Bounds | null;
+  getNumbersColumnBounds(): Bounds | null;
 }
 
 // =============================================================================
@@ -111,6 +113,7 @@ export type HighlightTarget =
   | 'scorecard-categories'
   | 'scorecard-bonus'
   | 'scorecard-total'
+  | 'scorecard-numbers-column'
   | 'header'
   | 'header-curse'
   | 'header-timer'

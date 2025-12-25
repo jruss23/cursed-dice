@@ -271,18 +271,21 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     // === PANEL FRAME (matching menu button design) ===
     this.buildPanelFrame(width, height);
 
-    // === COLUMN BACKGROUNDS (two-column only) ===
+    // === COLUMN BORDERS (two-column only) ===
     if (this.layoutConfig.mode === 'two-column') {
-      this.buildColumnBackgrounds();
+      this.buildColumnBorders();
     }
 
     // === CONTENT (unified using layoutConfig.rows) ===
     this.buildContentUnified();
   }
 
-  /** Build subtle background washes for each column (two-column layout only) */
-  private buildColumnBackgrounds(): void {
+  /** Build colored borders around each column (two-column layout only) */
+  private buildColumnBorders(): void {
     const lc = this.layoutConfig;
+
+    // Column colors - same purple for both
+    const columnColor = PALETTE.purple[500];
 
     // Find the bounds for each column based on rows
     const leftRows = lc.rows.filter(r =>
@@ -292,36 +295,31 @@ export class ScorecardPanel implements TutorialControllableScorecard {
       r.x === lc.rightColumnX && (r.section === 'header' || r.section === 'lower')
     );
 
+    // Numbers column border
     if (leftRows.length > 0) {
       const topY = leftRows[0].y;
       const bottomRow = leftRows[leftRows.length - 1];
       const bottomY = bottomRow.y + bottomRow.height;
 
-      // Subtle warm tint for Numbers column
-      const leftBg = this.scene.add.rectangle(
-        lc.leftColumnX, topY,
-        lc.columnWidth, bottomY - topY,
-        PALETTE.purple[600], 0.08
-      );
-      leftBg.setOrigin(0, 0);
-      this.container.add(leftBg);
+      const leftBorder = this.scene.add.graphics();
+      leftBorder.lineStyle(2, columnColor, 0.6);
+      leftBorder.strokeRoundedRect(lc.leftColumnX - 1, topY - 1, lc.columnWidth + 2, bottomY - topY + 2, 4);
+      this.container.add(leftBorder);
     }
 
+    // Combos column border
     if (rightRows.length > 0) {
       const topY = rightRows[0].y;
       const bottomRow = rightRows[rightRows.length - 1];
       const bottomY = bottomRow.y + bottomRow.height;
 
-      // Subtle cool tint for Combos column
-      const rightBg = this.scene.add.rectangle(
-        lc.rightColumnX, topY,
-        lc.columnWidth, bottomY - topY,
-        PALETTE.purple[700], 0.08
-      );
-      rightBg.setOrigin(0, 0);
-      this.container.add(rightBg);
+      const rightBorder = this.scene.add.graphics();
+      rightBorder.lineStyle(2, columnColor, 0.6);
+      rightBorder.strokeRoundedRect(lc.rightColumnX - 1, topY - 1, lc.columnWidth + 2, bottomY - topY + 2, 4);
+      this.container.add(rightBorder);
     }
   }
+
 
   /** Build the shared panel frame (background, corners) */
   private buildPanelFrame(width: number, height: number): void {
@@ -395,9 +393,10 @@ export class ScorecardPanel implements TutorialControllableScorecard {
       lc.titleY,
       `${filledCount}/13`,
       {
-        fontSize: lc.smallFontSize,
+        fontSize: lc.fontSize, // Larger font
         fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_SECONDARY,
+        color: COLORS.TEXT_ACCENT, // Purple accent color
+        fontStyle: 'bold',
       }
     );
     this.categoriesFilledText.setOrigin(1, 0.5);
@@ -438,32 +437,40 @@ export class ScorecardPanel implements TutorialControllableScorecard {
 
   /** Render a section header */
   private renderHeader(row: RowLayout): void {
-    const section = row.label === 'NUMBERS' ? 'upper'
-      : row.label === 'COMBOS' ? 'lower'
-      : 'special';
+    const isNumbers = row.label === 'NUMBERS';
+    const isCombos = row.label === 'COMBOS';
+    const isExpansion = row.label === 'EXPANSION';
+    const isTwoColumn = this.layoutConfig.mode === 'two-column';
 
-    const headerColors = {
-      upper: PANEL_COLORS.upperHeader,
-      lower: PANEL_COLORS.lowerHeader,
-      special: PANEL_COLORS.specialHeader,
-    };
-    const borderColors = {
-      upper: PANEL_COLORS.upperBorder,
-      lower: PANEL_COLORS.lowerBorder,
-      special: PANEL_COLORS.specialBorder,
-    };
+    // Colors - purple shades for both columns
+    let bgColor: number;
+    let borderColor: number;
+    let textColor: string;
 
-    const bg = this.scene.add.rectangle(row.x, row.y, row.width, row.height, headerColors[section], 0.7);
+    if (isTwoColumn && (isNumbers || isCombos)) {
+      bgColor = PALETTE.purple[700];
+      borderColor = PALETTE.purple[500];
+      textColor = COLORS.TEXT_ACCENT; // Purple accent
+    } else if (isExpansion) {
+      bgColor = PANEL_COLORS.specialHeader;
+      borderColor = PANEL_COLORS.specialBorder;
+      textColor = COLORS.TEXT_WARNING;
+    } else {
+      bgColor = PANEL_COLORS.upperHeader;
+      borderColor = PANEL_COLORS.upperBorder;
+      textColor = COLORS.TEXT_SECONDARY;
+    }
+
+    const bg = this.scene.add.rectangle(row.x, row.y, row.width, row.height, bgColor, 0.8);
     bg.setOrigin(0, 0);
-    bg.setStrokeStyle(1, borderColors[section], 0.5);
+    bg.setStrokeStyle(1, borderColor, 0.7);
     this.container.add(bg);
 
-    // Header text (styled differently for expansion)
-    const isExpansion = row.label === 'EXPANSION';
+    // Header text
     const headerText = createText(this.scene, row.x + 8, row.y + row.height / 2, row.label || '', {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
-      color: isExpansion ? COLORS.TEXT_WARNING : COLORS.TEXT_SECONDARY,
+      color: textColor,
       fontStyle: 'bold',
     });
     headerText.setOrigin(0, 0.5);
@@ -487,7 +494,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
 
     // Category name
     const displayName = style.useShortNames
-      ? this.getShortCategoryName(row.categoryId)
+      ? getCategoryShortName(row.categoryId)
       : category.name;
     const nameX = row.x + style.namePaddingLeft;
     const nameText = createText(this.scene, nameX, row.y + row.height / 2, displayName, {
@@ -631,16 +638,17 @@ export class ScorecardPanel implements TutorialControllableScorecard {
       this.container.add(divider);
     }
 
-    const background = this.scene.add.rectangle(row.x, row.y, row.width, row.height, PALETTE.purple[700], 0.4);
+    const background = this.scene.add.rectangle(row.x, row.y, row.width, row.height, PALETTE.purple[700], 0.3);
     background.setOrigin(0, 0);
     this.container.add(background);
 
-    // Total label with threshold
+    // Total label with threshold - purple accent text
     const labelX = row.x + style.labelPaddingLeft;
     const thresholdLabel = createText(this.scene, labelX, row.y + row.height / 2, `TOTAL (${this.passThreshold}+ to pass)`, {
-      fontSize: this.layoutConfig.smallFontSize,
+      fontSize: this.layoutConfig.fontSize,
       fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_SECONDARY,
+      color: COLORS.TEXT_ACCENT, // Purple accent
+      fontStyle: 'bold',
     });
     thresholdLabel.setOrigin(0, 0.5);
     this.container.add(thresholdLabel);
@@ -668,10 +676,6 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     return row.isEven ? colors[section].even : colors[section].odd;
   }
 
-  /** Get short category name for compact display */
-  private getShortCategoryName(id: CategoryId): string {
-    return getCategoryShortName(id);
-  }
 
   // ===========================================================================
   // PUBLIC API
@@ -1047,6 +1051,33 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     };
   }
 
+  /**
+   * Get bounds for the entire Numbers column (header + 1s-6s + bonus row)
+   * Used for tutorial highlighting
+   */
+  getNumbersColumnBounds(): Bounds | null {
+    const lc = this.layoutConfig;
+    if (lc.mode !== 'two-column') return null;
+
+    // Find all rows in the Numbers column
+    const leftRows = lc.rows.filter(r =>
+      r.x === lc.leftColumnX && (r.section === 'header' || r.section === 'upper' || r.section === 'bonus')
+    );
+
+    if (leftRows.length === 0) return null;
+
+    const topY = leftRows[0].y;
+    const bottomRow = leftRows[leftRows.length - 1];
+    const bottomY = bottomRow.y + bottomRow.height;
+
+    return {
+      x: this.config.x + lc.leftColumnX - 1,
+      y: this.config.y + topY - 1,
+      width: lc.columnWidth + 2,
+      height: bottomY - topY + 2,
+    };
+  }
+
   // ===========================================================================
   // TUTORIAL INTERFACE METHODS
   // ===========================================================================
@@ -1067,6 +1098,15 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     this.setAllowedCategories(null);
     this.setHoverEnabled(true);
     this.highlightCategory(null);
+    this.setTutorialLock(false);
+  }
+
+  /**
+   * Set persistent tutorial lock - prevents dice:rolled from unlocking input
+   * Unlike lockInput(), this persists across dice rolls
+   */
+  setTutorialLock(locked: boolean): void {
+    this.stateManager.setTutorialLock(locked);
   }
 
   /**

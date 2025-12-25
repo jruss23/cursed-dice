@@ -203,10 +203,10 @@ export class TutorialController {
       },
       {
         id: 'upper-bonus',
-        title: 'Bonus',
+        title: 'Numbers Bonus',
         message:
           "Score 63+ in 1s through 6s to earn a 35 point bonus. Aim for 3 of each number!",
-        highlightTarget: 'scorecard-bonus',
+        highlightTarget: 'scorecard-numbers-column',
         showNextButton: true,
         onEnter: () => {
           this.dice.setEnabled(false);
@@ -322,6 +322,8 @@ export class TutorialController {
         advanceOn: 'score',
         onEnter: () => {
           this.dice.setEnabled(false);
+          // Release tutorial lock so user can score
+          this.scorecard.setTutorialLock(false);
           this.scorecard.unlockInput();
           this.scorecard.setTutorialMode({
             allowedCategories: ['fiveDice'],
@@ -338,7 +340,8 @@ export class TutorialController {
         showNextButton: true,
         onEnter: () => {
           this.dice.setEnabled(false);
-          this.scorecard.lockInput();
+          // Re-enable tutorial lock
+          this.scorecard.setTutorialLock(true);
           this.scorecard.setTutorialMode({
             allowedCategories: null,
             hoverEnabled: false,
@@ -404,6 +407,8 @@ export class TutorialController {
         advanceOn: 'score',
         onEnter: () => {
           this.dice.setEnabled(false);
+          // Release tutorial lock so user can score
+          this.scorecard.setTutorialLock(false);
           this.scorecard.unlockInput();
           this.scorecard.setTutorialMode({
             allowedCategories: ['fourOfAKind'],
@@ -420,6 +425,8 @@ export class TutorialController {
         highlightTarget: 'none',
         showNextButton: true,
         onEnter: () => {
+          // Re-enable tutorial lock while showing this step
+          this.scorecard.setTutorialLock(true);
           // Undo all scored categories for fresh practice
           this.scorecardData.unscore('fourOfAKind');
           this.scorecardData.unscore('fiveDice');
@@ -429,10 +436,10 @@ export class TutorialController {
           this.scorecardData.unscore('fours');
           this.scorecardData.unscore('fives');
           this.scorecardData.unscore('sixes');
+          this.scorecardData.unscore('chance');
           this.onUpdateScore(this.scorecardData.getTotal());
           this.scorecard.updateDisplay();
           this.dice.setEnabled(false);
-          this.scorecard.lockInput();
         },
       },
     ];
@@ -518,6 +525,9 @@ export class TutorialController {
 
   start(): void {
     log.log('Starting tutorial');
+
+    // Lock scorecard for entire tutorial (prevents dice:rolled from auto-unlocking)
+    this.scorecard.setTutorialLock(true);
 
     // Do initial roll with predetermined values
     this.dice.setEnabled(true);
@@ -610,6 +620,9 @@ export class TutorialController {
 
       case 'scorecard-total':
         return this.scorecard.getTotalRowBounds();
+
+      case 'scorecard-numbers-column':
+        return this.scorecard.getNumbersColumnBounds();
 
       case 'header':
         return this.header.getBounds();
