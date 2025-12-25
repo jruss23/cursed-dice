@@ -59,6 +59,7 @@ type StepId =
   | 'reroll-2'
   | 'five-dice-celebration'
   | 'score'
+  | 'explain-chance'
   | 'zero-setup'
   | 'zero-explain'
   | 'practice-ready';
@@ -202,9 +203,9 @@ export class TutorialController {
       },
       {
         id: 'upper-bonus',
-        title: 'Numbers Bonus',
+        title: 'Bonus',
         message:
-          "Score 63+ in the Numbers section (1s through 6s) to earn a 35 point bonus. Aim for 3 of each number!",
+          "Score 63+ in 1s through 6s to earn a 35 point bonus. Aim for 3 of each number!",
         highlightTarget: 'scorecard-bonus',
         showNextButton: true,
         onEnter: () => {
@@ -332,7 +333,7 @@ export class TutorialController {
       {
         id: 'score',
         title: 'Nice!',
-        message: "You scored 50 points! But what happens when your dice don't match anything useful?",
+        message: "You scored 50 points! Now let's talk about your safety net.",
         highlightTarget: 'none',
         showNextButton: true,
         onEnter: () => {
@@ -346,20 +347,39 @@ export class TutorialController {
         },
       },
       {
+        id: 'explain-chance',
+        title: 'Chance',
+        message:
+          "Chance is your backup plan! It scores the sum of ALL dice, no matter what you roll. Save it for when nothing else fits.",
+        highlightTarget: 'category',
+        highlightCategory: 'chance',
+        showNextButton: true,
+        onEnter: () => {
+          this.dice.setEnabled(false);
+          this.scorecard.lockInput();
+          this.scorecard.setTutorialMode({
+            allowedCategories: null,
+            hoverEnabled: false,
+            highlightCategory: 'chance',
+          });
+        },
+      },
+      {
         id: 'zero-setup',
         title: 'A Bad Roll',
         message:
-          "Sometimes you get unlucky. This roll has no useful patterns, and you've used all your rerolls. Now what?",
+          "But what if you get unlucky AND you've already used Chance? This roll has no patterns and no rerolls left.",
         highlightTarget: 'dice',
         showNextButton: true,
         onEnter: () => {
-          // Pre-fill number categories (1s-6s) so zeroing out 4-of-a-Kind makes sense
+          // Pre-fill number categories (1s-6s) and CHANCE so zeroing out makes sense
           this.scorecardData.score('ones', [1, 1, 1, 2, 3]); // 3 pts
           this.scorecardData.score('twos', [2, 2, 3, 4, 5]); // 4 pts
           this.scorecardData.score('threes', [3, 3, 3, 1, 2]); // 9 pts
           this.scorecardData.score('fours', [4, 4, 1, 2, 3]); // 8 pts
           this.scorecardData.score('fives', [5, 5, 5, 1, 2]); // 15 pts
           this.scorecardData.score('sixes', [6, 6, 6, 1, 2]); // 18 pts
+          this.scorecardData.score('chance', [3, 4, 2, 5, 6]); // 20 pts - Chance already used!
           this.onUpdateScore(this.scorecardData.getTotal());
           this.scorecard.updateDisplay();
 
@@ -377,7 +397,7 @@ export class TutorialController {
         id: 'zero-explain',
         title: 'Zero It Out',
         message:
-          'You MUST pick a category every turn. When nothing fits, sacrifice a hard category for 0 points. Tap "4 of a Kind" to take the zero.',
+          'You MUST pick a category every turn. When Chance is gone, sacrifice a hard category for 0 points. Tap "4 of a Kind".',
         highlightTarget: 'category',
         highlightCategory: 'fourOfAKind',
         showNextButton: false,
