@@ -623,8 +623,8 @@ export class ScorecardPanel implements TutorialControllableScorecard {
   private getShortCategoryName(id: CategoryId): string {
     const shortNames: Record<string, string> = {
       ones: '1s', twos: '2s', threes: '3s', fours: '4s', fives: '5s', sixes: '6s',
-      threeOfAKind: '3 of Kind', fourOfAKind: '4 of Kind', fullHouse: 'Full House',
-      smallStraight: 'Sm Straight', largeStraight: 'Lg Straight', fiveDice: '5 Dice!',
+      threeOfAKind: '3 of a Kind', fourOfAKind: '4 of a Kind', fullHouse: 'Full House',
+      smallStraight: 'Sm Straight', largeStraight: 'Lg Straight', fiveDice: '5 of a Kind',
       chance: 'Chance', twoPair: 'Two Pair', allOdd: 'All Odd', allEven: 'All Even', allHigh: 'All High',
     };
     return shortNames[id] || id;
