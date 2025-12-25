@@ -5,6 +5,7 @@
 
 import Phaser from 'phaser';
 import { type Scorecard, type CategoryId } from '@/systems/scorecard';
+import { getCategoryShortName } from '@/data/categories';
 import { GameEventEmitter } from '@/systems/game-events';
 import { FONTS, SIZES, PALETTE, COLORS, type ScorecardLayout } from '@/config';
 import { createText } from '@/ui/ui-utils';
@@ -270,8 +271,56 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     // === PANEL FRAME (matching menu button design) ===
     this.buildPanelFrame(width, height);
 
+    // === COLUMN BACKGROUNDS (two-column only) ===
+    if (this.layoutConfig.mode === 'two-column') {
+      this.buildColumnBackgrounds();
+    }
+
     // === CONTENT (unified using layoutConfig.rows) ===
     this.buildContentUnified();
+  }
+
+  /** Build subtle background washes for each column (two-column layout only) */
+  private buildColumnBackgrounds(): void {
+    const lc = this.layoutConfig;
+
+    // Find the bounds for each column based on rows
+    const leftRows = lc.rows.filter(r =>
+      r.x === lc.leftColumnX && (r.section === 'header' || r.section === 'upper' || r.section === 'bonus')
+    );
+    const rightRows = lc.rows.filter(r =>
+      r.x === lc.rightColumnX && (r.section === 'header' || r.section === 'lower')
+    );
+
+    if (leftRows.length > 0) {
+      const topY = leftRows[0].y;
+      const bottomRow = leftRows[leftRows.length - 1];
+      const bottomY = bottomRow.y + bottomRow.height;
+
+      // Subtle warm tint for Numbers column
+      const leftBg = this.scene.add.rectangle(
+        lc.leftColumnX, topY,
+        lc.columnWidth, bottomY - topY,
+        PALETTE.purple[600], 0.08
+      );
+      leftBg.setOrigin(0, 0);
+      this.container.add(leftBg);
+    }
+
+    if (rightRows.length > 0) {
+      const topY = rightRows[0].y;
+      const bottomRow = rightRows[rightRows.length - 1];
+      const bottomY = bottomRow.y + bottomRow.height;
+
+      // Subtle cool tint for Combos column
+      const rightBg = this.scene.add.rectangle(
+        lc.rightColumnX, topY,
+        lc.columnWidth, bottomY - topY,
+        PALETTE.purple[700], 0.08
+      );
+      rightBg.setOrigin(0, 0);
+      this.container.add(rightBg);
+    }
   }
 
   /** Build the shared panel frame (background, corners) */
@@ -621,13 +670,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
 
   /** Get short category name for compact display */
   private getShortCategoryName(id: CategoryId): string {
-    const shortNames: Record<string, string> = {
-      ones: '1s', twos: '2s', threes: '3s', fours: '4s', fives: '5s', sixes: '6s',
-      threeOfAKind: '3 of a Kind', fourOfAKind: '4 of a Kind', fullHouse: 'Full House',
-      smallStraight: 'Sm Straight', largeStraight: 'Lg Straight', fiveDice: '5 of a Kind',
-      chance: 'Chance', twoPair: 'Two Pair', allOdd: 'All Odd', allEven: 'All Even', allHigh: 'All High',
-    };
-    return shortNames[id] || id;
+    return getCategoryShortName(id);
   }
 
   // ===========================================================================
