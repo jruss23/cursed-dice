@@ -32,6 +32,7 @@ export class HeaderPanel {
   private panelY = 0;
   private panelWidth = 0;
   private panelHeight = 0;
+  private sideInset = 0; // X offset for curse/total sections
 
   constructor(scene: Phaser.Scene, centerX: number, config: HeaderPanelConfig) {
     this.scene = scene;
@@ -102,6 +103,7 @@ export class HeaderPanel {
 
     // === SIDE COLUMNS: Curse # (left) | Run Total (right) ===
     const sideInset = Math.max(40, panelWidth * 0.12); // Proportional side columns
+    this.sideInset = sideInset;
 
     // Tighter vertical spacing - labels and values closer together
     const sideCenterY = isMobile ? panelHeight / 2 : 25;
@@ -228,6 +230,50 @@ export class HeaderPanel {
       y: this.panelY,
       width: this.panelWidth,
       height: this.panelHeight,
+    };
+  }
+
+  /**
+   * Get bounds for curse counter section (left side)
+   */
+  getCurseBounds(): { x: number; y: number; width: number; height: number } {
+    const sectionWidth = 70; // Tight around "CURSE" and "0/4"
+    const padding = 8;
+    // Center on sideInset
+    return {
+      x: this.panelX + this.sideInset - sectionWidth / 2,
+      y: this.panelY + padding,
+      width: sectionWidth,
+      height: this.panelHeight - padding * 2,
+    };
+  }
+
+  /**
+   * Get bounds for timer section (center)
+   */
+  getTimerBounds(): { x: number; y: number; width: number; height: number } {
+    const sectionWidth = this.panelWidth - this.sideInset * 4;
+    const padding = 8;
+    return {
+      x: this.panelX + this.sideInset * 2 - padding,
+      y: this.panelY + padding,
+      width: sectionWidth + padding * 2,
+      height: this.panelHeight - padding * 2,
+    };
+  }
+
+  /**
+   * Get bounds for total score section (right side)
+   */
+  getTotalBounds(): { x: number; y: number; width: number; height: number } {
+    const sectionWidth = 70; // Tight around "TOTAL" and score
+    const padding = 8;
+    // Center on panelWidth - sideInset
+    return {
+      x: this.panelX + this.panelWidth - this.sideInset - sectionWidth / 2,
+      y: this.panelY + padding,
+      width: sectionWidth,
+      height: this.panelHeight - padding * 2,
     };
   }
 

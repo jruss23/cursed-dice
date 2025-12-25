@@ -321,12 +321,23 @@ src/
 - [x] **Expanded dice highlight bounds** - New `getDiceAreaBounds()` method includes "Tap dice to lock" text and checkmark icons
 - [x] **Fixed hint z-index** - "Tap the 1s to lock them!" hint now appears above gold pulse highlight (depth 1100 vs 1000)
 
-### Pending Tutorial Enhancements
-- [ ] Header panel - explain 0/4 curses counter
-- [ ] Header panel - explain total score display
-- [ ] Scorecard - explain 0/13 categories counter
-- [ ] Scorecard - explain upper section >= 63 bonus
-- [ ] Scorecard - explain 250+ to pass threshold
+### Tutorial Enhancements - COMPLETE
+- [x] **Added section-specific header highlights** - New `TutorialHighlightableHeader` interface with `getCurseBounds()`, `getTimerBounds()`, `getTotalBounds()`
+- [x] **New tutorial steps added**:
+  - Curse counter explanation (header-curse highlight)
+  - Timer explanation with "timer is off while you practice" note
+  - Total score explanation (header-total highlight)
+  - Categories counter (0/13) explanation
+  - Numbers bonus (>=63) explanation
+  - Pass threshold (250+) explanation
+- [x] **Fixed highlight targets** - Updated from generic 'header' to 'header-curse', 'header-timer', 'header-total'
+
+### UI Terminology Update
+- [x] **Renamed "Upper/Lower" to "Numbers/Combos"** - Better terminology for 2-column mobile layout
+  - Section headers in both layouts now show "NUMBERS" and "COMBOS"
+  - Bonus progress shows "Numbers (X) >= 63" instead of "Upper (X) >= 63"
+  - Tutorial text updated to reference "Numbers section"
+  - Internal code identifiers remain 'upper'/'lower' for clarity
 
 ---
 

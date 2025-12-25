@@ -389,8 +389,8 @@ export class ScorecardPanel implements TutorialControllableScorecard {
 
   /** Render a section header */
   private renderHeader(row: RowLayout): void {
-    const section = row.label === 'UPPER' || row.label === 'UPPER SECTION' ? 'upper'
-      : row.label === 'LOWER' || row.label === 'LOWER SECTION' ? 'lower'
+    const section = row.label === 'NUMBERS' ? 'upper'
+      : row.label === 'COMBOS' ? 'lower'
       : 'special';
 
     const headerColors = {
@@ -551,7 +551,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
 
     // Label with progress
     const labelX = row.x + style.labelPaddingLeft;
-    this.bonusProgressText = createText(this.scene, labelX, row.y + row.height / 2, 'Upper (0) >= 63', {
+    this.bonusProgressText = createText(this.scene, labelX, row.y + row.height / 2, 'Numbers (0) >= 63', {
       fontSize: this.layoutConfig.smallFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SECONDARY,
@@ -745,9 +745,9 @@ export class ScorecardPanel implements TutorialControllableScorecard {
       const upperCategories = this.scorecard.getUpperSection();
       const allUppersFilled = upperCategories.every(c => c.score !== null);
 
-      // Two-column: inline format "Upper (X) >= 63"
+      // Two-column: inline format "Numbers (X) >= 63"
       if (this.layout === 'two-column') {
-        this.bonusProgressText.setText(`Upper (${upperSubtotal}) >= 63`);
+        this.bonusProgressText.setText(`Numbers (${upperSubtotal}) >= 63`);
         // Keep label gold/amber - only the score value turns green
         this.bonusProgressText.setColor(COLORS.TEXT_WARNING);
         // Show 35 if earned, 0 if all filled but not earned, empty if still in progress

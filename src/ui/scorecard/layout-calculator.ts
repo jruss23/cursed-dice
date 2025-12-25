@@ -127,10 +127,10 @@ function calculateTwoColumnLayout(input: LayoutInput, needsCompact: boolean): La
   let leftY = contentPadding + titleHeight + titleGap;
   let rightY = leftY;
 
-  // Upper section header
+  // Numbers section header (formerly "upper")
   rows.push({
     x: leftColumnX, y: leftY, width: columnWidth, height: headerHeight,
-    section: 'header', label: 'UPPER',
+    section: 'header', label: 'NUMBERS',
   });
   leftY += headerHeight;
 
@@ -150,10 +150,10 @@ function calculateTwoColumnLayout(input: LayoutInput, needsCompact: boolean): La
   });
   leftY += rowHeight;
 
-  // Lower section header
+  // Combos section header (formerly "lower")
   rows.push({
     x: rightColumnX, y: rightY, width: columnWidth, height: headerHeight,
-    section: 'header', label: 'LOWER',
+    section: 'header', label: 'COMBOS',
   });
   rightY += headerHeight;
 
@@ -303,10 +303,10 @@ function calculateSingleColumnLayout(input: LayoutInput): LayoutConfig {
   const rows: RowLayout[] = [];
   let y = contentPadding + titleHeight + titleGap;
 
-  // Upper header
+  // Numbers header (formerly "upper")
   rows.push({
     x: contentX, y, width: contentWidth, height: headerHeight,
-    section: 'header', label: 'UPPER SECTION',
+    section: 'header', label: 'NUMBERS',
   });
   y += headerHeight;
 
@@ -329,10 +329,10 @@ function calculateSingleColumnLayout(input: LayoutInput): LayoutConfig {
   // Divider
   y += dividerHeight;
 
-  // Lower header
+  // Combos header (formerly "lower")
   rows.push({
     x: contentX, y, width: contentWidth, height: headerHeight,
-    section: 'header', label: 'LOWER SECTION',
+    section: 'header', label: 'COMBOS',
   });
   y += headerHeight;
 

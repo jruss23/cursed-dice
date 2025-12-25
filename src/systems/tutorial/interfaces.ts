@@ -23,6 +23,15 @@ export interface Highlightable {
   getBounds(): Bounds;
 }
 
+/**
+ * Header panel with section-specific bounds for tutorial
+ */
+export interface TutorialHighlightableHeader extends Highlightable {
+  getCurseBounds(): Bounds;
+  getTimerBounds(): Bounds;
+  getTotalBounds(): Bounds;
+}
+
 // =============================================================================
 // TUTORIAL CONTROLLABLE
 // =============================================================================
@@ -97,6 +106,9 @@ export type HighlightTarget =
   | 'dice-and-controls'
   | 'scorecard'
   | 'header'
+  | 'header-curse'
+  | 'header-timer'
+  | 'header-total'
   | 'category';
 
 export type PopupPosition = 'center' | 'above' | 'below' | 'left' | 'right';

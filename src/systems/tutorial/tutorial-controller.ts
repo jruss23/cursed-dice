@@ -15,7 +15,7 @@ import type {
   TutorialStepDisplay,
   TutorialControllableDice,
   TutorialControllableScorecard,
-  Highlightable,
+  TutorialHighlightableHeader,
   PopupPosition,
 } from './interfaces';
 
@@ -45,7 +45,12 @@ const ONES_INDICES = {
 type StepId =
   | 'welcome'
   | 'header-intro'
+  | 'curse-counter'
+  | 'score-goal'
   | 'scorecard-intro'
+  | 'categories-counter'
+  | 'upper-bonus'
+  | 'pass-threshold'
   | 'explain-dice'
   | 'lock-ones'
   | 'reroll-1'
@@ -66,7 +71,7 @@ export interface TutorialControllerConfig {
   scene: Phaser.Scene;
   diceManager: TutorialControllableDice;
   scorecardPanel: TutorialControllableScorecard;
-  headerPanel: Highlightable;
+  headerPanel: TutorialHighlightableHeader;
   scorecard: Scorecard;
   gameEvents: GameEventEmitter;
   onShowStep: (step: TutorialStepDisplay) => void;
@@ -84,7 +89,7 @@ export class TutorialController {
   private scene: Phaser.Scene;
   private dice: TutorialControllableDice;
   private scorecard: TutorialControllableScorecard;
-  private header: Highlightable;
+  private header: TutorialHighlightableHeader;
   private scorecardData: Scorecard;
   private events: GameEventEmitter;
 
@@ -139,8 +144,32 @@ export class TutorialController {
         id: 'header-intro',
         title: 'The Curse Timer',
         message:
-          "This timer counts down. If it hits zero before you score 250+ points, you lose. Keep an eye on it!",
-        highlightTarget: 'header',
+          "This timer counts down. If it hits zero before you finish, you lose! Don't worry - the timer is off while you practice.",
+        highlightTarget: 'header-timer',
+        showNextButton: true,
+        onEnter: () => {
+          this.dice.setEnabled(false);
+          this.scorecard.lockInput();
+        },
+      },
+      {
+        id: 'curse-counter',
+        title: 'Curse Progress',
+        message:
+          "The game has 4 curses to beat. Each curse gets harder but you keep your score. Beat all 4 to win!",
+        highlightTarget: 'header-curse',
+        showNextButton: true,
+        onEnter: () => {
+          this.dice.setEnabled(false);
+          this.scorecard.lockInput();
+        },
+      },
+      {
+        id: 'score-goal',
+        title: 'Your Score',
+        message:
+          "Your total score across all curses. Points carry over as you progress through each stage!",
+        highlightTarget: 'header-total',
         showNextButton: true,
         onEnter: () => {
           this.dice.setEnabled(false);
@@ -152,6 +181,42 @@ export class TutorialController {
         title: 'The Scorecard',
         message:
           "There are 13 scoring categories. The number categories (1s through 6s) add up dice showing that number. The rest require special dice patterns.",
+        highlightTarget: 'scorecard',
+        showNextButton: true,
+        onEnter: () => {
+          this.dice.setEnabled(false);
+          this.scorecard.lockInput();
+        },
+      },
+      {
+        id: 'categories-counter',
+        title: 'Turn Counter',
+        message:
+          "This shows how many categories you've filled. You get exactly 13 turns - one for each category!",
+        highlightTarget: 'scorecard',
+        showNextButton: true,
+        onEnter: () => {
+          this.dice.setEnabled(false);
+          this.scorecard.lockInput();
+        },
+      },
+      {
+        id: 'upper-bonus',
+        title: 'Numbers Bonus',
+        message:
+          "Score 63+ in the Numbers section (1s through 6s) to earn a 35 point bonus. Aim for 3 of each number!",
+        highlightTarget: 'scorecard',
+        showNextButton: true,
+        onEnter: () => {
+          this.dice.setEnabled(false);
+          this.scorecard.lockInput();
+        },
+      },
+      {
+        id: 'pass-threshold',
+        title: 'Pass Threshold',
+        message:
+          "The bottom shows your goal: 250+ points to pass. Fall short and the curse claims you!",
         highlightTarget: 'scorecard',
         showNextButton: true,
         onEnter: () => {
@@ -519,6 +584,15 @@ export class TutorialController {
 
       case 'header':
         return this.header.getBounds();
+
+      case 'header-curse':
+        return this.header.getCurseBounds();
+
+      case 'header-timer':
+        return this.header.getTimerBounds();
+
+      case 'header-total':
+        return this.header.getTotalBounds();
 
       case 'category':
         if (step.highlightCategory) {
