@@ -27,11 +27,14 @@ const log = createLogger('AudioManager');
 
 type Song = 'chill' | 'normal' | 'intense';
 
-/** Audio file paths (relative to assets/sounds/) */
-const SONGS: Record<Song, string> = {
-  chill: 'sounds/chill.ogg',
-  normal: 'sounds/normal.ogg',
-  intense: 'sounds/intense.ogg',
+/**
+ * Audio file paths - provide both OGG and MP3 for browser compatibility
+ * Phaser will use the first supported format (OGG for Chrome/Firefox, MP3 for Safari/iOS)
+ */
+const SONGS: Record<Song, string[]> = {
+  chill: ['sounds/chill.ogg', 'sounds/chill.mp3'],
+  normal: ['sounds/normal.ogg', 'sounds/normal.mp3'],
+  intense: ['sounds/intense.ogg', 'sounds/intense.mp3'],
 };
 
 /** Map difficulty to song file */

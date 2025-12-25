@@ -248,7 +248,7 @@ export class MenuScene extends BaseScene {
 
     // Version - centered, below title
     const versionY = isMobile ? 95 : 115;
-    const credit = createText(this, width / 2, versionY, 'v1.1.2', {
+    const credit = createText(this, width / 2, versionY, 'v1.1.3', {
       fontSize: FONTS.SIZE_TINY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.MENU_VERSION,
