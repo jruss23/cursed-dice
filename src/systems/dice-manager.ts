@@ -657,8 +657,10 @@ export class DiceManager implements TutorialControllableDice {
 
   /**
    * Roll the dice (internal implementation)
+   * @param initial - Is this the first roll of a turn (resets reroll count)
+   * @param silent - Skip the roll sound (used for auto-roll after scoring)
    */
-  roll(initial: boolean): void {
+  roll(initial: boolean, silent: boolean = false): void {
     // Initial roll should always work, even if dice are disabled
     // (dice get disabled during 'rolling' state for click prevention)
     if (!this.enabled && !initial) {
@@ -685,8 +687,10 @@ export class DiceManager implements TutorialControllableDice {
 
     log.log(`Rolling dice (initial: ${initial}, rerolls left: ${this.state.rerollsLeft}, sixthDieActive: ${this.state.sixthDieActive})`);
 
-    // Play dice roll sound effect
-    playDiceRollSound();
+    // Play dice roll sound effect (skip for auto-rolls after scoring)
+    if (!silent) {
+      playDiceRollSound();
+    }
 
     // Update rerolls text immediately
     this.updateRerollText();

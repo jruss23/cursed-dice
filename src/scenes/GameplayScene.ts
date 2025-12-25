@@ -757,9 +757,9 @@ export class GameplayScene extends BaseScene {
       return;
     }
 
-    // Reset dice for next turn
+    // Reset dice for next turn (silent roll - score confirm is the feedback)
     this.diceManager.reset();
-    this.diceManager.roll(true);
+    this.diceManager.roll(true, true);
 
     // Apply mode-specific effects after scoring
     this.time.delayedCall(SIZES.ROLL_DURATION_MS + 100, () => {
