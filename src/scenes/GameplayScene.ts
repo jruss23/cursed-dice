@@ -847,11 +847,17 @@ export class GameplayScene extends BaseScene {
       },
       {
         onNewGame: () => {
+          // Reset canvas border to purple (undo victory gold)
+          const canvas = document.querySelector('canvas');
+          if (canvas) canvas.style.borderColor = '#7c3aed';
           resetGameProgression();
           resetBlessingManager();
           this.returnToMenu();
         },
         onQuit: () => {
+          // Reset canvas border to purple
+          const canvas = document.querySelector('canvas');
+          if (canvas) canvas.style.borderColor = '#7c3aed';
           resetGameProgression();
           resetBlessingManager();
           this.returnToMenu();
