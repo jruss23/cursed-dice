@@ -7,6 +7,8 @@ import Phaser from 'phaser';
 import { FONTS, COLORS, PALETTE, TIMING } from '@/config';
 import { createText, createPanelFrame, addPanelFrameToContainer } from '@/ui/ui-utils';
 import { BaseButton } from '@/ui/base/base-button';
+import { toggleSFX, isSFXEnabled } from '@/systems/sfx-manager';
+import { MusicManager } from '@/systems/music-manager';
 
 export interface PauseMenuCallbacks {
   onResume: () => void;
@@ -17,6 +19,7 @@ export interface PauseMenuConfig {
   x: number;
   y: number;
   callbacks: PauseMenuCallbacks;
+  musicManager?: MusicManager | null;
 }
 
 export class PauseMenu {
@@ -25,14 +28,18 @@ export class PauseMenu {
   private overlay: Phaser.GameObjects.Rectangle;
   private resumeButton: BaseButton | null = null;
   private quitButton: BaseButton | null = null;
+  private musicButton: BaseButton | null = null;
+  private sfxButton: BaseButton | null = null;
   private callbacks: PauseMenuCallbacks;
+  private musicManager: MusicManager | null = null;
 
   private readonly width = 320;
-  private readonly height = 240;
+  private readonly height = 340;
 
   constructor(scene: Phaser.Scene, config: PauseMenuConfig) {
     this.scene = scene;
     this.callbacks = config.callbacks;
+    this.musicManager = config.musicManager ?? null;
 
     // Create container at center of screen
     this.container = scene.add.container(config.x, config.y);
@@ -68,7 +75,7 @@ export class PauseMenu {
     addPanelFrameToContainer(this.container, frame);
 
     // Title
-    const title = createText(this.scene, 0, -70, 'PAUSED', {
+    const title = createText(this.scene, 0, -120, 'PAUSED', {
       fontSize: FONTS.SIZE_HEADING,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
@@ -77,10 +84,45 @@ export class PauseMenu {
     title.setOrigin(0.5, 0.5);
     this.container.add(title);
 
+    // Audio settings label
+    const audioLabel = createText(this.scene, 0, -75, 'AUDIO', {
+      fontSize: FONTS.SIZE_SMALL,
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TEXT_SECONDARY,
+    });
+    audioLabel.setOrigin(0.5, 0.5);
+    this.container.add(audioLabel);
+
+    // Music toggle button
+    const musicEnabled = this.musicManager?.isEnabled() ?? true;
+    this.musicButton = new BaseButton(this.scene, {
+      x: -70,
+      y: -40,
+      width: 120,
+      height: 38,
+      label: musicEnabled ? 'MUSIC: ON' : 'MUSIC: OFF',
+      style: musicEnabled ? 'primary' : 'secondary',
+      onClick: () => this.toggleMusic(),
+    });
+    this.container.add(this.musicButton.getContainer());
+
+    // SFX toggle button
+    const sfxEnabled = isSFXEnabled();
+    this.sfxButton = new BaseButton(this.scene, {
+      x: 70,
+      y: -40,
+      width: 120,
+      height: 38,
+      label: sfxEnabled ? 'SFX: ON' : 'SFX: OFF',
+      style: sfxEnabled ? 'primary' : 'secondary',
+      onClick: () => this.toggleSfx(),
+    });
+    this.container.add(this.sfxButton.getContainer());
+
     // Resume button (green/primary)
     this.resumeButton = new BaseButton(this.scene, {
       x: 0,
-      y: 0,
+      y: 30,
       width: 180,
       height: 44,
       label: 'RESUME',
@@ -92,7 +134,7 @@ export class PauseMenu {
     // Quit button (red/danger)
     this.quitButton = new BaseButton(this.scene, {
       x: 0,
-      y: 60,
+      y: 90,
       width: 180,
       height: 44,
       label: 'QUIT TO MENU',
@@ -100,6 +142,19 @@ export class PauseMenu {
       onClick: () => this.callbacks.onQuit(),
     });
     this.container.add(this.quitButton.getContainer());
+  }
+
+  private toggleMusic(): void {
+    if (!this.musicManager) return;
+    const enabled = this.musicManager.toggle();
+    this.musicButton?.setLabel(enabled ? 'MUSIC: ON' : 'MUSIC: OFF');
+    this.musicButton?.setStyle(enabled ? 'primary' : 'secondary');
+  }
+
+  private toggleSfx(): void {
+    const enabled = toggleSFX();
+    this.sfxButton?.setLabel(enabled ? 'SFX: ON' : 'SFX: OFF');
+    this.sfxButton?.setStyle(enabled ? 'primary' : 'secondary');
   }
 
   show(animate: boolean = true): void {
@@ -174,6 +229,8 @@ export class PauseMenu {
   destroy(): void {
     this.resumeButton?.destroy();
     this.quitButton?.destroy();
+    this.musicButton?.destroy();
+    this.sfxButton?.destroy();
 
     this.scene.tweens.killTweensOf(this.overlay);
     this.scene.tweens.killTweensOf(this.container);

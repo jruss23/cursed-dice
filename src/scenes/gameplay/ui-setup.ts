@@ -21,6 +21,7 @@ import { DebugController } from '@/systems/debug-controller';
 import { createText } from '@/ui/ui-utils';
 import type { GameStateMachine } from '@/systems/state-machine';
 import type { DiceManager } from '@/systems/dice-manager';
+import type { MusicManager } from '@/systems/music-manager';
 
 // ============================================================================
 // ANIMATED BACKGROUND
@@ -135,6 +136,7 @@ export interface ControlButtonsConfig {
   stateMachine: GameStateMachine;
   diceManager: DiceManager | null;
   debugController: DebugController | null;
+  musicManager?: MusicManager | null;
   onPause: () => void;
   onResume: () => void;
   onQuit: () => void;
@@ -215,6 +217,7 @@ export function createControlButtons(config: ControlButtonsConfig): ControlButto
       onResume: () => config.onResume(),
       onQuit: () => config.onQuit(),
     },
+    musicManager: config.musicManager,
   });
 
   // Setup centralized input handling

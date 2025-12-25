@@ -11,7 +11,7 @@
  *   const progression = getProgression();
  *
  *   // Or generic access
- *   const audio = Services.get<AudioManager>('audio');
+ *   const music = Services.get<MusicManager>('music');
  *
  *   // Testing
  *   Services.reset();
@@ -24,7 +24,7 @@ import { getGameProgression, type GameProgressionManager } from './game-progress
 import type { GameStateMachine } from './state-machine';
 import type { GameEventEmitter } from './game-events';
 import type { Scorecard } from './scorecard';
-import type { AudioManager } from './audio-manager';
+import type { MusicManager } from './music-manager';
 
 const log = createLogger('Services');
 
@@ -33,7 +33,7 @@ const log = createLogger('Services');
 // =============================================================================
 
 export type ServiceKey =
-  | 'audio'
+  | 'music'
   | 'save'
   | 'progression'
   | 'blessings'
@@ -156,10 +156,10 @@ export function getProgression(): GameProgressionManager {
 }
 
 /**
- * Get the AudioManager service (if registered)
+ * Get the MusicManager service (if registered)
  */
-export function getAudio(): AudioManager | undefined {
-  return Services.tryGet<AudioManager>('audio');
+export function getMusic(): MusicManager | undefined {
+  return Services.tryGet<MusicManager>('music');
 }
 
 /**

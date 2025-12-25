@@ -11,6 +11,24 @@ const log = createLogger('SFXManager');
 // Singleton audio context (shared with Phaser's WebAudio)
 let audioContext: AudioContext | null = null;
 
+// Global SFX enabled state
+let sfxEnabled = true;
+
+export function isSFXEnabled(): boolean {
+  return sfxEnabled;
+}
+
+export function setSFXEnabled(enabled: boolean): void {
+  sfxEnabled = enabled;
+  log.log(`SFX ${enabled ? 'enabled' : 'disabled'}`);
+}
+
+export function toggleSFX(): boolean {
+  sfxEnabled = !sfxEnabled;
+  log.log(`SFX ${sfxEnabled ? 'enabled' : 'disabled'}`);
+  return sfxEnabled;
+}
+
 function getAudioContext(): AudioContext | null {
   if (!audioContext) {
     try {
@@ -33,6 +51,7 @@ function getAudioContext(): AudioContext | null {
 // =============================================================================
 
 export function playDiceRollSound(): void {
+  if (!sfxEnabled) return;
   const ctx = getAudioContext();
   if (!ctx) return;
 
@@ -89,6 +108,7 @@ export function playDiceRollSound(): void {
 // =============================================================================
 
 export function playScoreConfirmSound(): void {
+  if (!sfxEnabled) return;
   const ctx = getAudioContext();
   if (!ctx) return;
 
@@ -123,6 +143,7 @@ export function playScoreConfirmSound(): void {
 // =============================================================================
 
 export function playModeCompleteSound(): void {
+  if (!sfxEnabled) return;
   const ctx = getAudioContext();
   if (!ctx) return;
 
@@ -158,6 +179,7 @@ export function playModeCompleteSound(): void {
 // =============================================================================
 
 export function playVictoryFanfare(): void {
+  if (!sfxEnabled) return;
   const ctx = getAudioContext();
   if (!ctx) return;
 

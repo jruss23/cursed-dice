@@ -30,7 +30,7 @@ import { createScorecard, type Scorecard } from '@/systems/scorecard';
 import type { CategoryId } from '@/data/categories';
 import { createGameEvents, type GameEventEmitter } from '@/systems/game-events';
 import { DiceManager } from '@/systems/dice-manager';
-import { AudioManager } from '@/systems/audio-manager';
+import { MusicManager } from '@/systems/music-manager';
 import { ScorecardPanel } from '@/ui/scorecard-panel';
 import {
   resetGameProgression,
@@ -71,7 +71,7 @@ export class GameplayScene extends BaseScene {
   private scorecard!: Scorecard;
   private gameEvents!: GameEventEmitter;
   private diceManager!: DiceManager;
-  private audioManager: AudioManager | null = null;
+  private musicManager: MusicManager | null = null;
   private blessingManager!: BlessingManager;
   private stateMachine!: GameStateMachine;
 
@@ -211,14 +211,14 @@ export class GameplayScene extends BaseScene {
     // Pause state
     this.stateMachine.onEnter('paused', () => {
       if (this.timerEvent) this.timerEvent.paused = true;
-      this.audioManager?.pause();
+      this.musicManager?.pause();
       this.diceManager?.setEnabled(false);
       this.pauseMenu?.show();
     });
 
     this.stateMachine.onExit('paused', () => {
       if (this.timerEvent) this.timerEvent.paused = false;
-      this.audioManager?.resume();
+      this.musicManager?.resume();
       this.diceManager?.setEnabled(true);
       this.pauseMenu?.hide();
     });
@@ -244,7 +244,7 @@ export class GameplayScene extends BaseScene {
 
     // Mode transition state
     this.stateMachine.onEnter('mode-transition', () => {
-      this.audioManager?.stop();
+      this.musicManager?.stop();
     });
   }
 
@@ -307,13 +307,13 @@ export class GameplayScene extends BaseScene {
   }
 
   private async setupAudio(): Promise<void> {
-    // Create AudioManager (it handles its own preloading)
-    this.audioManager = new AudioManager();
+    // Create MusicManager (it handles its own preloading)
+    this.musicManager = new MusicManager();
 
     // Initialize and play for current difficulty
     // init() preloads all songs, play() starts the correct one
-    await this.audioManager.init(this);
-    await this.audioManager.play(this.difficulty);
+    await this.musicManager.init(this);
+    await this.musicManager.play(this.difficulty);
   }
 
   private buildUI(): void {
@@ -342,7 +342,7 @@ export class GameplayScene extends BaseScene {
           }
         },
         updateScorecardDisplay: () => this.scorecardPanel?.updateDisplay(),
-        syncAudioToTime: (time: number) => this.audioManager?.syncToGameTime(time),
+        syncAudioToTime: (time: number) => this.musicManager?.syncToGameTime(time),
         endGame: (completed: boolean) => this.endGame(completed),
         restartScene: (data) => this.scene.restart(data),
       });
@@ -498,6 +498,7 @@ export class GameplayScene extends BaseScene {
       stateMachine: this.stateMachine,
       diceManager: this.diceManager,
       debugController: this.debugController,
+      musicManager: this.musicManager,
       onPause: () => this.pauseGame(),
       onResume: () => this.resumeGame(),
       onQuit: () => this.returnToMenu(),
@@ -598,7 +599,7 @@ export class GameplayScene extends BaseScene {
     this.timeRemaining -= 1000;
 
     // Sync audio to game time (may trigger song transitions)
-    this.audioManager?.syncToGameTime(this.timeRemaining);
+    this.musicManager?.syncToGameTime(this.timeRemaining);
 
     // Get timer elements from header panel
     const timerElements = this.headerPanel?.getTimerElements();
@@ -788,8 +789,8 @@ export class GameplayScene extends BaseScene {
     // Transition to game-over state (callbacks handle disabling interactions)
     this.stateMachine.transition('game-over');
 
-    if (this.audioManager) {
-      this.audioManager.fadeOut(500);
+    if (this.musicManager) {
+      this.musicManager.fadeOut(500);
     }
 
     this.gameEvents.emit('game:end', {
@@ -987,9 +988,9 @@ export class GameplayScene extends BaseScene {
     }
 
     // Stop and dispose audio
-    if (this.audioManager) {
-      this.audioManager.dispose();
-      this.audioManager = null;
+    if (this.musicManager) {
+      this.musicManager.dispose();
+      this.musicManager = null;
     }
 
     // Cleanup state machine

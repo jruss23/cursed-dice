@@ -263,6 +263,16 @@ export class BaseButton {
   }
 
   /**
+   * Update button style dynamically
+   */
+  setStyle(style: ButtonStyle): void {
+    this.colors = BUTTON_COLORS[style];
+    if (!this._disabled) {
+      this.applyEnabledStyle();
+    }
+  }
+
+  /**
    * Get container for positioning
    */
   getContainer(): Phaser.GameObjects.Container {

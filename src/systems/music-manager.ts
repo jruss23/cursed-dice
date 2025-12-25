@@ -1,7 +1,7 @@
 /**
- * Audio Manager
+ * Music Manager
  *
- * Uses Phaser's built-in audio system for gameplay music.
+ * Handles background music playback using Phaser's audio system.
  * Each difficulty has a single pre-processed audio file with built-in song progression.
  *
  * External API:
@@ -19,10 +19,10 @@ import { createLogger } from './logger';
 
 export type { Difficulty };
 
-const log = createLogger('AudioManager');
+const log = createLogger('MusicManager');
 
 // ============================================================================
-// AUDIO CONFIGURATION
+// MUSIC CONFIGURATION
 // ============================================================================
 
 type Song = 'chill' | 'normal' | 'intense';
@@ -46,10 +46,10 @@ const DIFFICULTY_SONGS: Record<Difficulty, Song> = {
 };
 
 // ============================================================================
-// AUDIO MANAGER CLASS
+// MUSIC MANAGER CLASS
 // ============================================================================
 
-export class AudioManager {
+export class MusicManager {
   private scene: Phaser.Scene | null = null;
   private sounds: Map<Song, Phaser.Sound.BaseSound> = new Map();
   private currentSound: Phaser.Sound.BaseSound | null = null;
@@ -70,12 +70,12 @@ export class AudioManager {
   // PUBLIC API
   // ==========================================================================
 
-  /** Initialize the audio system with a Phaser scene */
+  /** Initialize the music system with a Phaser scene */
   async init(scene?: Phaser.Scene): Promise<void> {
     if (this.isInitialized) return;
 
     if (!scene) {
-      log.error('No scene provided to AudioManager.init()');
+      log.error('No scene provided to MusicManager.init()');
       return;
     }
 
@@ -94,7 +94,7 @@ export class AudioManager {
   /** Start playing music for a difficulty mode (lazy loads the track) */
   async play(difficulty: Difficulty): Promise<void> {
     if (!this.scene) {
-      log.error('AudioManager not initialized with scene');
+      log.error('MusicManager not initialized with scene');
       return;
     }
 
@@ -276,7 +276,7 @@ export class AudioManager {
   /** @deprecated No longer preloads all songs - uses lazy loading instead */
   private async loadSongs(): Promise<void> {
     // Now a no-op - songs are loaded on demand in play()
-    log.log('AudioManager ready (lazy loading enabled)');
+    log.log('MusicManager ready (lazy loading enabled)');
   }
 
   private stopAll(): void {
