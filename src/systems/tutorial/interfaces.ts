@@ -93,6 +93,9 @@ export interface TutorialControllableScorecard {
   updateDisplay(): void;
   getBounds(): Bounds;
   getCategoryBounds(categoryId: CategoryId): Bounds | null;
+  getCategoriesCounterBounds(): Bounds;
+  getBonusRowBounds(): Bounds | null;
+  getTotalRowBounds(): Bounds | null;
 }
 
 // =============================================================================
@@ -105,6 +108,9 @@ export type HighlightTarget =
   | 'dice'
   | 'dice-and-controls'
   | 'scorecard'
+  | 'scorecard-categories'
+  | 'scorecard-bonus'
+  | 'scorecard-total'
   | 'header'
   | 'header-curse'
   | 'header-timer'

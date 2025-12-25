@@ -961,6 +961,49 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     };
   }
 
+  /**
+   * Get bounds for the categories counter (0/13) in the title area
+   */
+  getCategoriesCounterBounds(): Bounds {
+    const lc = this.layoutConfig;
+    const counterWidth = 50;
+    const counterHeight = lc.titleHeight;
+    return {
+      x: this.config.x + lc.width - counterWidth - 4,
+      y: this.config.y + lc.contentPadding,
+      width: counterWidth,
+      height: counterHeight,
+    };
+  }
+
+  /**
+   * Get bounds for the bonus row
+   */
+  getBonusRowBounds(): Bounds | null {
+    const bonusRow = this.layoutConfig.rows.find(r => r.section === 'bonus');
+    if (!bonusRow) return null;
+    return {
+      x: this.config.x + bonusRow.x,
+      y: this.config.y + bonusRow.y,
+      width: bonusRow.width,
+      height: bonusRow.height,
+    };
+  }
+
+  /**
+   * Get bounds for the total row
+   */
+  getTotalRowBounds(): Bounds | null {
+    const totalRow = this.layoutConfig.rows.find(r => r.section === 'total');
+    if (!totalRow) return null;
+    return {
+      x: this.config.x + totalRow.x,
+      y: this.config.y + totalRow.y,
+      width: totalRow.width,
+      height: totalRow.height,
+    };
+  }
+
   // ===========================================================================
   // TUTORIAL INTERFACE METHODS
   // ===========================================================================

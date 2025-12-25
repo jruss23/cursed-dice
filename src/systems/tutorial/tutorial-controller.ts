@@ -193,7 +193,7 @@ export class TutorialController {
         title: 'Turn Counter',
         message:
           "This shows how many categories you've filled. You get exactly 13 turns - one for each category!",
-        highlightTarget: 'scorecard',
+        highlightTarget: 'scorecard-categories',
         showNextButton: true,
         onEnter: () => {
           this.dice.setEnabled(false);
@@ -205,7 +205,7 @@ export class TutorialController {
         title: 'Numbers Bonus',
         message:
           "Score 63+ in the Numbers section (1s through 6s) to earn a 35 point bonus. Aim for 3 of each number!",
-        highlightTarget: 'scorecard',
+        highlightTarget: 'scorecard-bonus',
         showNextButton: true,
         onEnter: () => {
           this.dice.setEnabled(false);
@@ -217,7 +217,7 @@ export class TutorialController {
         title: 'Pass Threshold',
         message:
           "The bottom shows your goal: 250+ points to pass. Fall short and the curse claims you!",
-        highlightTarget: 'scorecard',
+        highlightTarget: 'scorecard-total',
         showNextButton: true,
         onEnter: () => {
           this.dice.setEnabled(false);
@@ -581,6 +581,15 @@ export class TutorialController {
 
       case 'scorecard':
         return this.scorecard.getBounds();
+
+      case 'scorecard-categories':
+        return this.scorecard.getCategoriesCounterBounds();
+
+      case 'scorecard-bonus':
+        return this.scorecard.getBonusRowBounds();
+
+      case 'scorecard-total':
+        return this.scorecard.getTotalRowBounds();
 
       case 'header':
         return this.header.getBounds();
