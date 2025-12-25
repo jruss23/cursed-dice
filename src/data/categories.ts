@@ -147,7 +147,7 @@ export const LOWER_CATEGORIES: readonly CategoryConfig[] = [
   {
     id: 'threeOfAKind',
     name: 'Three of a Kind',
-    shortName: '3 of Kind',
+    shortName: '3 of a Kind',
     description: 'Sum of all dice if 3+ match',
     section: 'lower',
     calculate: (dice) => (hasNOfAKind(dice, 3) ? sumAll(dice) : 0),
@@ -155,7 +155,7 @@ export const LOWER_CATEGORIES: readonly CategoryConfig[] = [
   {
     id: 'fourOfAKind',
     name: 'Four of a Kind',
-    shortName: '4 of Kind',
+    shortName: '4 of a Kind',
     description: 'Sum of all dice if 4+ match',
     section: 'lower',
     calculate: (dice) => (hasNOfAKind(dice, 4) ? sumAll(dice) : 0),
@@ -186,8 +186,8 @@ export const LOWER_CATEGORIES: readonly CategoryConfig[] = [
   },
   {
     id: 'fiveDice',
-    name: '5 Dice!',
-    shortName: '5 Dice!',
+    name: '5 of a Kind',
+    shortName: '5 of a Kind',
     description: '5 of a kind',
     section: 'lower',
     calculate: (dice) => (hasNOfAKind(dice, 5) ? SCORING.FIVE_DICE : 0),
