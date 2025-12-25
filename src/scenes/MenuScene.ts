@@ -59,6 +59,10 @@ export class MenuScene extends BaseScene {
   create(): void {
     this.log.log('create() called');
 
+    // Reset canvas border to purple (in case returning from victory gold)
+    const canvas = document.querySelector('canvas');
+    if (canvas) (canvas as HTMLCanvasElement).style.borderColor = '#7c3aed';
+
     // Handle debug skip to mode
     if (this.debugSkipData?.debugSkipToMode) {
       this.debugStartGame(this.debugSkipData);
