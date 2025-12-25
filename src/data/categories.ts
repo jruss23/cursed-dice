@@ -69,8 +69,9 @@ function hasSmallStraight(dice: number[]): boolean {
 }
 
 function hasLargeStraight(dice: number[]): boolean {
-  const sorted = [...dice].sort((a, b) => a - b).join('');
-  return sorted === '12345' || sorted === '23456';
+  // Deduplicate for 6-dice case (Sixth blessing)
+  const unique = [...new Set(dice)].sort((a, b) => a - b).join('');
+  return unique === '12345' || unique === '23456';
 }
 
 function hasFullHouse(dice: number[]): boolean {

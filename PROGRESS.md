@@ -23,7 +23,7 @@
 | **State Management** | 10/10 | GameStateMachine + Service Registry. Clean state flow |
 | **Input Handling** | 9/10 | Centralized InputManager. Keyboard bindings. Mobile touch ready |
 | **Error Handling** | 9/10 | Global handlers. Logger utility. Services throw on missing deps |
-| **Testing** | 0/10 | No test files. Testing framework specified in TESTING.md |
+| **Testing** | 8/10 | 103 unit tests via Vitest. Core logic covered (categories, scorecard, state-machine) |
 | **Build & Deployment** | 9/10 | Vite. TypeScript. ESLint + Prettier. Path aliases |
 
 ---
@@ -129,7 +129,6 @@ src/
     ├── ui-utils.ts            # createText, createPanelFrame helpers
     ├── base/                  # Base UI components
     │   ├── index.ts
-    │   ├── base-panel.ts
     │   └── base-button.ts
     ├── scorecard-panel.ts     # Main scorecard (~1,015 lines)
     ├── scorecard/             # Scorecard helpers
@@ -295,14 +294,25 @@ src/
 
 ---
 
+## Testing Session (Dec 24, 2025)
+
+### Unit Testing - COMPLETE
+- [x] **Set up Vitest** with path aliases and coverage support
+- [x] **Fixed large straight bug** - `[1,2,3,4,4,5]` now correctly detects as large straight (deduplicate before checking)
+- [x] **103 tests passing** across 3 test files:
+  - `data/categories.test.ts` (45 tests) - All scoring functions
+  - `systems/scorecard.test.ts` (24 tests) - Scoring, bonuses, completion, 6-dice selection
+  - `systems/state-machine.test.ts` (34 tests) - Transitions, callbacks, pause/resume
+
+### UI Fixes
+- [x] **Fixed pause menu positioning** - Panel was offset (top-left at center instead of centered)
+- [x] **Removed BasePanel abstraction** - Only had one consumer (PauseMenu), inlined the code
+
+---
+
 ## Next Steps
 
 ### Polish
-1. [ ] Add vitest + unit tests for pure logic modules
-2. [ ] Performance profiling on mobile
-3. [ ] Sound effects and haptic feedback refinement
-
-### Testing Priority
-1. `data/categories.ts` - Scoring functions (highest value)
-2. `systems/scorecard.ts` - Scorecard state & scoring
-3. `systems/state-machine.ts` - Game flow
+1. [ ] Performance profiling on mobile
+2. [ ] Sound effects and haptic feedback refinement
+3. [ ] Capacitor mobile deployment (~13-18 hours estimated)

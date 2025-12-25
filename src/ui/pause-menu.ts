@@ -1,12 +1,11 @@
 /**
  * Pause Menu
  * Overlay shown when game is paused
- * Extends BasePanel for consistent styling
  */
 
 import Phaser from 'phaser';
-import { FONTS, COLORS, TIMING } from '@/config';
-import { BasePanel, BasePanelConfig } from '@/ui/base/base-panel';
+import { FONTS, COLORS, PALETTE, TIMING } from '@/config';
+import { createText, createPanelFrame, addPanelFrameToContainer } from '@/ui/ui-utils';
 import { BaseButton } from '@/ui/base/base-button';
 
 export interface PauseMenuCallbacks {
@@ -14,54 +13,69 @@ export interface PauseMenuCallbacks {
   onQuit: () => void;
 }
 
-export interface PauseMenuConfig extends BasePanelConfig {
+export interface PauseMenuConfig {
+  x: number;
+  y: number;
   callbacks: PauseMenuCallbacks;
 }
 
-export class PauseMenu extends BasePanel {
-  protected readonly width = 320;
-  protected readonly height = 240;
-
-  private callbacks: PauseMenuCallbacks;
-  private overlay: Phaser.GameObjects.Rectangle | null = null;
+export class PauseMenu {
+  private scene: Phaser.Scene;
+  private container: Phaser.GameObjects.Container;
+  private overlay: Phaser.GameObjects.Rectangle;
   private resumeButton: BaseButton | null = null;
   private quitButton: BaseButton | null = null;
+  private callbacks: PauseMenuCallbacks;
+
+  private readonly width = 320;
+  private readonly height = 240;
 
   constructor(scene: Phaser.Scene, config: PauseMenuConfig) {
-    // Store callbacks before super() since build() will need them
-    // Note: TypeScript requires super() before 'this', so we pass via config
-    super(scene, {
-      ...config,
-      depth: config.depth ?? 300,
-      visible: false,
-    });
+    this.scene = scene;
     this.callbacks = config.callbacks;
-  }
 
-  protected build(): void {
-    const { width, height } = this.scene.cameras.main;
+    // Create container at center of screen
+    this.container = scene.add.container(config.x, config.y);
+    this.container.setDepth(300);
+    this.container.setVisible(false);
 
     // Dark overlay (full screen, behind panel)
-    // Note: Added to scene directly, not container, since container is centered
-    this.overlay = this.scene.add.rectangle(
-      width / 2, height / 2,
-      width, height,
+    const { width: screenW, height: screenH } = scene.cameras.main;
+    this.overlay = scene.add.rectangle(
+      screenW / 2, screenH / 2,
+      screenW, screenH,
       COLORS.OVERLAY, 0.85
     );
     this.overlay.setInteractive(); // Block clicks behind
-    this.overlay.setDepth(299); // Just below panel
+    this.overlay.setDepth(299);
     this.overlay.setVisible(false);
 
-    // Create standard panel frame (glow, background, corners)
-    this.createFrame();
+    this.build();
+  }
+
+  private build(): void {
+    // Panel frame (centered in container)
+    const frame = createPanelFrame(this.scene, {
+      x: -this.width / 2,
+      y: -this.height / 2,
+      width: this.width,
+      height: this.height,
+      glowColor: PALETTE.purple[500],
+      bgColor: PALETTE.purple[900],
+      borderColor: PALETTE.purple[500],
+      cornerColor: PALETTE.purple[400],
+    });
+    addPanelFrameToContainer(this.container, frame);
 
     // Title
-    this.createText(0, -70, 'PAUSED', {
+    const title = createText(this.scene, 0, -70, 'PAUSED', {
       fontSize: FONTS.SIZE_HEADING,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
       fontStyle: 'bold',
-    }).setOrigin(0.5, 0.5);
+    });
+    title.setOrigin(0.5, 0.5);
+    this.container.add(title);
 
     // Resume button (green/primary)
     this.resumeButton = new BaseButton(this.scene, {
@@ -88,70 +102,83 @@ export class PauseMenu extends BasePanel {
     this.container.add(this.quitButton.getContainer());
   }
 
-  /**
-   * Show the panel with overlay animation
-   */
-  override show(animate: boolean = true): void {
-    // Show overlay first
-    if (this.overlay) {
-      this.overlay.setVisible(true);
-      if (animate) {
-        this.overlay.setAlpha(0);
-        this.scene.tweens.add({
-          targets: this.overlay,
-          alpha: 0.85,
-          duration: TIMING.QUICK,
-          ease: 'Quad.easeOut',
-        });
-      } else {
-        this.overlay.setAlpha(0.85);
-      }
+  show(animate: boolean = true): void {
+    // Show overlay
+    this.overlay.setVisible(true);
+    if (animate) {
+      this.overlay.setAlpha(0);
+      this.scene.tweens.add({
+        targets: this.overlay,
+        alpha: 0.85,
+        duration: TIMING.QUICK,
+        ease: 'Quad.easeOut',
+      });
+    } else {
+      this.overlay.setAlpha(0.85);
     }
 
     // Show panel
-    super.show(animate);
+    this.container.setVisible(true);
+    if (animate) {
+      this.container.setAlpha(0);
+      this.container.setScale(0.95);
+      this.scene.tweens.add({
+        targets: this.container,
+        alpha: 1,
+        scaleX: 1,
+        scaleY: 1,
+        duration: TIMING.ENTRANCE,
+        ease: 'Back.easeOut',
+      });
+    } else {
+      this.container.setAlpha(1);
+      this.container.setScale(1);
+    }
   }
 
-  /**
-   * Hide the panel with overlay animation
-   */
-  override hide(animate: boolean = true): void {
+  hide(animate: boolean = true): void {
     if (animate) {
       // Fade out overlay
-      if (this.overlay) {
-        this.scene.tweens.add({
-          targets: this.overlay,
-          alpha: 0,
-          duration: TIMING.QUICK,
-          ease: 'Quad.easeIn',
-          onComplete: () => {
-            this.overlay?.setVisible(false);
-          },
-        });
-      }
-    } else if (this.overlay) {
-      this.overlay.setVisible(false);
-    }
+      this.scene.tweens.add({
+        targets: this.overlay,
+        alpha: 0,
+        duration: TIMING.QUICK,
+        ease: 'Quad.easeIn',
+        onComplete: () => {
+          this.overlay.setVisible(false);
+        },
+      });
 
-    // Hide panel
-    super.hide(animate);
+      // Fade out panel
+      this.scene.tweens.add({
+        targets: this.container,
+        alpha: 0,
+        scaleX: 0.95,
+        scaleY: 0.95,
+        duration: TIMING.QUICK,
+        ease: 'Power2',
+        onComplete: () => {
+          this.container.setVisible(false);
+        },
+      });
+    } else {
+      this.overlay.setVisible(false);
+      this.container.setVisible(false);
+    }
   }
 
-  /**
-   * Destroy and cleanup
-   */
-  override destroy(): void {
-    // Clean up buttons
+  isVisible(): boolean {
+    return this.container.visible;
+  }
+
+  destroy(): void {
     this.resumeButton?.destroy();
     this.quitButton?.destroy();
 
-    // Clean up overlay
-    if (this.overlay) {
-      this.scene.tweens.killTweensOf(this.overlay);
-      this.overlay.destroy();
-      this.overlay = null;
-    }
+    this.scene.tweens.killTweensOf(this.overlay);
+    this.scene.tweens.killTweensOf(this.container);
 
-    super.destroy();
+    this.overlay.destroy();
+    this.container.destroy();
   }
 }
