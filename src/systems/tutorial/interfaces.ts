@@ -70,6 +70,7 @@ export interface TutorialControllableDice {
   reset(): void;
   roll(isInitial: boolean): void;
   getDiceBounds(): Bounds;
+  getDiceAreaBounds(): Bounds;
   getControlsBounds(): Bounds;
   getFullBounds(): Bounds;
 }

@@ -48,6 +48,7 @@ export class DiceManager implements TutorialControllableDice {
   private layoutCenterX: number = 0;
   private layoutCenterY: number = 0;
   private layoutControlsY: number = 0;
+  private layoutTipOffset: number = 0; // Distance from dice center to "Tap dice to lock" text
 
   // Current size configuration (responsive)
   private sizeConfig: DiceSizeConfig = {
@@ -489,6 +490,7 @@ export class DiceManager implements TutorialControllableDice {
 
     // Pulsing tip text above dice
     const tipOffset = ultraCompact ? 32 : (isMobile ? 38 : 70);
+    this.layoutTipOffset = tipOffset;
     const tipText = createText(this.scene, centerX, centerY - tipOffset, 'Tap dice to lock', {
       fontSize: isMobile ? FONTS.SIZE_MICRO : FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
@@ -807,6 +809,32 @@ export class DiceManager implements TutorialControllableDice {
       y: this.layoutCenterY - diceHeight / 2,
       width: diceAreaWidth,
       height: diceHeight,
+    };
+  }
+
+  /**
+   * Get the expanded dice area bounds including:
+   * - "Tap dice to lock" text above
+   * - Dice
+   * - Checkmark/skull icons below
+   * Goes from just below the hint text to just above the controls panel
+   */
+  getDiceAreaBounds(): { x: number; y: number; width: number; height: number } {
+    const diceAreaWidth = (GAME_RULES.DICE_COUNT - 1) * this.sizeConfig.spacing + this.sizeConfig.size;
+    const padding = 10;
+
+    // Top: starts at the tip text (with some padding above)
+    const topY = this.layoutCenterY - this.layoutTipOffset - 12;
+
+    // Bottom: stops at the top of the controls panel
+    const controlsBounds = this.getControlsBounds();
+    const bottomY = controlsBounds.y - 4;
+
+    return {
+      x: this.layoutCenterX - diceAreaWidth / 2 - padding,
+      y: topY,
+      width: diceAreaWidth + padding * 2,
+      height: bottomY - topY,
     };
   }
 

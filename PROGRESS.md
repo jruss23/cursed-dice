@@ -1,6 +1,6 @@
 # Cursed Dice - Development Progress & Architecture Review
 
-## Last Updated: December 24, 2025
+## Last Updated: December 25, 2025
 
 ---
 
@@ -310,9 +310,29 @@ src/
 
 ---
 
+## Recent Session Work (Dec 25, 2025)
+
+### Code Quality Fixes
+- [x] **Fixed special category scoring duplication** - categories.ts and scorecard.ts had different implementations (sumAll vs fixed 45). Centralized to `SCORING.SPECIAL_CATEGORY` in config for balance tuning.
+- [x] **Removed duplicate helper functions** - Deleted `isAllOdd`, `isAllEven`, `isAllHigh` from scorecard.ts (now uses inline logic matching categories.ts)
+
+### Tutorial UI Improvements
+- [x] **Fixed popup text overlap** - Increased popup height from 140px to 160px, adjusted layout so message doesn't overlap NEXT button
+- [x] **Expanded dice highlight bounds** - New `getDiceAreaBounds()` method includes "Tap dice to lock" text and checkmark icons
+- [x] **Fixed hint z-index** - "Tap the 1s to lock them!" hint now appears above gold pulse highlight (depth 1100 vs 1000)
+
+### Pending Tutorial Enhancements
+- [ ] Header panel - explain 0/4 curses counter
+- [ ] Header panel - explain total score display
+- [ ] Scorecard - explain 0/13 categories counter
+- [ ] Scorecard - explain upper section >= 63 bonus
+- [ ] Scorecard - explain 250+ to pass threshold
+
+---
+
 ## Next Steps
 
 ### Polish
 1. [ ] Performance profiling on mobile
 2. [ ] Sound effects and haptic feedback refinement
-3. [ ] Capacitor mobile deployment (~13-18 hours estimated)
+3. [ ] Capacitor mobile deployment

@@ -120,7 +120,7 @@ export class TutorialOverlay {
     if (!this.popupContainer) return;
 
     const maxWidth = Math.min(this.scene.scale.gameSize.width - 40, 300);
-    const popupHeight = 140;
+    const popupHeight = 160;
 
     // Semi-transparent background (not fully opaque so game shows through slightly)
     const bg = this.scene.add.rectangle(0, 0, maxWidth, popupHeight, PALETTE.purple[900], 0.95);
@@ -131,7 +131,7 @@ export class TutorialOverlay {
     this.addCornerAccents(maxWidth, popupHeight);
 
     // Title
-    this.titleText = createText(this.scene, 0, -35, '', {
+    this.titleText = createText(this.scene, 0, -50, '', {
       fontSize: FONTS.SIZE_BODY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_WARNING,
@@ -140,19 +140,19 @@ export class TutorialOverlay {
     this.titleText.setOrigin(0.5, 0.5);
     this.popupContainer.add(this.titleText);
 
-    // Message
-    this.messageText = createText(this.scene, 0, 5, '', {
+    // Message - origin at top so it grows downward
+    this.messageText = createText(this.scene, 0, -30, '', {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
       wordWrap: { width: maxWidth - 30 },
       align: 'center',
     });
-    this.messageText.setOrigin(0.5, 0.5);
+    this.messageText.setOrigin(0.5, 0);
     this.popupContainer.add(this.messageText);
 
     // Next button (will be shown/hidden per step)
-    const buttonY = 45;
+    const buttonY = 55;
     const buttonWidth = 100;
     const buttonHeight = 32;
 
@@ -375,7 +375,7 @@ export class TutorialOverlay {
 
     const { width, height } = this.scene.scale.gameSize;
     const popupWidth = 300;
-    const popupHeight = 140;
+    const popupHeight = 160;
     const margin = 20;
 
     let popupX = width / 2;

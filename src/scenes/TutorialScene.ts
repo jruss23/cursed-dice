@@ -151,7 +151,7 @@ export class TutorialScene extends Phaser.Scene {
 
     // Hint text with background (shown briefly for guidance)
     this.hintContainer = this.add.container(width / 2, layout.diceY - 60);
-    this.hintContainer.setDepth(600);
+    this.hintContainer.setDepth(1100); // Above highlight graphics (depth 1000)
     this.hintContainer.setAlpha(0);
 
     // Dark background for readability

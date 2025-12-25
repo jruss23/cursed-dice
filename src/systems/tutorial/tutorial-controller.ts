@@ -509,7 +509,7 @@ export class TutorialController {
         return this.dice.getControlsBounds();
 
       case 'dice':
-        return this.dice.getDiceBounds();
+        return this.dice.getDiceAreaBounds();
 
       case 'dice-and-controls':
         return this.dice.getFullBounds();
