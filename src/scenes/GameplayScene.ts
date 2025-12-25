@@ -169,7 +169,7 @@ export class GameplayScene extends BaseScene {
 
   preload(): void {
     // Warning sound - pre-processed: 2 octaves down, 1.6x speed
-    this.load.audio('warning-sound', 'sounds/siren_warning.ogg');
+    this.load.audio('warning-sound', ['sounds/siren_warning.mp3', 'sounds/siren_warning.ogg']);
   }
 
   create(): void {

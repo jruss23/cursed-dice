@@ -68,7 +68,7 @@ export class TutorialScene extends Phaser.Scene {
 
   preload(): void {
     if (!this.cache.audio.exists('tutorial-music')) {
-      this.load.audio('tutorial-music', 'sounds/chill.ogg');
+      this.load.audio('tutorial-music', ['sounds/chill.mp3', 'sounds/chill.ogg']);
     }
   }
 

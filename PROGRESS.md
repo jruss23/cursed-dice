@@ -341,9 +341,89 @@ src/
 
 ---
 
+## iOS Safari Audio Fix (Dec 25, 2025)
+
+### Problem
+Audio wasn't playing on iOS Safari (iPhone). Game music worked on desktop Safari but failed silently on mobile.
+
+### Root Cause
+iOS Safari doesn't support OGG audio format at all. The game was loading `.ogg` files which Chrome/Firefox support, but Safari requires MP3.
+
+### Solution (v1.1.4)
+1. **Converted all OGG files to MP3** using ffmpeg:
+   ```bash
+   ffmpeg -i file.ogg -c:a libmp3lame -q:a 2 file.mp3
+   ```
+
+2. **Updated all audio loading to provide fallbacks**:
+   ```typescript
+   // Before (OGG only - fails on iOS)
+   this.load.audio('menu-music', 'sounds/menu.ogg');
+
+   // After (OGG + MP3 fallback)
+   this.load.audio('menu-music', ['sounds/menu.ogg', 'sounds/menu.mp3']);
+   ```
+
+3. **Files updated**:
+   - `audio-manager.ts` - SONGS config uses `string[]` for all tracks
+   - `MenuScene.ts` - menu-music and preloadGameplayTracks
+   - `TutorialScene.ts` - tutorial-music
+   - `GameplayScene.ts` - warning-sound
+
+4. **Audio files with both formats**:
+   - `chill.ogg` / `chill.mp3` (gameplay + tutorial)
+   - `normal.ogg` / `normal.mp3` (gameplay)
+   - `intense.ogg` / `intense.mp3` (gameplay)
+   - `menu.ogg` / `menu.mp3` (menu music)
+   - `siren_warning.ogg` / `siren_warning.mp3` (low time warning)
+
+### Why Keep Both Formats?
+- **OGG**: Better compression, preferred by Chrome/Firefox
+- **MP3**: Required for Safari/iOS compatibility
+- Phaser automatically picks the first supported format
+
+### Version History
+- v1.1.1: First audio unlock attempt (sound.locked check)
+- v1.1.2: Changed to context.resume() approach
+- v1.1.3: Added MP3 fallback for main gameplay tracks
+- v1.1.4: Complete MP3 fallback coverage (tutorial + warning sound)
+- v1.1.5: MP3 first in load order, OGG excluded from web build (vite plugin)
+
+---
+
+## Text Sharpness Investigation (Dec 25, 2025)
+
+### Problem
+Text looked great at DPR 2 (Retina Mac) but degraded at DPR 3 (iPhone Pro).
+
+### Current Implementation
+Using Phaser's text resolution fix:
+```typescript
+text.setResolution(window.devicePixelRatio * 2);
+```
+
+### Investigation
+Created `text-sharpness-test.html` comparing:
+- Row 1: Current implementation (resolution = DPR × 2 + padding)
+- Row 2: Fixed 4× supersampling (resolution = 4, regardless of DPR)
+
+### Findings
+- DPR 1 and 2 look good with current approach
+- DPR 3 shows degradation
+- Fixed 4× supersampling provides consistent quality but higher memory usage
+- MSDF (Multi-channel Signed Distance Field) fonts would be ideal but require pre-generated atlas
+
+### Status
+Monitoring for now. If DPR 3 quality complaints arise, consider:
+1. Fixed 4× resolution for all text
+2. MSDF font implementation (requires tooling setup)
+
+---
+
 ## Next Steps
 
 ### Polish
 1. [ ] Performance profiling on mobile
 2. [ ] Sound effects and haptic feedback refinement
 3. [ ] Capacitor mobile deployment
+4. [ ] DPR 3 text sharpness solution (if needed)

@@ -94,6 +94,14 @@ npm run lint
 - [TypeScript](https://www.typescriptlang.org/) - Type safety
 - [Vite](https://vitejs.dev/) - Build tool
 
+## Browser Support
+
+Works on all modern browsers:
+- Chrome, Firefox, Edge (desktop & mobile)
+- Safari (desktop & iOS)
+
+Audio uses OGG with MP3 fallback for full compatibility.
+
 ## License
 
 ISC

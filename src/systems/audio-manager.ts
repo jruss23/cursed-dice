@@ -32,9 +32,10 @@ type Song = 'chill' | 'normal' | 'intense';
  * Phaser will use the first supported format (OGG for Chrome/Firefox, MP3 for Safari/iOS)
  */
 const SONGS: Record<Song, string[]> = {
-  chill: ['sounds/chill.ogg', 'sounds/chill.mp3'],
-  normal: ['sounds/normal.ogg', 'sounds/normal.mp3'],
-  intense: ['sounds/intense.ogg', 'sounds/intense.mp3'],
+  // MP3 first for web compatibility, OGG as fallback for Capacitor
+  chill: ['sounds/chill.mp3', 'sounds/chill.ogg'],
+  normal: ['sounds/normal.mp3', 'sounds/normal.ogg'],
+  intense: ['sounds/intense.mp3', 'sounds/intense.ogg'],
 };
 
 /** Map difficulty to song file */

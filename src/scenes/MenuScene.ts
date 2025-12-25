@@ -45,7 +45,7 @@ export class MenuScene extends BaseScene {
 
   preload(): void {
     this.log.log('Preloading menu music...');
-    this.load.audio('menu-music', 'sounds/menu.ogg');
+    this.load.audio('menu-music', ['sounds/menu.mp3', 'sounds/menu.ogg']);
 
     this.load.on('filecomplete-audio-menu-music', () => {
       this.log.log('Menu music loaded successfully');
@@ -99,7 +99,7 @@ export class MenuScene extends BaseScene {
     }
 
     if (!this.cache.audio.exists('menu-music')) {
-      this.load.audio('menu-music', 'sounds/menu.ogg');
+      this.load.audio('menu-music', ['sounds/menu.mp3', 'sounds/menu.ogg']);
       this.load.once('complete', playMenuMusic);
       this.load.start();
     } else {
@@ -248,7 +248,7 @@ export class MenuScene extends BaseScene {
 
     // Version - centered, below title
     const versionY = isMobile ? 95 : 115;
-    const credit = createText(this, width / 2, versionY, 'v1.1.3', {
+    const credit = createText(this, width / 2, versionY, 'v1.1.5', {
       fontSize: FONTS.SIZE_TINY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.MENU_VERSION,
@@ -431,25 +431,29 @@ export class MenuScene extends BaseScene {
    * By the time they click a difficulty, tracks are likely cached
    */
   private preloadGameplayTracks(): void {
-    const tracks = ['sounds/chill.ogg', 'sounds/normal.ogg', 'sounds/intense.ogg'];
+    // Provide both OGG and MP3 for browser compatibility
+    const tracks = [
+      // MP3 first for web compatibility, OGG as fallback for Capacitor
+      { key: 'music-chill', files: ['sounds/chill.mp3', 'sounds/chill.ogg'] },
+      { key: 'music-normal', files: ['sounds/normal.mp3', 'sounds/normal.ogg'] },
+      { key: 'music-intense', files: ['sounds/intense.mp3', 'sounds/intense.ogg'] },
+    ];
 
     this.log.log('Background preloading gameplay tracks...');
 
     tracks.forEach((track, index) => {
-      const key = `music-${track.split('/')[1].replace('.ogg', '')}`;
-
       // Skip if already cached
-      if (this.cache.audio.exists(key)) {
-        this.log.log(`Already cached: ${key}`);
+      if (this.cache.audio.exists(track.key)) {
+        this.log.log(`Already cached: ${track.key}`);
         return;
       }
 
       // Stagger loads to not compete with menu music
       this.time.delayedCall(500 + index * 1000, () => {
         if (this.scene.isActive()) {
-          this.load.audio(key, track);
+          this.load.audio(track.key, track.files);
           this.load.start();
-          this.log.log(`Preloading: ${key}`);
+          this.log.log(`Preloading: ${track.key}`);
         }
       });
     });
