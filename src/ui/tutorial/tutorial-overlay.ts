@@ -371,6 +371,16 @@ export class TutorialOverlay {
     if (this.nextButton) {
       this.nextButton.setVisible(step.showNextButton);
 
+      // Also enable/disable the button's hit area (index 1 is the bg rectangle)
+      const buttonBg = this.nextButton.getAt(1) as Phaser.GameObjects.Rectangle;
+      if (buttonBg) {
+        if (step.showNextButton) {
+          buttonBg.setInteractive({ useHandCursor: true });
+        } else {
+          buttonBg.disableInteractive();
+        }
+      }
+
       // Update button text for last step (text is at index 2: glow, bg, text)
       const nextText = this.nextButton.getAt(2) as Phaser.GameObjects.Text;
       if (nextText && nextText.setText) {
