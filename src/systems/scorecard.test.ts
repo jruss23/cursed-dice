@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createScorecard, Scorecard, CATEGORIES_TO_COMPLETE } from './scorecard';
+import { SCORING } from '@/config/game-rules';
 
 describe('Scorecard', () => {
   let scorecard: Scorecard;
@@ -136,8 +137,8 @@ describe('Scorecard', () => {
     it('special section included in total when enabled', () => {
       scorecard.enableSpecialSection();
       scorecard.score('twoPair', [2, 2, 4, 4, 6]);
-      expect(scorecard.getSpecialTotal()).toBe(45);
-      expect(scorecard.getTotal()).toBe(45);
+      expect(scorecard.getSpecialTotal()).toBe(SCORING.SPECIAL_CATEGORY);
+      expect(scorecard.getTotal()).toBe(SCORING.SPECIAL_CATEGORY);
     });
   });
 

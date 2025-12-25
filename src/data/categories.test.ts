@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { calculateScore } from './categories';
+import { SCORING } from '@/config/game-rules';
 
 describe('Upper Section Scoring', () => {
   it('sums matching dice for ones', () => {
@@ -155,12 +156,12 @@ describe('Chance', () => {
 });
 
 describe('Special Categories - Two Pair', () => {
-  it('scores sum when valid', () => {
-    expect(calculateScore('twoPair', [2, 2, 4, 4, 6])).toBe(18);
+  it('scores fixed points when valid', () => {
+    expect(calculateScore('twoPair', [2, 2, 4, 4, 6])).toBe(SCORING.SPECIAL_CATEGORY);
   });
 
   it('full house counts as two pair', () => {
-    expect(calculateScore('twoPair', [3, 3, 5, 5, 5])).toBe(21);
+    expect(calculateScore('twoPair', [3, 3, 5, 5, 5])).toBe(SCORING.SPECIAL_CATEGORY);
   });
 
   it('four of a kind does NOT count as two pair', () => {
@@ -174,8 +175,8 @@ describe('Special Categories - Two Pair', () => {
 });
 
 describe('Special Categories - All Odd', () => {
-  it('scores sum when all odd', () => {
-    expect(calculateScore('allOdd', [1, 3, 3, 5, 5])).toBe(17);
+  it('scores fixed points when all odd', () => {
+    expect(calculateScore('allOdd', [1, 3, 3, 5, 5])).toBe(SCORING.SPECIAL_CATEGORY);
   });
 
   it('returns 0 with any even', () => {
@@ -184,8 +185,8 @@ describe('Special Categories - All Odd', () => {
 });
 
 describe('Special Categories - All Even', () => {
-  it('scores sum when all even', () => {
-    expect(calculateScore('allEven', [2, 4, 4, 6, 6])).toBe(22);
+  it('scores fixed points when all even', () => {
+    expect(calculateScore('allEven', [2, 4, 4, 6, 6])).toBe(SCORING.SPECIAL_CATEGORY);
   });
 
   it('returns 0 with any odd', () => {
@@ -194,8 +195,8 @@ describe('Special Categories - All Even', () => {
 });
 
 describe('Special Categories - All High', () => {
-  it('scores sum when all 4-6', () => {
-    expect(calculateScore('allHigh', [4, 5, 5, 6, 6])).toBe(26);
+  it('scores fixed points when all 4-6', () => {
+    expect(calculateScore('allHigh', [4, 5, 5, 6, 6])).toBe(SCORING.SPECIAL_CATEGORY);
   });
 
   it('returns 0 with any low dice (1-3)', () => {
@@ -203,6 +204,6 @@ describe('Special Categories - All High', () => {
   });
 
   it('accepts all fours', () => {
-    expect(calculateScore('allHigh', [4, 4, 4, 4, 4])).toBe(20);
+    expect(calculateScore('allHigh', [4, 4, 4, 4, 4])).toBe(SCORING.SPECIAL_CATEGORY);
   });
 });

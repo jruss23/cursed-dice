@@ -23,7 +23,7 @@
 | **State Management** | 10/10 | GameStateMachine + Service Registry. Clean state flow |
 | **Input Handling** | 9/10 | Centralized InputManager. Keyboard bindings. Mobile touch ready |
 | **Error Handling** | 9/10 | Global handlers. Logger utility. Services throw on missing deps |
-| **Testing** | 8/10 | 103 unit tests via Vitest. Core logic covered (categories, scorecard, state-machine) |
+| **Testing** | 9/10 | 103 unit tests via Vitest. Core logic covered (categories 86%, scorecard 80%, state-machine 94%) |
 | **Build & Deployment** | 9/10 | Vite. TypeScript. ESLint + Prettier. Path aliases |
 
 ---

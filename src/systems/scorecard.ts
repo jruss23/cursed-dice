@@ -4,7 +4,7 @@
  * Special section unlocked via "Blessing of Expansion" after Mode 1
  */
 
-import { GAME_RULES } from '@/config';
+import { GAME_RULES, SCORING } from '@/config';
 import { createLogger } from '@/systems/logger';
 
 const log = createLogger('Scorecard');
@@ -159,27 +159,6 @@ function hasTwoPair(dice: number[]): boolean {
 }
 
 /**
- * Check if all dice show odd numbers (1, 3, 5)
- */
-function isAllOdd(dice: number[]): boolean {
-  return dice.every((d) => d % 2 === 1);
-}
-
-/**
- * Check if all dice show even numbers (2, 4, 6)
- */
-function isAllEven(dice: number[]): boolean {
-  return dice.every((d) => d % 2 === 0);
-}
-
-/**
- * Check if all dice show high numbers (4, 5, 6)
- */
-function isAllHigh(dice: number[]): boolean {
-  return dice.every((d) => d >= 4);
-}
-
-/**
  * Create initial category definitions
  */
 function createCategories(): Map<CategoryId, Category> {
@@ -305,41 +284,41 @@ function createCategories(): Map<CategoryId, Category> {
   });
 
   // Special section (Blessing of Expansion - unlocked after Mode 1)
-  // All expansion categories score fixed 45 pts when condition is met
+  // All expansion categories score SCORING.SPECIAL_CATEGORY pts when condition is met
   categories.set('twoPair', {
     id: 'twoPair',
     name: 'Two Pair',
-    description: '2 different pairs = 45 pts',
+    description: `2 different pairs = ${SCORING.SPECIAL_CATEGORY} pts`,
     section: 'special',
     score: null,
-    calculate: (dice) => (hasTwoPair(dice) ? 45 : 0),
+    calculate: (dice) => (hasTwoPair(dice) ? SCORING.SPECIAL_CATEGORY : 0),
   });
 
   categories.set('allOdd', {
     id: 'allOdd',
     name: 'All Odd',
-    description: 'All dice 1, 3, or 5 = 45 pts',
+    description: `All dice 1, 3, or 5 = ${SCORING.SPECIAL_CATEGORY} pts`,
     section: 'special',
     score: null,
-    calculate: (dice) => (isAllOdd(dice) ? 45 : 0),
+    calculate: (dice) => (dice.every((d) => d % 2 === 1) ? SCORING.SPECIAL_CATEGORY : 0),
   });
 
   categories.set('allEven', {
     id: 'allEven',
     name: 'All Even',
-    description: 'All dice 2, 4, or 6 = 45 pts',
+    description: `All dice 2, 4, or 6 = ${SCORING.SPECIAL_CATEGORY} pts`,
     section: 'special',
     score: null,
-    calculate: (dice) => (isAllEven(dice) ? 45 : 0),
+    calculate: (dice) => (dice.every((d) => d % 2 === 0) ? SCORING.SPECIAL_CATEGORY : 0),
   });
 
   categories.set('allHigh', {
     id: 'allHigh',
     name: 'All High',
-    description: 'All dice 4, 5, or 6 = 45 pts',
+    description: `All dice 4, 5, or 6 = ${SCORING.SPECIAL_CATEGORY} pts`,
     section: 'special',
     score: null,
-    calculate: (dice) => (isAllHigh(dice) ? 45 : 0),
+    calculate: (dice) => (dice.every((d) => d >= 4) ? SCORING.SPECIAL_CATEGORY : 0),
   });
 
   return categories;

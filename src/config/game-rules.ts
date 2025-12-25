@@ -28,4 +28,5 @@ export const SCORING = {
   SMALL_STRAIGHT: 30,
   LARGE_STRAIGHT: 40,
   FIVE_DICE: 50,
+  SPECIAL_CATEGORY: 45, // Blessing of Expansion categories (allOdd, allEven, allHigh, twoPair)
 } as const;
