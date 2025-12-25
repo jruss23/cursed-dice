@@ -117,8 +117,28 @@ export class AudioManager {
       return;
     }
 
-    log.log(`Playing: ${difficulty} mode → "${songName}" (${this.totalDurationMs / 1000}s)`);
+    // iOS/mobile: Wait for audio context to unlock before playing
+    // The context gets unlocked on first user gesture (tap/click)
+    if (this.scene.sound.locked) {
+      log.log('Audio locked - waiting for user gesture to unlock...');
+      this.scene.sound.once(Phaser.Sound.Events.UNLOCKED, () => {
+        log.log('Audio unlocked! Starting playback.');
+        this.startPlayback(sound, difficulty, songName);
+      });
+    } else {
+      this.startPlayback(sound, difficulty, songName);
+    }
+  }
 
+  /** Internal: Actually start playing the sound */
+  private startPlayback(sound: Phaser.Sound.BaseSound, difficulty: Difficulty, songName: string): void {
+    // Double-check we still want to play (user might have changed modes)
+    if (this.currentMode !== difficulty) {
+      log.log(`Mode changed while waiting for unlock, skipping playback`);
+      return;
+    }
+
+    log.log(`Playing: ${difficulty} mode → "${songName}" (${this.totalDurationMs / 1000}s)`);
     sound.play({ loop: true, volume: this.currentVolume });
     this.currentSound = sound;
   }
