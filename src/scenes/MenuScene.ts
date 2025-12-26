@@ -211,7 +211,7 @@ export class MenuScene extends BaseScene {
       ? lastButtonY + 50  // Below last button, above high scores
       : lastButtonY + 60; // Right under buttons on desktop
     const modeInfoSize = isMobile ? FONTS.SIZE_LABEL : FONTS.SIZE_BODY;
-    const modeInfoText = isMobile ? 'Score 250+ each curse' : '4 Curses await... Score 250+ to survive each';
+    const modeInfoText = isMobile ? 'Score 250+ per seal' : '4 Seals guard the curse. Break them all.';
 
     const modeInfoGlow = createText(this,
       width / 2,

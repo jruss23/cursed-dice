@@ -372,8 +372,8 @@ export class TutorialScene extends Phaser.Scene {
     overlay.add(scoreText);
 
     const resultMsg = passed
-      ? 'You would have passed this curse!'
-      : 'You need 250+ to pass a curse round.';
+      ? 'You would have broken this seal!'
+      : 'You need 250+ to break a seal.';
     const resultText = createText(this, width / 2, height / 2, resultMsg, {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,

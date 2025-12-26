@@ -102,7 +102,7 @@ export class HighScoresPanel {
 
     // Best Run section (if any completed runs)
     if (highScores.bestRunTotal > 0) {
-      const fullRunHeader = createText(this.scene, x + 10, currentY, '4-Curse Run', {
+      const fullRunHeader = createText(this.scene, x + 10, currentY, '4-Seal Run', {
         fontSize: FONTS.SIZE_TINY,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_MUTED,
@@ -161,14 +161,14 @@ export class HighScoresPanel {
       highScores.byDifficulty.intense > 0;
 
     if (hasDiffScores) {
-      const curseHeader = createText(this.scene, x + 10, currentY, 'Best Single Curse', {
+      const sealHeader = createText(this.scene, x + 10, currentY, 'Best Single Seal', {
         fontSize: FONTS.SIZE_TINY,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_MUTED,
       });
-      curseHeader.setOrigin(0, 0.5);
-      curseHeader.setDepth(depth + 1);
-      this.container.add(curseHeader);
+      sealHeader.setOrigin(0, 0.5);
+      sealHeader.setDepth(depth + 1);
+      this.container.add(sealHeader);
 
       currentY += 16;
 

@@ -1,6 +1,6 @@
 /**
- * Game Modes (Curses) Configuration
- * Data-driven mode definitions
+ * Game Modes (Seals) Configuration
+ * Data-driven mode definitions - each seal guards the curse
  */
 
 export type ModeId = 0 | 1 | 2 | 3;
@@ -22,7 +22,7 @@ export const MODES: readonly ModeConfig[] = [
   {
     id: 0,
     name: 'THE AWAKENING',
-    subtitle: 'Curse 1 of 4',
+    subtitle: 'Seal 1 of 4',
     description: 'Standard dice game - fill all 13 categories in any order before time runs out.',
     mechanic: 'standard',
     icon: '🌙',
@@ -30,7 +30,7 @@ export const MODES: readonly ModeConfig[] = [
   {
     id: 1,
     name: 'SHACKLED DIE',
-    subtitle: 'Curse 2 of 4',
+    subtitle: 'Seal 2 of 4',
     description: 'Your highest value die becomes cursed after each score. Cursed dice are locked and cannot be rerolled.',
     mechanic: 'cursed-die',
     icon: '⛓️',
@@ -38,7 +38,7 @@ export const MODES: readonly ModeConfig[] = [
   {
     id: 2,
     name: 'SEALED PATHS',
-    subtitle: 'Curse 3 of 4',
+    subtitle: 'Seal 3 of 4',
     description: '3 random categories are locked and unavailable. After scoring, 3 new random categories become locked.',
     mechanic: 'sealed-paths',
     icon: '🔒',
@@ -47,7 +47,7 @@ export const MODES: readonly ModeConfig[] = [
   {
     id: 3,
     name: 'THE GAUNTLET',
-    subtitle: 'Curse 4 of 4',
+    subtitle: 'Seal 4 of 4',
     description: 'Only 3 categories are available at a time. Score what you can with what you get!',
     mechanic: 'gauntlet',
     icon: '⚔️',

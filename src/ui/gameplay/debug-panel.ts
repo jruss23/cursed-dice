@@ -195,10 +195,10 @@ export class DebugPanel {
         });
     }
 
-    // Skip to curse row (4 columns: 1, 2, 3, 4)
+    // Skip to seal row (4 columns: 1, 2, 3, 4)
     if (this.callbacks.onSkipToMode) {
       yPos += buttonSpacing + 8; // Extra spacing before this section
-      const modeLabel = createText(this.scene, panelX, yPos - 22, 'Skip to Curse:', {
+      const modeLabel = createText(this.scene, panelX, yPos - 22, 'Skip to Seal:', {
         fontSize: FONTS.SIZE_MICRO,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_MUTED,
@@ -432,9 +432,9 @@ export class DebugPanel {
       yPos += 36;
     }
 
-    // Skip to curse mode buttons (1-4)
+    // Skip to seal mode buttons (1-4)
     if (this.callbacks.onSkipToMode) {
-      const modeLabel = createText(this.scene, panelWidth / 2, yPos, 'Skip to Curse:', {
+      const modeLabel = createText(this.scene, panelWidth / 2, yPos, 'Skip to Seal:', {
         fontSize: FONTS.SIZE_NANO,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_MUTED,

@@ -198,15 +198,15 @@ export class EndScreenOverlay {
   ): { titleText: string; titleColor: string; subtitleText: string } {
     if (isRunComplete) {
       return {
-        titleText: 'You broke the curse!',
+        titleText: 'The curse is broken!',
         titleColor: COLORS.TEXT_WARNING,
-        subtitleText: 'All 4 curses broken!',
+        subtitleText: 'All 4 seals shattered!',
       };
     } else if (passed) {
       return {
-        titleText: 'Curse weakened...',
+        titleText: 'Seal broken!',
         titleColor: COLORS.TEXT_SUCCESS,
-        subtitleText: `${4 - currentMode} curses remain`,
+        subtitleText: `${4 - currentMode} seals remain`,
       };
     } else if (!completed) {
       return {

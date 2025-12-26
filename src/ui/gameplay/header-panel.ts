@@ -110,24 +110,24 @@ export class HeaderPanel {
     const labelOffset = isMobile ? -10 : -8;
     const valueOffset = isMobile ? 8 : 12;
 
-    // Left: Curse number
-    const curseLabel = createText(this.scene, sideInset, sideCenterY + labelOffset, 'CURSE', {
+    // Left: Seal number
+    const sealLabel = createText(this.scene, sideInset, sideCenterY + labelOffset, 'SEAL', {
       fontSize: labelSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
       fontStyle: 'bold',
     });
-    curseLabel.setOrigin(0.5, 0.5);
-    this.container.add(curseLabel);
+    sealLabel.setOrigin(0.5, 0.5);
+    this.container.add(sealLabel);
 
-    const curseNum = createText(this.scene, sideInset, sideCenterY + valueOffset, `${currentMode}/4`, {
+    const sealNum = createText(this.scene, sideInset, sideCenterY + valueOffset, `${currentMode}/4`, {
       fontSize: valueSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
       fontStyle: 'bold',
     });
-    curseNum.setOrigin(0.5, 0.5);
-    this.container.add(curseNum);
+    sealNum.setOrigin(0.5, 0.5);
+    this.container.add(sealNum);
 
     // Center: Mode name (label) + Timer (value) - same vertical layout as sides
     const title = createText(this.scene, panelWidth / 2, sideCenterY + labelOffset, modeName.toUpperCase(), {

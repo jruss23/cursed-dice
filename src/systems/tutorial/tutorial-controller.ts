@@ -134,7 +134,7 @@ export class TutorialController {
         id: 'welcome',
         title: 'Welcome!',
         message:
-          "You have 13 turns to fill all categories on the scorecard. Score 250+ points before time runs out to break the curse!",
+          "You have 13 turns to fill all categories on the scorecard. Score 250+ points before time runs out to break the seal!",
         highlightTarget: 'none',
         showNextButton: true,
         onEnter: () => {
@@ -156,9 +156,9 @@ export class TutorialController {
       },
       {
         id: 'curse-counter',
-        title: 'Curse Progress',
+        title: 'Seal Progress',
         message:
-          "The game has 4 curses to beat. Each curse gets harder but you keep your score. Beat all 4 to win!",
+          "The game has 4 seals to break. Each seal gets harder but you keep your score. Break all 4 to lift the curse!",
         highlightTarget: 'header-curse',
         showNextButton: true,
         onEnter: () => {
@@ -170,7 +170,7 @@ export class TutorialController {
         id: 'score-goal',
         title: 'Your Score',
         message:
-          "Your total score across all curses. Points carry over as you progress through each stage!",
+          "Your total score across all seals. Points carry over as you progress through each stage!",
         highlightTarget: 'header-total',
         showNextButton: true,
         onEnter: () => {
@@ -218,7 +218,7 @@ export class TutorialController {
         id: 'pass-threshold',
         title: 'Pass Threshold',
         message:
-          "The bottom shows your goal: 250+ points to pass. Fall short and the curse claims you!",
+          "The bottom shows your goal: 250+ points to pass. Fall short and the seal holds!",
         highlightTarget: 'scorecard-total',
         showNextButton: true,
         onEnter: () => {
