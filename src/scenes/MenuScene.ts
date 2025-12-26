@@ -12,6 +12,7 @@ import {
   SIZES,
   COLORS,
 } from '@/config';
+import { version } from '../../package.json';
 import { resetGameProgression, debugSetMode, type GameMode } from '@/systems/game-progression';
 import { resetBlessingManager, debugSetBlessing } from '@/systems/blessings';
 import { DifficultyButton, FlickeringTitle, HighScoresPanel, SpookyBackground } from '@/ui/menu';
@@ -252,7 +253,7 @@ export class MenuScene extends BaseScene {
 
     // Version - centered, below title
     const versionY = isMobile ? 95 : 115;
-    const credit = createText(this, width / 2, versionY, 'v1.1.6', {
+    const credit = createText(this, width / 2, versionY, `v${version}`, {
       fontSize: FONTS.SIZE_TINY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.MENU_VERSION,
