@@ -145,8 +145,8 @@ export class BlessingChoicePanel {
     if (isMobile) {
       // Mobile: 4 compact rows - taller to fit description text
       const cardWidth = panelWidth - 20;
-      const cardHeight = 95;
-      const cardSpacing = 4;
+      const cardHeight = 88;
+      const cardSpacing = 3;
       const cardsStartY = curseBoxY + curseBoxHeight / 2 + 8;
 
       blessingIds.forEach((id, index) => {
@@ -390,7 +390,7 @@ export class BlessingChoicePanel {
 
     // Name (purple) + Subtitle (white) on same line
     const blessingName = config.name.replace('Blessing of ', '');
-    const nameText = createText(this.scene, textStartX, 28, `${blessingName}: `, {
+    const nameText = createText(this.scene, textStartX, 18, `${blessingName}: `, {
       fontSize: FONTS.SIZE_BODY,
       fontFamily: FONTS.FAMILY,
       color: isImplemented ? COLORS.TEXT_ACCENT : COLORS.TEXT_MUTED,
@@ -399,7 +399,7 @@ export class BlessingChoicePanel {
     nameText.setOrigin(0, 0.5);
     card.add(nameText);
 
-    const subtitleText = createText(this.scene, textStartX + nameText.width, 28, config.subtitle, {
+    const subtitleText = createText(this.scene, textStartX + nameText.width, 18, config.subtitle, {
       fontSize: FONTS.SIZE_BODY,
       fontFamily: FONTS.FAMILY,
       color: isImplemented ? COLORS.TEXT_PRIMARY : COLORS.TEXT_MUTED,
@@ -408,10 +408,10 @@ export class BlessingChoicePanel {
     subtitleText.setOrigin(0, 0.5);
     card.add(subtitleText);
 
-    // Description (below title with padding)
+    // Description (directly below title, no gap)
     if (isImplemented) {
-      const descWidth = cardWidth - textStartX - 15;
-      const desc = createText(this.scene, textStartX, 48, config.description, {
+      const descWidth = cardWidth - textStartX - 10;
+      const desc = createText(this.scene, textStartX, 34, config.description, {
         fontSize: FONTS.SIZE_SMALL,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_SECONDARY,
@@ -421,7 +421,7 @@ export class BlessingChoicePanel {
       card.add(desc);
     } else {
       // Show just subtitle for unimplemented
-      const desc = createText(this.scene, textStartX, 48, config.subtitle, {
+      const desc = createText(this.scene, textStartX, 34, config.subtitle, {
         fontSize: FONTS.SIZE_SMALL,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_DISABLED,

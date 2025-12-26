@@ -212,6 +212,8 @@ export interface ButtonResult {
   glow: Phaser.GameObjects.Rectangle;
   background: Phaser.GameObjects.Rectangle;
   text: Phaser.GameObjects.Text;
+  /** Clean up event listeners and destroy the button */
+  destroy: () => void;
 }
 
 /**
@@ -254,22 +256,32 @@ export function createButton(
   text.setOrigin(0.5, 0.5);
   container.add(text);
 
-  // Hover effects
-  background.on('pointerover', () => {
+  // Hover effects - store handlers for cleanup
+  const onPointerOver = () => {
     background.setFillStyle(colors.bgHover, 1);
     background.setStrokeStyle(2, colors.borderHover);
     glow.setAlpha(0.25);
-  });
+  };
 
-  background.on('pointerout', () => {
+  const onPointerOut = () => {
     background.setFillStyle(colors.bg, 0.95);
     background.setStrokeStyle(2, colors.border);
     glow.setAlpha(0.1);
-  });
+  };
 
+  background.on('pointerover', onPointerOver);
+  background.on('pointerout', onPointerOut);
   background.on('pointerdown', onClick);
 
-  return { container, glow, background, text };
+  // Cleanup function
+  const destroy = () => {
+    background.off('pointerover', onPointerOver);
+    background.off('pointerout', onPointerOut);
+    background.off('pointerdown', onClick);
+    container.destroy();
+  };
+
+  return { container, glow, background, text, destroy };
 }
 
 // =============================================================================
@@ -291,4 +303,65 @@ export function darkenColor(hex: number, factor: number = 0.5): number {
   const g = Math.floor(((hex >> 8) & 0xff) * factor);
   const b = Math.floor((hex & 0xff) * factor);
   return (r << 16) | (g << 8) | b;
+}
+
+/**
+ * Extract RGB components from a hex color
+ */
+export function hexToRgb(hex: number): { r: number; g: number; b: number } {
+  return {
+    r: (hex >> 16) & 0xff,
+    g: (hex >> 8) & 0xff,
+    b: hex & 0xff,
+  };
+}
+
+/**
+ * RGB object type for color tweening
+ */
+export interface RgbColor {
+  r: number;
+  g: number;
+  b: number;
+}
+
+/**
+ * Create a color tween that animates between two colors
+ * Returns the tween for cleanup tracking
+ */
+export function createColorTween(
+  scene: Phaser.Scene,
+  fromColor: number | RgbColor,
+  toColor: number | RgbColor,
+  options: {
+    delay?: number;
+    duration?: number;
+    ease?: string;
+    onUpdate: (color: number, rgbString: string) => void;
+    onComplete?: () => void;
+  }
+): Phaser.Tweens.Tween {
+  const from = typeof fromColor === 'number' ? hexToRgb(fromColor) : fromColor;
+  const to = typeof toColor === 'number' ? hexToRgb(toColor) : toColor;
+
+  const proxy = { r: from.r, g: from.g, b: from.b };
+
+  return scene.tweens.add({
+    targets: proxy,
+    r: to.r,
+    g: to.g,
+    b: to.b,
+    delay: options.delay ?? 0,
+    duration: options.duration ?? 500,
+    ease: options.ease ?? 'Sine.easeInOut',
+    onUpdate: () => {
+      const r = Math.floor(proxy.r);
+      const g = Math.floor(proxy.g);
+      const b = Math.floor(proxy.b);
+      const color = Phaser.Display.Color.GetColor(r, g, b);
+      const rgbString = Phaser.Display.Color.RGBToString(r, g, b);
+      options.onUpdate(color, rgbString);
+    },
+    onComplete: options.onComplete,
+  });
 }

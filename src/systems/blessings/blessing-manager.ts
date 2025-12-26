@@ -65,6 +65,9 @@ export class BlessingManager {
       return;
     }
 
+    // Clean up any existing blessing (safety check)
+    this.activeBlessing?.destroy?.();
+
     this.state.chosenBlessingId = blessingId;
     this.state.hasChosen = true;
     this.activeBlessing = factory(events);
@@ -81,6 +84,9 @@ export class BlessingManager {
     if (this.state.chosenBlessingId) {
       const factory = BlessingManager.blessingFactories.get(this.state.chosenBlessingId);
       if (factory) {
+        // Clean up previous blessing instance before creating new one
+        this.activeBlessing?.destroy?.();
+
         log.log(`Recreating blessing instance: ${this.state.chosenBlessingId}`);
         this.activeBlessing = factory(events);
         this.activeBlessing.onModeStart();

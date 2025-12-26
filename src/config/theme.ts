@@ -106,6 +106,28 @@ export const PALETTE = {
     closeBgHover: 0x663333,
     closeBorder: 0xcc4444,
   },
+
+  // === VICTORY CELEBRATION COLORS ===
+  victory: {
+    skyBlue: 0x87ceeb,        // Sky blue background
+    skyBlueBg: 0xe6f5ff,      // Very light blue panel bg
+    brightGold: 0xffd700,     // Bright gold (button fill)
+    goldenrod: 0xdaa520,      // Goldenrod (borders, text)
+    goldenBronze: 0xcd950c,   // Golden bronze
+    darkGoldenrod: 0xb8860b,  // Dark goldenrod
+    lightGoldHover: 0xffe033, // Light gold hover
+    lightRays: 0xffffcc,      // Light rays color
+    cornsilk: 0xfff8dc,       // Cornsilk text
+    warmBrown: 0x8b5a2b,      // Warm brown
+    darkBlueGray: 0x3c5064,   // Dark blue-gray text
+  },
+
+  // === FIREWORK ACCENT COLORS ===
+  fireworks: {
+    coral: 0xff6b6b,
+    teal: 0x4ecdc4,
+    yellow: 0xffe66d,
+  },
 } as const;
 
 // =============================================================================
@@ -196,6 +218,18 @@ export const COLORS = {
   SHADOW: PALETTE.black,
   HIGHLIGHT: PALETTE.white,
   PANEL_BG_DEEP: 0x0a0a15,
+
+  // Canvas border
+  CANVAS_BORDER: '#7c3aed', // Purple border (CSS hex string)
+
+  // Victory celebration
+  VICTORY_BTN_BG: PALETTE.victory.brightGold,
+  VICTORY_BTN_BG_HOVER: PALETTE.victory.lightGoldHover,
+  VICTORY_BTN_BORDER: PALETTE.victory.goldenrod,
+  VICTORY_BTN_BORDER_HOVER: PALETTE.victory.brightGold,
+  VICTORY_BTN_GLOW: PALETTE.victory.goldenrod,
+  VICTORY_BTN_TEXT: '#FFF8DC', // Cornsilk
+  VICTORY_TITLE: '#DAA520', // Goldenrod hex for text
 } as const;
 
 // =============================================================================

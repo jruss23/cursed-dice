@@ -6,6 +6,58 @@
 
 import { createLogger } from './logger';
 
+// =============================================================================
+// SFX CONFIGURATION
+// =============================================================================
+
+const SFX_CONFIG = {
+  // Dice roll sound
+  DICE_ROLL: {
+    VOLUME: 2.0, // 200% volume for dice
+    BOUNCES: [
+      { time: 0, freq: 196, duration: 0.07 },     // G3
+      { time: 0.09, freq: 175, duration: 0.06 },  // F3
+      { time: 0.16, freq: 156, duration: 0.05 },  // Eb3
+      { time: 0.22, freq: 147, duration: 0.04 },  // D3
+      { time: 0.27, freq: 131, duration: 0.035 }, // C3
+    ],
+    BOUNCE_BASE_VOL: 0.18,
+    BOUNCE_VOL_DECAY: 0.025,
+    THUD: {
+      START_FREQ: 65,
+      END_FREQ: 35,
+      DURATION: 0.12,
+      VOLUME: 0.15,
+      RAMP_DURATION: 0.1,
+    },
+  },
+
+  // Score confirm sound
+  SCORE_CONFIRM: {
+    NOTES: [261.63, 329.63], // C4, E4
+    DURATION: 0.08,
+    ATTACK: 0.01,
+    VOLUME: 0.15,
+    NOTE_SPACING: 0.06,
+  },
+
+  // Mode complete sound
+  MODE_COMPLETE: {
+    NOTES: [130.81, 164.81, 196.00, 261.63], // C3, E3, G3, C4
+    DURATION: 0.2,
+    ATTACK: 0.02,
+    VOLUME: 0.12,
+    NOTE_SPACING: 0.08,
+  },
+
+  // Victory fanfare
+  VICTORY: {
+    VOLUME: 0.1,
+    ATTACK: 0.02,
+    CLEANUP_DELAY: 6000, // ms after which to cleanup tracked nodes
+  },
+} as const;
+
 const log = createLogger('SFXManager');
 
 // Persist SFX enabled state across sessions
@@ -34,6 +86,13 @@ let audioContext: AudioContext | null = null;
 // Global SFX enabled state (loaded from localStorage)
 let sfxEnabled = loadSFXEnabled();
 
+// Track active audio nodes for cancellation (especially long-running sounds like victory fanfare)
+interface ActiveSound {
+  oscillators: OscillatorNode[];
+  gains: GainNode[];
+}
+let activeSounds: ActiveSound[] = [];
+
 export function isSFXEnabled(): boolean {
   return sfxEnabled;
 }
@@ -49,6 +108,35 @@ export function toggleSFX(): boolean {
   saveSFXEnabled(sfxEnabled);
   log.log(`SFX ${sfxEnabled ? 'enabled' : 'disabled'}`);
   return sfxEnabled;
+}
+
+/**
+ * Stop all currently playing sound effects immediately
+ * Call this when transitioning away from a scene to prevent lingering audio
+ */
+export function stopAllSFX(): void {
+  const ctx = audioContext;
+  if (!ctx) return;
+
+  activeSounds.forEach(sound => {
+    sound.oscillators.forEach(osc => {
+      try {
+        osc.stop();
+        osc.disconnect();
+      } catch {
+        // Already stopped
+      }
+    });
+    sound.gains.forEach(gain => {
+      try {
+        gain.disconnect();
+      } catch {
+        // Already disconnected
+      }
+    });
+  });
+  activeSounds = [];
+  log.log('Stopped all SFX');
 }
 
 function getAudioContext(): AudioContext | null {
@@ -78,24 +166,16 @@ export function playDiceRollSound(): void {
   if (!ctx) return;
 
   const now = ctx.currentTime;
-  const vol = 2.0; // 200% volume
+  const config = SFX_CONFIG.DICE_ROLL;
 
-  const bounces = [
-    { time: 0, freq: 196, duration: 0.07 },     // G3
-    { time: 0.09, freq: 175, duration: 0.06 },  // F3
-    { time: 0.16, freq: 156, duration: 0.05 },  // Eb3
-    { time: 0.22, freq: 147, duration: 0.04 },  // D3
-    { time: 0.27, freq: 131, duration: 0.035 }, // C3
-  ];
-
-  bounces.forEach(({ time, freq, duration }, i) => {
+  config.BOUNCES.forEach(({ time, freq, duration }, i) => {
     const osc = ctx.createOscillator();
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(freq, now + time);
     osc.frequency.exponentialRampToValueAtTime(freq * 0.7, now + time + duration);
 
     const gain = ctx.createGain();
-    const baseVol = (0.18 - i * 0.025) * vol;
+    const baseVol = (config.BOUNCE_BASE_VOL - i * config.BOUNCE_VOL_DECAY) * config.VOLUME;
     gain.gain.setValueAtTime(baseVol, now + time);
     gain.gain.exponentialRampToValueAtTime(0.001, now + time + duration);
 
@@ -108,17 +188,17 @@ export function playDiceRollSound(): void {
   // Base thud
   const thud = ctx.createOscillator();
   thud.type = 'sine';
-  thud.frequency.setValueAtTime(65, now);
-  thud.frequency.exponentialRampToValueAtTime(35, now + 0.1);
+  thud.frequency.setValueAtTime(config.THUD.START_FREQ, now);
+  thud.frequency.exponentialRampToValueAtTime(config.THUD.END_FREQ, now + config.THUD.RAMP_DURATION);
 
   const thudGain = ctx.createGain();
-  thudGain.gain.setValueAtTime(0.15 * vol, now);
-  thudGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+  thudGain.gain.setValueAtTime(config.THUD.VOLUME * config.VOLUME, now);
+  thudGain.gain.exponentialRampToValueAtTime(0.001, now + config.THUD.DURATION);
 
   thud.connect(thudGain);
   thudGain.connect(ctx.destination);
   thud.start(now);
-  thud.stop(now + 0.12);
+  thud.stop(now + config.THUD.DURATION);
 }
 
 // =============================================================================
@@ -132,27 +212,24 @@ export function playScoreConfirmSound(): void {
   if (!ctx) return;
 
   const now = ctx.currentTime;
+  const config = SFX_CONFIG.SCORE_CONFIRM;
 
-  // Two ascending notes (C4 -> E4) - lowered 1 octave for warmer tone
-  const notes = [261.63, 329.63]; // C4, E4
-  const duration = 0.08;
-
-  notes.forEach((freq, i) => {
+  config.NOTES.forEach((freq, i) => {
     const osc = ctx.createOscillator();
     osc.type = 'sine';
     osc.frequency.value = freq;
 
     const gain = ctx.createGain();
-    const startTime = now + i * 0.06;
+    const startTime = now + i * config.NOTE_SPACING;
     gain.gain.setValueAtTime(0, startTime);
-    gain.gain.linearRampToValueAtTime(0.15, startTime + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+    gain.gain.linearRampToValueAtTime(config.VOLUME, startTime + config.ATTACK);
+    gain.gain.exponentialRampToValueAtTime(0.01, startTime + config.DURATION);
 
     osc.connect(gain);
     gain.connect(ctx.destination);
 
     osc.start(startTime);
-    osc.stop(startTime + duration);
+    osc.stop(startTime + config.DURATION);
   });
 }
 
@@ -167,28 +244,25 @@ export function playModeCompleteSound(): void {
   if (!ctx) return;
 
   const now = ctx.currentTime;
+  const config = SFX_CONFIG.MODE_COMPLETE;
 
-  // C major chord arpeggio (C3 -> E3 -> G3 -> C4) - lowered 1 octave
-  const notes = [130.81, 164.81, 196.00, 261.63];
-  const duration = 0.2;
-
-  notes.forEach((freq, i) => {
+  config.NOTES.forEach((freq, i) => {
     const osc = ctx.createOscillator();
     osc.type = 'triangle'; // Softer than sine
     osc.frequency.value = freq;
 
     const gain = ctx.createGain();
-    const startTime = now + i * 0.08;
+    const startTime = now + i * config.NOTE_SPACING;
     gain.gain.setValueAtTime(0, startTime);
-    gain.gain.linearRampToValueAtTime(0.12, startTime + 0.02);
-    gain.gain.setValueAtTime(0.12, startTime + duration * 0.7);
-    gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+    gain.gain.linearRampToValueAtTime(config.VOLUME, startTime + config.ATTACK);
+    gain.gain.setValueAtTime(config.VOLUME, startTime + config.DURATION * 0.7);
+    gain.gain.exponentialRampToValueAtTime(0.01, startTime + config.DURATION);
 
     osc.connect(gain);
     gain.connect(ctx.destination);
 
     osc.start(startTime);
-    osc.stop(startTime + duration);
+    osc.stop(startTime + config.DURATION);
   });
 }
 
@@ -203,6 +277,9 @@ export function playVictoryFanfare(): void {
   if (!ctx) return;
 
   const now = ctx.currentTime;
+
+  // Track all oscillators and gains for this sound (so we can cancel it)
+  const sound: ActiveSound = { oscillators: [], gains: [] };
 
   // Extended 5-second triumphant fanfare (dark/cursed theme)
   const fanfareNotes = [
@@ -254,6 +331,8 @@ export function playVictoryFanfare(): void {
     { freq: 392.00, start: 3.9, duration: 1.1 },  // G4
   ];
 
+  const config = SFX_CONFIG.VICTORY;
+
   [...fanfareNotes, ...chordNotes].forEach(({ freq, start, duration }) => {
     const osc = ctx.createOscillator();
     osc.type = 'triangle';
@@ -262,8 +341,8 @@ export function playVictoryFanfare(): void {
     const gain = ctx.createGain();
     const startTime = now + start;
     gain.gain.setValueAtTime(0, startTime);
-    gain.gain.linearRampToValueAtTime(0.1, startTime + 0.02);
-    gain.gain.setValueAtTime(0.1, startTime + duration * 0.8);
+    gain.gain.linearRampToValueAtTime(config.VOLUME, startTime + config.ATTACK);
+    gain.gain.setValueAtTime(config.VOLUME, startTime + duration * 0.8);
     gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
 
     osc.connect(gain);
@@ -271,7 +350,22 @@ export function playVictoryFanfare(): void {
 
     osc.start(startTime);
     osc.stop(startTime + duration);
+
+    // Track for cancellation
+    sound.oscillators.push(osc);
+    sound.gains.push(gain);
   });
+
+  // Register this sound for potential cancellation
+  activeSounds.push(sound);
+
+  // Auto-cleanup after sound completes
+  setTimeout(() => {
+    const index = activeSounds.indexOf(sound);
+    if (index !== -1) {
+      activeSounds.splice(index, 1);
+    }
+  }, config.CLEANUP_DELAY);
 }
 
 // =============================================================================

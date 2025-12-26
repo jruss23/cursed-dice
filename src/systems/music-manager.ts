@@ -65,6 +65,9 @@ const DIFFICULTY_SONGS: Record<Difficulty, Song> = {
   intense: 'intense',
 };
 
+/** Time skip detection threshold - if time jumps by more than this, seek audio */
+const TIME_SKIP_THRESHOLD_MS = 2000;
+
 // ============================================================================
 // MUSIC MANAGER CLASS
 // ============================================================================
@@ -83,6 +86,9 @@ export class MusicManager {
   private isInitialized: boolean = false;
   private musicEnabled: boolean = true;
   private currentVolume: number = 0.5;
+
+  // Active tweens (for cleanup)
+  private fadeTween: Phaser.Tweens.Tween | null = null;
 
   constructor() {
     // Load persisted music setting
@@ -166,9 +172,9 @@ export class MusicManager {
   syncToGameTime(timeRemainingMs: number): void {
     if (!this.currentMode || !this.musicEnabled || !this.currentSound) return;
 
-    // Detect time jumps (e.g., debug skip) - if time jumped more than 2 seconds, seek audio
+    // Detect time jumps (e.g., debug skip) - if time jumped more than threshold, seek audio
     const timeDelta = this.lastTimeRemainingMs - timeRemainingMs;
-    if (timeDelta > 2000) {
+    if (timeDelta > TIME_SKIP_THRESHOLD_MS) {
       const elapsedMs = this.totalDurationMs - timeRemainingMs;
       const seekPositionSec = elapsedMs / 1000;
 
@@ -184,6 +190,12 @@ export class MusicManager {
 
   /** Stop all music */
   stop(): void {
+    // Kill any active fade tween
+    if (this.fadeTween) {
+      this.fadeTween.stop();
+      this.fadeTween = null;
+    }
+
     this.stopAll();
     this.currentMode = null;
     log.log('Stopped');
@@ -209,13 +221,20 @@ export class MusicManager {
   fadeOut(durationMs: number = 1000): void {
     if (!this.currentSound || !this.scene) return;
 
+    // Kill any existing fade tween
+    if (this.fadeTween) {
+      this.fadeTween.stop();
+      this.fadeTween = null;
+    }
+
     const startVol = this.currentVolume;
 
-    this.scene.tweens.add({
+    this.fadeTween = this.scene.tweens.add({
       targets: this.currentSound,
       volume: 0,
       duration: durationMs,
       onComplete: () => {
+        this.fadeTween = null;
         this.stop();
         this.currentVolume = startVol; // Restore for next play
       },
@@ -250,6 +269,12 @@ export class MusicManager {
 
   /** Clean up all resources */
   dispose(): void {
+    // Kill any active fade tween first
+    if (this.fadeTween) {
+      this.fadeTween.stop();
+      this.fadeTween = null;
+    }
+
     this.stopAll();
     this.sounds.forEach(sound => sound.destroy());
     this.sounds.clear();
@@ -278,11 +303,18 @@ export class MusicManager {
     if (!this.scene.cache.audio.exists(key)) {
       this.scene.load.audio(key, SONGS[songName]);
 
-      // Wait for this song to load
+      // Wait for this song to load (with null check for race condition)
       await new Promise<void>((resolve) => {
-        this.scene!.load.once('complete', () => resolve());
-        this.scene!.load.start();
+        if (!this.scene) {
+          resolve();
+          return;
+        }
+        this.scene.load.once('complete', () => resolve());
+        this.scene.load.start();
       });
+
+      // Scene may have been destroyed during load
+      if (!this.scene) return null;
     }
 
     // Create sound object

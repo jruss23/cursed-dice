@@ -265,6 +265,7 @@ export class DiceManager implements TutorialControllableDice {
   /**
    * Reset hand completely (Mercy blessing)
    * New random dice + full rerolls, like starting the hand fresh
+   * Note: Curse will be re-applied by GameplayScene after roll completes
    */
   resetHand(): void {
     log.log('Resetting hand (Mercy)');
@@ -272,12 +273,15 @@ export class DiceManager implements TutorialControllableDice {
     // Reset rerolls to full
     this.state.rerollsLeft = GAME_RULES.REROLLS_PER_TURN;
 
+    // Clear cursed die (will be re-applied after roll by GameplayScene)
+    this.state.cursedIndex = -1;
+
     // Unlock all dice
     for (let i = 0; i < this.state.locked.length; i++) {
       this.state.locked[i] = false;
     }
 
-    // Roll all dice fresh (this will handle the cursed die in Curse 2)
+    // Roll all dice fresh
     this.roll(true);
   }
 

@@ -21,6 +21,7 @@ import {
   COLORS,
   DEV,
   RESPONSIVE,
+  GAMEPLAY_LAYOUT,
   getScaledSizes,
   getPortraitLayout,
   type ViewportMetrics,
@@ -53,7 +54,7 @@ import { PauseMenu } from '@/ui/pause-menu';
 import { HeaderPanel, DebugPanel, EndScreenOverlay } from '@/ui/gameplay';
 import { ParticlePool } from '@/systems/particle-pool';
 import { DebugController } from '@/systems/debug-controller';
-import { playScoreConfirmSound, playModeCompleteSound, playVictoryFanfare } from '@/systems/sfx-manager';
+import { playScoreConfirmSound, playModeCompleteSound, playVictoryFanfare, stopAllSFX } from '@/systems/sfx-manager';
 import { SixthBlessing } from '@/systems/blessings/blessing-sixth';
 import { BaseScene } from './BaseScene';
 import {
@@ -81,6 +82,7 @@ export class GameplayScene extends BaseScene {
   private debugPanel: DebugPanel | null = null;
   private selectPrompt: Phaser.GameObjects.Text | null = null;
   private blessingIntegration: BlessingIntegration | null = null;
+  private endScreenOverlay: EndScreenOverlay | null = null;
 
   // Game state
   private difficulty: Difficulty = 'normal';
@@ -115,6 +117,12 @@ export class GameplayScene extends BaseScene {
   private boundOnExpansionEnable: (() => void) | null = null;
   private boundOnScoreCategory: ((payload: { categoryId: CategoryId; dice: number[] }) => void) | null = null;
   private boundOnMenuRequested: (() => void) | null = null;
+  private boundOnMercyUsed: (() => void) | null = null;
+  // Handler for mercy roll completion (one-time listener, needs cleanup if scene shuts down early)
+  private pendingMercyRollHandler: ((payload: { isInitial: boolean }) => void) | null = null;
+
+  // Track delayed calls for proper cleanup
+  private pendingDelayedCalls: Phaser.Time.TimerEvent[] = [];
 
   constructor() {
     super({ key: 'GameplayScene' });
@@ -304,6 +312,12 @@ export class GameplayScene extends BaseScene {
       this.returnToMenu();
     };
     this.gameEvents.on('ui:menuRequested', this.boundOnMenuRequested);
+
+    // Handle Mercy blessing - re-apply curse after hand reset
+    this.boundOnMercyUsed = () => {
+      this.onMercyUsed();
+    };
+    this.gameEvents.on('blessing:mercy:used', this.boundOnMercyUsed);
   }
 
   private async setupAudio(): Promise<void> {
@@ -311,9 +325,14 @@ export class GameplayScene extends BaseScene {
     this.musicManager = new MusicManager();
 
     // Initialize and play for current difficulty
-    // init() preloads all songs, play() starts the correct one
-    await this.musicManager.init(this);
-    await this.musicManager.play(this.difficulty);
+    // Wrapped in try-catch to gracefully handle audio load failures
+    try {
+      await this.musicManager.init(this);
+      await this.musicManager.play(this.difficulty);
+    } catch (error) {
+      // Audio failure shouldn't break the game - log and continue
+      console.warn('[GameplayScene] Audio setup failed, continuing without music:', error);
+    }
   }
 
   private buildUI(): void {
@@ -374,7 +393,7 @@ export class GameplayScene extends BaseScene {
     // Width for scorecard - panel determines its own layout
     const scorecardWidth = width < 900 ? RESPONSIVE.SCORECARD_WIDTH_TWO_COL : scaledSizes.scorecardWidth;
     const scorecardX = width - scorecardWidth - 15;
-    const leftMargin = DEV.IS_DEVELOPMENT ? 160 : 30;
+    const leftMargin = DEV.IS_DEVELOPMENT ? GAMEPLAY_LAYOUT.LEFT_MARGIN_DEBUG : GAMEPLAY_LAYOUT.LEFT_MARGIN_NORMAL;
     const playAreaCenterX = leftMargin + (scorecardX - leftMargin) / 2;
 
     // Debug panel (only in debug mode)
@@ -405,13 +424,11 @@ export class GameplayScene extends BaseScene {
     this.createDicePanel(playAreaCenterX, height * 0.48, scaledSizes);
 
     // Select prompt - positioned above scorecard panel
-    const promptPadding = 12;
-    this.selectPrompt = createSelectPrompt(this, scorecardX + scorecardWidth / 2, promptPadding);
+    this.selectPrompt = createSelectPrompt(this, scorecardX + scorecardWidth / 2, GAMEPLAY_LAYOUT.PROMPT_PADDING);
     this.selectPrompt.setOrigin(0.5, 0);
 
     // Scorecard panel - below the prompt
-    const promptHeight = 14;
-    const scorecardY = promptPadding + promptHeight + promptPadding;
+    const scorecardY = GAMEPLAY_LAYOUT.PROMPT_PADDING + GAMEPLAY_LAYOUT.PROMPT_HEIGHT + GAMEPLAY_LAYOUT.PROMPT_PADDING;
     this.scorecardPanel = new ScorecardPanel(this, this.scorecard, this.gameEvents, {
       x: scorecardX,
       y: scorecardY,
@@ -566,11 +583,13 @@ export class GameplayScene extends BaseScene {
     this.diceManager.roll(true);
 
     // Apply mode mechanics after initial roll (e.g., curse die for Mode 2)
-    this.time.delayedCall(SIZES.ROLL_DURATION_MS + 100, () => {
+    const afterRollCall = this.time.delayedCall(SIZES.ROLL_DURATION_MS + GAMEPLAY_LAYOUT.POST_ROLL_DELAY, () => {
+      if (this.stateMachine.is('game-over') || this.stateMachine.is('mode-transition')) return;
       this.modeMechanics.onAfterInitialRoll(this.diceManager);
       // Transition to selecting state after roll completes
       this.stateMachine.transition('selecting');
     });
+    this.pendingDelayedCalls.push(afterRollCall);
 
     // Start timer
     this.timerEvent = this.time.addEvent({
@@ -633,7 +652,7 @@ export class GameplayScene extends BaseScene {
         }
 
         // Screen shake
-        this.cameras.main.shake(200, 0.003);
+        this.cameras.main.shake(200, GAMEPLAY_LAYOUT.SHAKE_INTENSITY);
       } else if (this.timeRemaining <= 30000) {
         // Danger - orange/red
         timerText.setColor(COLORS.TIMER_DANGER);
@@ -763,22 +782,57 @@ export class GameplayScene extends BaseScene {
     this.diceManager.roll(true);
 
     // Apply mode-specific effects after scoring
-    this.time.delayedCall(SIZES.ROLL_DURATION_MS + 100, () => {
+    const afterScoreCall = this.time.delayedCall(SIZES.ROLL_DURATION_MS + GAMEPLAY_LAYOUT.POST_ROLL_DELAY, () => {
+      if (this.stateMachine.is('game-over') || this.stateMachine.is('mode-transition')) return;
       const availableCategories = this.scorecard.getAvailableCategories();
       this.modeMechanics.onAfterScore(this.diceManager, availableCategories);
     });
+    this.pendingDelayedCalls.push(afterScoreCall);
   }
 
   private showScoreEffectUI(points: number): void {
     showScoreEffect({
       scene: this,
       centerX: this.diceCenterX,
-      centerY: 290,
+      centerY: GAMEPLAY_LAYOUT.SCORE_EFFECT_Y,
       points,
       onParticles: (x, y, count, color) => {
         this.particlePool?.emit(x, y, count, color);
       },
     });
+  }
+
+  // ===========================================================================
+  // BLESSING HANDLERS
+  // ===========================================================================
+
+  /**
+   * Handle Mercy blessing used - re-apply curse after roll completes
+   */
+  private onMercyUsed(): void {
+    // After Mercy resets the hand, we need to re-apply the curse for Mode 2
+    // Listen for the dice:rolled event (which fires AFTER the animation callback
+    // has finished wiping the locked array), then apply curse to highest die
+    this.pendingMercyRollHandler = ({ isInitial }) => {
+      // Only handle initial rolls (Mercy triggers an initial roll)
+      if (!isInitial) return;
+
+      // Remove this one-time listener
+      if (this.pendingMercyRollHandler) {
+        this.gameEvents.off('dice:rolled', this.pendingMercyRollHandler);
+        this.pendingMercyRollHandler = null;
+      }
+
+      if (this.stateMachine.is('game-over') || this.stateMachine.is('mode-transition')) return;
+
+      // Small delay for visual feedback, then apply curse
+      const afterMercyCall = this.time.delayedCall(GAMEPLAY_LAYOUT.POST_ROLL_DELAY, () => {
+        this.modeMechanics.onAfterInitialRoll(this.diceManager);
+      });
+      this.pendingDelayedCalls.push(afterMercyCall);
+    };
+
+    this.gameEvents.on('dice:rolled', this.pendingMercyRollHandler);
   }
 
   // ===========================================================================
@@ -833,7 +887,7 @@ export class GameplayScene extends BaseScene {
       playModeCompleteSound();
     }
 
-    new EndScreenOverlay(
+    this.endScreenOverlay = new EndScreenOverlay(
       this,
       {
         passed,
@@ -847,22 +901,24 @@ export class GameplayScene extends BaseScene {
       },
       {
         onNewGame: () => {
-          // Reset canvas border to purple (undo victory gold)
-          const canvas = document.querySelector('canvas');
-          if (canvas) canvas.style.borderColor = '#7c3aed';
+          // Destroy overlay first to stop all animations (including canvas border)
+          this.endScreenOverlay?.destroy();
+          this.endScreenOverlay = null;
           resetGameProgression();
           resetBlessingManager();
           this.returnToMenu();
         },
         onQuit: () => {
-          // Reset canvas border to purple
-          const canvas = document.querySelector('canvas');
-          if (canvas) canvas.style.borderColor = '#7c3aed';
+          // Destroy overlay first to stop all animations
+          this.endScreenOverlay?.destroy();
+          this.endScreenOverlay = null;
           resetGameProgression();
           resetBlessingManager();
           this.returnToMenu();
         },
         onContinue: () => {
+          this.endScreenOverlay?.destroy();
+          this.endScreenOverlay = null;
           if (showBlessingChoice) {
             this.showBlessingChoicePanel();
           } else {
@@ -870,6 +926,8 @@ export class GameplayScene extends BaseScene {
           }
         },
         onTryAgain: () => {
+          this.endScreenOverlay?.destroy();
+          this.endScreenOverlay = null;
           resetGameProgression();
           resetBlessingManager();
           this.startNextMode();
@@ -999,6 +1057,13 @@ export class GameplayScene extends BaseScene {
       this.musicManager = null;
     }
 
+    // Stop any playing SFX (especially victory fanfare which is 5 seconds long)
+    stopAllSFX();
+
+    // Cancel pending delayed calls
+    this.pendingDelayedCalls.forEach(call => call.destroy());
+    this.pendingDelayedCalls = [];
+
     // Cleanup state machine
     if (this.stateMachine) {
       this.stateMachine.destroy();
@@ -1023,6 +1088,15 @@ export class GameplayScene extends BaseScene {
       if (this.boundOnMenuRequested) {
         this.gameEvents.off('ui:menuRequested', this.boundOnMenuRequested);
         this.boundOnMenuRequested = null;
+      }
+      if (this.boundOnMercyUsed) {
+        this.gameEvents.off('blessing:mercy:used', this.boundOnMercyUsed);
+        this.boundOnMercyUsed = null;
+      }
+      // Clean up pending mercy roll handler if it hasn't fired yet
+      if (this.pendingMercyRollHandler) {
+        this.gameEvents.off('dice:rolled', this.pendingMercyRollHandler);
+        this.pendingMercyRollHandler = null;
       }
       this.gameEvents.destroy();
     }
@@ -1055,6 +1129,11 @@ export class GameplayScene extends BaseScene {
     if (this.pauseMenu) {
       this.pauseMenu.destroy();
       this.pauseMenu = null;
+    }
+
+    if (this.endScreenOverlay) {
+      this.endScreenOverlay.destroy();
+      this.endScreenOverlay = null;
     }
 
     // Cleanup input manager (removes all keyboard listeners)

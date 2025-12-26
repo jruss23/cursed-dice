@@ -116,6 +116,135 @@ export const TIMING = {
   SCORE_DISPLAY_DELAY: 1200,
   TRANSITION_DURATION: 500,
   MODE_TRANSITION_DELAY: 2000,
+
+  // Victory celebration
+  VICTORY_DURATION: 4000,           // Total color transition duration
+  VICTORY_CELEBRATION_DELAY: 800,   // Delay before confetti/fireworks start
+  VICTORY_CONFETTI_STAGGER: 5000,   // Time to stagger confetti spawns
+  VICTORY_CONFETTI_FALL: 2000,      // Base confetti fall duration
+  VICTORY_FLASH: 300,               // Screen flash duration
+  VICTORY_TRANSITION_START: 0.25,   // Start panel transition at 25% of wipe
+  VICTORY_TRANSITION_DURATION: 0.5, // Panel transition takes 50% of total
+} as const;
+
+// =============================================================================
+// DEPTH LAYERS (Z-ordering for game objects)
+// =============================================================================
+
+export const DEPTH = {
+  // Background layers
+  BACKGROUND: 0,
+  GAME_BOARD: 10,
+
+  // Game elements
+  DICE: 20,
+  UI_PANELS: 30,
+
+  // Overlay layers
+  LIGHT_RAYS: 98,
+  BLUE_OVERLAY: 99,
+  OVERLAY: 100,
+  PANEL: 101,
+  CONFETTI: 102,
+  FIREWORKS: 103,
+
+  // Top-most
+  MODAL: 110,
+  TOOLTIP: 120,
+} as const;
+
+// =============================================================================
+// CELEBRATION SETTINGS
+// =============================================================================
+
+export const CELEBRATION = {
+  // Confetti
+  CONFETTI_COUNT_MOBILE: 120,
+  CONFETTI_COUNT_DESKTOP: 200,
+  CONFETTI_SIZE_MIN: 4,
+  CONFETTI_SIZE_MAX: 10,
+  CONFETTI_FALL_VARIANCE: 1000,
+
+  // Fireworks
+  FIREWORK_COUNT_MOBILE: 12,
+  FIREWORK_COUNT_DESKTOP: 20,
+  FIREWORK_SPARK_COUNT_MOBILE: 12,
+  FIREWORK_SPARK_COUNT_DESKTOP: 20,
+  FIREWORK_SPARK_SIZE_MIN: 3,
+  FIREWORK_SPARK_SIZE_MAX: 7,
+  FIREWORK_STAGGER: 250,
+
+  // Gradient/wipe effect
+  GRADIENT_STEPS: 30,
+  BLUR_SIZE: 80,
+  RAY_COUNT: 5,
+} as const;
+
+// =============================================================================
+// GAMEPLAY LAYOUT
+// =============================================================================
+
+export const GAMEPLAY_LAYOUT = {
+  // Score effect position
+  SCORE_EFFECT_Y: 290,
+
+  // Prompt positioning
+  PROMPT_PADDING: 12,
+  PROMPT_HEIGHT: 14,
+
+  // Left margin based on debug mode
+  LEFT_MARGIN_DEBUG: 160,
+  LEFT_MARGIN_NORMAL: 30,
+
+  // Screen shake intensity
+  SHAKE_INTENSITY: 0.003,
+
+  // Delay after roll before applying mode mechanics
+  POST_ROLL_DELAY: 100,
+} as const;
+
+// =============================================================================
+// END SCREEN OVERLAY
+// =============================================================================
+
+export const END_SCREEN = {
+  // Panel dimensions
+  PANEL_WIDTH_MOBILE: 340,
+  PANEL_WIDTH_DESKTOP: 400,
+  PANEL_HEIGHT_MOBILE: 300,
+  PANEL_HEIGHT_DESKTOP: 340,
+  PANEL_MARGIN: 30,
+
+  // Content Y positions
+  TITLE_Y: 45,
+  SUBTITLE_OFFSET: 30,
+  DIVIDER_1_Y: 100,
+  SCORE_Y: 150,
+  SCORE_LABEL_OFFSET: -25,
+  SCORE_VALUE_OFFSET: 5,
+  SCORE_ROUND_OFFSET: 30,
+  DIVIDER_2_Y: 220,
+
+  // Button positioning
+  BUTTON_Y_MOBILE: 250,
+  BUTTON_Y_DESKTOP: 280,
+  BUTTON_OFFSET_MOBILE: 70,
+  BUTTON_OFFSET_DESKTOP: 90,
+  BUTTON_WIDTH_MOBILE: 120,
+  BUTTON_WIDTH_DESKTOP: 150,
+  BUTTON_HEIGHT_MOBILE: 36,
+  BUTTON_HEIGHT_DESKTOP: 44,
+
+  // Firework effects
+  FIREWORK_EXPLOSION_MARGIN: 50,
+  FIREWORK_HEIGHT_FACTOR: 0.4,
+  FIREWORK_DISTANCE_MIN: 60,
+  FIREWORK_DISTANCE_VARIANCE: 80,
+  FIREWORK_GRAVITY: 40,
+  SPARK_DURATION_BASE: 800,
+  SPARK_DURATION_VARIANCE: 400,
+  FLASH_RADIUS: 15,
+  FLASH_DURATION: 200,
 } as const;
 
 // Legacy alias for backwards compatibility during migration

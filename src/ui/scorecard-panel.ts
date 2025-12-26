@@ -34,8 +34,7 @@ export interface ScorecardPanelConfig {
   // Note: layout is auto-determined based on viewport size, not passed in
 }
 
-// Note: ScorecardRow component exists but has interface mismatch with stateManager
-// TODO: Unify RowDisplayState interfaces before migrating
+/** Rendering elements for a single category row */
 interface CategoryRow {
   id: CategoryId;
   nameText: Phaser.GameObjects.Text;

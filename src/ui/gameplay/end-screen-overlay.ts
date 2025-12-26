@@ -4,8 +4,8 @@
  */
 
 import Phaser from 'phaser';
-import { FONTS, PALETTE, COLORS, SIZES, getViewportMetrics } from '@/config';
-import { createText } from '@/ui/ui-utils';
+import { FONTS, PALETTE, COLORS, SIZES, TIMING, DEPTH, CELEBRATION, END_SCREEN, getViewportMetrics } from '@/config';
+import { createText, hexToRgb } from '@/ui/ui-utils';
 
 export interface EndScreenConfig {
   passed: boolean;
@@ -34,6 +34,9 @@ export class EndScreenOverlay {
   private tweens: Phaser.Tweens.Tween[] = [];
   private isMobile: boolean = false;
   private celebrationParticles: Phaser.GameObjects.Graphics[] = [];
+  private destroyed: boolean = false;
+  private borderAnimationId: number | null = null;
+  private delayedCalls: Phaser.Time.TimerEvent[] = [];
 
   // Elements to animate during victory color transition
   private panelBg: Phaser.GameObjects.Rectangle | null = null;
@@ -42,7 +45,15 @@ export class EndScreenOverlay {
   private titleText: Phaser.GameObjects.Text | null = null;
   private titleGlow: Phaser.GameObjects.Text | null = null;
   private subtitleText: Phaser.GameObjects.Text | null = null;
-  private scoreTexts: Phaser.GameObjects.Text[] = [];
+
+  // Score texts with type information for color animation
+  private scoreLabelText: Phaser.GameObjects.Text | null = null;
+  private scoreValueText: Phaser.GameObjects.Text | null = null;
+  private roundLabelText: Phaser.GameObjects.Text | null = null;
+
+  // Victory button elements (stored directly, no fragile detection)
+  private victoryButtonBg: Phaser.GameObjects.Rectangle | null = null;
+  private victoryButtonText: Phaser.GameObjects.Text | null = null;
 
   constructor(
     scene: Phaser.Scene,
@@ -57,17 +68,19 @@ export class EndScreenOverlay {
     // Dark overlay - blocks clicks to elements behind (like pause button)
     this.overlay = this.scene.add.rectangle(width / 2, height / 2, width, height, PALETTE.purple[900], 0.95);
     this.overlay.setInteractive();
-    this.overlay.setDepth(100);
+    this.overlay.setDepth(DEPTH.OVERLAY);
 
     // Panel dimensions - responsive for mobile
-    const panelWidth = this.isMobile ? Math.min(340, width - 30) : 400;
-    const panelHeight = this.isMobile ? 300 : 340;
+    const panelWidth = this.isMobile
+      ? Math.min(END_SCREEN.PANEL_WIDTH_MOBILE, width - END_SCREEN.PANEL_MARGIN)
+      : END_SCREEN.PANEL_WIDTH_DESKTOP;
+    const panelHeight = this.isMobile ? END_SCREEN.PANEL_HEIGHT_MOBILE : END_SCREEN.PANEL_HEIGHT_DESKTOP;
     const panelX = (width - panelWidth) / 2;
     const panelY = (height - panelHeight) / 2;
 
     // Panel container
     this.panel = this.scene.add.container(panelX, panelY);
-    this.panel.setDepth(101);
+    this.panel.setDepth(DEPTH.PANEL);
 
     this.build(panelWidth, panelHeight, config, callbacks);
     this.animateEntrance();
@@ -103,7 +116,7 @@ export class EndScreenOverlay {
     );
 
     // Title with glow
-    const titleY = 45;
+    const titleY = END_SCREEN.TITLE_Y;
     this.titleGlow = createText(this.scene, panelWidth / 2, titleY, titleText, {
       fontSize: FONTS.SIZE_HEADING,
       fontFamily: FONTS.FAMILY,
@@ -125,7 +138,7 @@ export class EndScreenOverlay {
     this.panel.add(this.titleText);
 
     // Subtitle
-    this.subtitleText = createText(this.scene, panelWidth / 2, titleY + 30, subtitleText, {
+    this.subtitleText = createText(this.scene, panelWidth / 2, titleY + END_SCREEN.SUBTITLE_OFFSET, subtitleText, {
       fontSize: FONTS.SIZE_BODY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SECONDARY,
@@ -134,7 +147,7 @@ export class EndScreenOverlay {
     this.panel.add(this.subtitleText);
 
     // Divider line
-    const divider1 = this.scene.add.rectangle(panelWidth / 2, 100, panelWidth - 60, 1, PALETTE.purple[500], 0.4);
+    const divider1 = this.scene.add.rectangle(panelWidth / 2, END_SCREEN.DIVIDER_1_Y, panelWidth - 60, 1, PALETTE.purple[500], 0.4);
     this.panel.add(divider1);
     this.dividers.push(divider1);
 
@@ -142,7 +155,7 @@ export class EndScreenOverlay {
     this.buildScoresSection(panelWidth, modeScore, totalScore, passed);
 
     // Divider before buttons
-    const divider2 = this.scene.add.rectangle(panelWidth / 2, 220, panelWidth - 60, 1, PALETTE.purple[500], 0.4);
+    const divider2 = this.scene.add.rectangle(panelWidth / 2, END_SCREEN.DIVIDER_2_Y, panelWidth - 60, 1, PALETTE.purple[500], 0.4);
     this.panel.add(divider2);
     this.dividers.push(divider2);
 
@@ -217,36 +230,33 @@ export class EndScreenOverlay {
     passed: boolean
   ): void {
     const centerX = panelWidth / 2;
-    const scoreY = 150;
+    const scoreY = END_SCREEN.SCORE_Y;
 
-    const totalLabel = createText(this.scene, centerX, scoreY - 25, 'FINAL SCORE', {
+    this.scoreLabelText = createText(this.scene, centerX, scoreY + END_SCREEN.SCORE_LABEL_OFFSET, 'FINAL SCORE', {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SECONDARY,
     });
-    totalLabel.setOrigin(0.5, 0.5);
-    this.panel.add(totalLabel);
-    this.scoreTexts.push(totalLabel);
+    this.scoreLabelText.setOrigin(0.5, 0.5);
+    this.panel.add(this.scoreLabelText);
 
-    const totalScoreText = createText(this.scene, centerX, scoreY + 5, `${totalScore}`, {
+    this.scoreValueText = createText(this.scene, centerX, scoreY + END_SCREEN.SCORE_VALUE_OFFSET, `${totalScore}`, {
       fontSize: FONTS.SIZE_MODE_TITLE,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_ACCENT,
       fontStyle: 'bold',
     });
-    totalScoreText.setOrigin(0.5, 0.5);
-    this.panel.add(totalScoreText);
-    this.scoreTexts.push(totalScoreText);
+    this.scoreValueText.setOrigin(0.5, 0.5);
+    this.panel.add(this.scoreValueText);
 
     // Round score - smaller, underneath
-    const roundLabel = createText(this.scene, centerX, scoreY + 30, `This round: +${modeScore}`, {
+    this.roundLabelText = createText(this.scene, centerX, scoreY + END_SCREEN.SCORE_ROUND_OFFSET, `This round: +${modeScore}`, {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: passed ? COLORS.TEXT_SUCCESS : COLORS.TEXT_DANGER,
     });
-    roundLabel.setOrigin(0.5, 0.5);
-    this.panel.add(roundLabel);
-    this.scoreTexts.push(roundLabel);
+    this.roundLabelText.setOrigin(0.5, 0.5);
+    this.panel.add(this.roundLabelText);
   }
 
   private buildButtons(
@@ -256,12 +266,15 @@ export class EndScreenOverlay {
     showBlessingChoice: boolean,
     callbacks: EndScreenCallbacks
   ): void {
-    const buttonY = this.isMobile ? 250 : 280;
-    const buttonOffset = this.isMobile ? 70 : 90;
+    const buttonY = this.isMobile ? END_SCREEN.BUTTON_Y_MOBILE : END_SCREEN.BUTTON_Y_DESKTOP;
+    const buttonOffset = this.isMobile ? END_SCREEN.BUTTON_OFFSET_MOBILE : END_SCREEN.BUTTON_OFFSET_DESKTOP;
 
     if (isRunComplete) {
       // Victory - single menu button (centered, solid gold style)
-      this.createButton(panelWidth / 2, buttonY, 'NEW GAME', callbacks.onNewGame, 'victory');
+      // Store references for color animation
+      const { bg, text } = this.createButton(panelWidth / 2, buttonY, 'NEW GAME', callbacks.onNewGame, 'victory');
+      this.victoryButtonBg = bg;
+      this.victoryButtonText = text;
     } else if (passed) {
       // Passed - quit (danger) left, continue (primary) right
       this.createButton(panelWidth / 2 - buttonOffset, buttonY, 'QUIT', callbacks.onQuit, 'danger');
@@ -288,9 +301,9 @@ export class EndScreenOverlay {
     label: string,
     onClick: () => void,
     style: ButtonStyle = 'primary'
-  ): void {
-    const btnWidth = this.isMobile ? 120 : 150;
-    const btnHeight = this.isMobile ? 36 : 44;
+  ): { bg: Phaser.GameObjects.Rectangle; text: Phaser.GameObjects.Text } {
+    const btnWidth = this.isMobile ? END_SCREEN.BUTTON_WIDTH_MOBILE : END_SCREEN.BUTTON_WIDTH_DESKTOP;
+    const btnHeight = this.isMobile ? END_SCREEN.BUTTON_HEIGHT_MOBILE : END_SCREEN.BUTTON_HEIGHT_DESKTOP;
 
     // Style configurations
     const styles = {
@@ -327,12 +340,12 @@ export class EndScreenOverlay {
         text: COLORS.TEXT_DANGER,
       },
       victory: {
-        bg: 0xFFD700,        // Solid bright gold
-        bgHover: 0xFFE033,   // Lighter gold on hover
-        border: 0xDAA520,    // Goldenrod border (richer contrast)
-        borderHover: 0xFFD700, // Bright gold on hover
-        glow: 0xDAA520,      // Goldenrod glow
-        text: '#FFF8DC',     // Cornsilk / light cream text
+        bg: COLORS.VICTORY_BTN_BG,
+        bgHover: COLORS.VICTORY_BTN_BG_HOVER,
+        border: COLORS.VICTORY_BTN_BORDER,
+        borderHover: COLORS.VICTORY_BTN_BORDER_HOVER,
+        glow: COLORS.VICTORY_BTN_GLOW,
+        text: COLORS.VICTORY_BTN_TEXT,
       },
     };
 
@@ -370,6 +383,8 @@ export class EndScreenOverlay {
       btnGlow.setAlpha(0.1);
     });
     btnBg.on('pointerdown', onClick);
+
+    return { bg: btnBg, text: btnText };
   }
 
   private animateEntrance(): void {
@@ -406,22 +421,23 @@ export class EndScreenOverlay {
    */
   private playVictoryCelebration(width: number, height: number): void {
     // Screen flash effect
-    this.scene.cameras.main.flash(300, 255, 215, 0, false); // Gold flash
+    this.scene.cameras.main.flash(TIMING.VICTORY_FLASH, 255, 215, 0, false); // Gold flash
 
-    // Color chase transition STARTS FIRST: purple → light blue / gold over 4 seconds
+    // Color chase transition STARTS FIRST: purple → light blue / gold
     this.playColorTransition(width, height);
 
     // Confetti and fireworks start after a delay (while colors are already transitioning)
-    const celebrationDelay = 800; // Start confetti 0.8s after color transition begins
+    const celebrationDelay = TIMING.VICTORY_CELEBRATION_DELAY;
 
     // Create celebratory particles (confetti-like) - lots over extended time
-    const colors = [PALETTE.gold[400], PALETTE.gold[500], 0xffffff, 0xFFE4B5]; // Warm colors only
-    const particleCount = this.isMobile ? 120 : 200;
+    const colors = [PALETTE.gold[400], PALETTE.gold[500], PALETTE.white, PALETTE.gold[200]];
+    const particleCount = this.isMobile ? CELEBRATION.CONFETTI_COUNT_MOBILE : CELEBRATION.CONFETTI_COUNT_DESKTOP;
 
     for (let i = 0; i < particleCount; i++) {
       const particle = this.scene.add.graphics();
       const color = colors[Math.floor(Math.random() * colors.length)];
-      const size = 4 + Math.random() * 6;
+      const sizeRange = CELEBRATION.CONFETTI_SIZE_MAX - CELEBRATION.CONFETTI_SIZE_MIN;
+      const size = CELEBRATION.CONFETTI_SIZE_MIN + Math.random() * sizeRange;
 
       particle.fillStyle(color, 1);
       particle.fillRect(-size / 2, -size / 2, size, size);
@@ -430,16 +446,16 @@ export class EndScreenOverlay {
       const startX = Math.random() * width;
       const startY = -20;
       particle.setPosition(startX, startY);
-      particle.setDepth(102); // Above panel
+      particle.setDepth(DEPTH.CONFETTI);
       particle.setRotation(Math.random() * Math.PI * 2);
 
       this.celebrationParticles.push(particle);
 
-      // Animate falling with slight horizontal movement - staggered over 5 seconds
+      // Animate falling with slight horizontal movement - staggered
       const targetX = startX + (Math.random() - 0.5) * 100;
       const targetY = height + 50;
-      const delay = celebrationDelay + Math.random() * 5000;
-      const duration = 2000 + Math.random() * 1000;
+      const delay = celebrationDelay + Math.random() * TIMING.VICTORY_CONFETTI_STAGGER;
+      const duration = TIMING.VICTORY_CONFETTI_FALL + Math.random() * CELEBRATION.CONFETTI_FALL_VARIANCE;
 
       const fallTween = this.scene.tweens.add({
         targets: particle,
@@ -457,25 +473,28 @@ export class EndScreenOverlay {
     }
 
     // Firework explosions! (also delayed)
-    this.scene.time.delayedCall(celebrationDelay, () => {
-      this.launchFireworks(width, height);
+    const fireworksCall = this.scene.time.delayedCall(celebrationDelay, () => {
+      if (!this.destroyed) {
+        this.launchFireworks(width, height);
+      }
     });
+    this.delayedCalls.push(fireworksCall);
   }
 
   /**
    * Animate colors from dark purple to light blue/gold with top-down wipe effect
    */
   private playColorTransition(width: number, height: number): void {
-    const duration = 4000;
+    const duration = TIMING.VICTORY_DURATION;
 
     // Create blue overlay with soft gradient edge (light breaking through effect)
     const blueOverlay = this.scene.add.graphics();
-    blueOverlay.setDepth(99);
+    blueOverlay.setDepth(DEPTH.BLUE_OVERLAY);
     this.celebrationParticles.push(blueOverlay);
 
     // Create light rays/beams effect
     const lightRays = this.scene.add.graphics();
-    lightRays.setDepth(98);
+    lightRays.setDepth(DEPTH.LIGHT_RAYS);
     this.celebrationParticles.push(lightRays);
 
     // Create wipe animation with soft gradient edge
@@ -488,19 +507,19 @@ export class EndScreenOverlay {
       onUpdate: () => {
         const progress = wipeProgress.value;
         const mainY = height * progress;
-        const blurSize = 80; // Size of the soft gradient edge
+        const blurSize = CELEBRATION.BLUR_SIZE;
 
         blueOverlay.clear();
         lightRays.clear();
 
         // Draw the solid blue portion (above the blur zone)
         if (mainY > blurSize) {
-          blueOverlay.fillStyle(0x87CEEB, 1);
+          blueOverlay.fillStyle(PALETTE.victory.skyBlue, 1);
           blueOverlay.fillRect(0, 0, width, mainY - blurSize);
         }
 
         // Draw smooth gradient blur zone (more steps for less grain)
-        const gradientSteps = 30;
+        const gradientSteps = CELEBRATION.GRADIENT_STEPS;
         for (let i = 0; i < gradientSteps; i++) {
           const stepProgress = i / gradientSteps;
           const y = mainY - blurSize + (blurSize * stepProgress);
@@ -521,14 +540,14 @@ export class EndScreenOverlay {
 
         // Add light ray effects at the leading edge
         if (progress > 0.05 && progress < 0.95) {
-          const rayCount = 5;
+          const rayCount = CELEBRATION.RAY_COUNT;
           for (let r = 0; r < rayCount; r++) {
             const rayX = (width / (rayCount + 1)) * (r + 1);
             const rayWidth = 30 + Math.sin(progress * Math.PI * 2 + r) * 15;
             const rayAlpha = 0.3 + Math.sin(progress * Math.PI + r * 0.5) * 0.2;
 
             // Vertical light beam
-            lightRays.fillStyle(0xFFFFCC, rayAlpha);
+            lightRays.fillStyle(PALETTE.victory.lightRays, rayAlpha);
             lightRays.fillRect(rayX - rayWidth / 2, 0, rayWidth, mainY);
           }
         }
@@ -542,7 +561,7 @@ export class EndScreenOverlay {
         lightRays.clear();
         // Fill with solid blue
         blueOverlay.clear();
-        blueOverlay.fillStyle(0x87CEEB, 1);
+        blueOverlay.fillStyle(PALETTE.victory.skyBlue, 1);
         blueOverlay.fillRect(0, 0, width, height);
       }
     });
@@ -551,29 +570,34 @@ export class EndScreenOverlay {
     // Animate the game canvas border with wipe timing
     const gameCanvas = document.querySelector('canvas');
     if (gameCanvas) {
+      const startColor = hexToRgb(PALETTE.purple[500]);
+      const endColor = hexToRgb(PALETTE.victory.brightGold);
       const startTime = Date.now();
       const animateBorder = () => {
+        // Stop if overlay was destroyed
+        if (this.destroyed) return;
+
         const elapsed = Date.now() - startTime;
         const progress = Math.min(elapsed / duration, 1);
-        const r = Math.floor(124 + (255 - 124) * progress);
-        const g = Math.floor(58 + (215 - 58) * progress);
-        const b = Math.floor(237 + (0 - 237) * progress);
+        const r = Math.floor(startColor.r + (endColor.r - startColor.r) * progress);
+        const g = Math.floor(startColor.g + (endColor.g - startColor.g) * progress);
+        const b = Math.floor(startColor.b + (endColor.b - startColor.b) * progress);
         gameCanvas.style.borderColor = `rgb(${r}, ${g}, ${b})`;
         if (progress < 1) {
-          requestAnimationFrame(animateBorder);
+          this.borderAnimationId = requestAnimationFrame(animateBorder);
         }
       };
-      animateBorder();
+      this.borderAnimationId = requestAnimationFrame(animateBorder);
     }
 
     // UNIFIED TIMING: All panel elements transition together
-    const transitionDelay = duration * 0.25; // Start at 25% through wipe
-    const transitionDuration = duration * 0.5; // Take 50% of total duration
+    const transitionDelay = duration * TIMING.VICTORY_TRANSITION_START;
+    const transitionDuration = duration * TIMING.VICTORY_TRANSITION_DURATION;
 
     // Animate panel background
     if (this.panelBg) {
-      const colorProxy = { r: 26, g: 10, b: 46 };
-      const targetBg = { r: 230, g: 245, b: 255 }; // Very light blue
+      const colorProxy = hexToRgb(PALETTE.purple[900]);
+      const targetBg = hexToRgb(PALETTE.victory.skyBlueBg);
 
       const bgTween = this.scene.tweens.add({
         targets: colorProxy,
@@ -595,8 +619,8 @@ export class EndScreenOverlay {
       this.tweens.push(bgTween);
 
       // Panel border - same timing
-      const borderProxy = { r: 124, g: 58, b: 237 };
-      const targetBorder = { r: 255, g: 215, b: 0 };
+      const borderProxy = hexToRgb(PALETTE.purple[500]);
+      const targetBorder = hexToRgb(PALETTE.victory.brightGold);
 
       const borderTween = this.scene.tweens.add({
         targets: borderProxy,
@@ -620,8 +644,8 @@ export class EndScreenOverlay {
 
     // Dividers - same timing
     this.dividers.forEach((divider) => {
-      const dividerProxy = { r: 124, g: 58, b: 237 };
-      const targetDiv = { r: 255, g: 215, b: 0 };
+      const dividerProxy = hexToRgb(PALETTE.purple[500]);
+      const targetDiv = hexToRgb(PALETTE.victory.brightGold);
 
       const divTween = this.scene.tweens.add({
         targets: dividerProxy,
@@ -646,8 +670,8 @@ export class EndScreenOverlay {
     // Corner accents - same timing
     const cornerSize = SIZES.PANEL_CORNER_SIZE;
     this.cornerAccents.forEach((accent, index) => {
-      const cornerProxy = { r: 167, g: 139, b: 250 };
-      const targetCorner = { r: 255, g: 223, b: 0 };
+      const cornerProxy = hexToRgb(PALETTE.purple[400]);
+      const targetCorner = hexToRgb(PALETTE.victory.brightGold);
 
       const cornerTween = this.scene.tweens.add({
         targets: cornerProxy,
@@ -687,8 +711,8 @@ export class EndScreenOverlay {
   private animateTextColors(delay: number, duration: number): void {
     // Title: light gold → rich gold (pops on light blue bg)
     if (this.titleText) {
-      const titleProxy = { r: 255, g: 221, b: 136 };
-      const targetTitle = { r: 218, g: 165, b: 32 }; // Goldenrod - rich gold
+      const titleProxy = hexToRgb(PALETTE.gold[300]);
+      const targetTitle = hexToRgb(PALETTE.victory.goldenrod);
 
       const titleTween = this.scene.tweens.add({
         targets: titleProxy,
@@ -724,8 +748,8 @@ export class EndScreenOverlay {
 
     // Subtitle: light purple → dark blue-gray (contrasts with light blue bg)
     if (this.subtitleText) {
-      const subProxy = { r: 170, g: 170, b: 192 };
-      const targetSub = { r: 60, g: 80, b: 100 }; // Dark blue-gray
+      const subProxy = hexToRgb(PALETTE.neutral[200]);
+      const targetSub = hexToRgb(PALETTE.victory.darkBlueGray);
 
       const subTween = this.scene.tweens.add({
         targets: subProxy,
@@ -747,33 +771,149 @@ export class EndScreenOverlay {
       this.tweens.push(subTween);
     }
 
-    // Score texts: all transition to warm bronze/amber tones for light blue bg
-    this.scoreTexts.forEach((text) => {
-      const currentColor = text.style.color as string;
-      let startColor = { r: 170, g: 170, b: 192 }; // Default
-      let endColor = { r: 139, g: 90, b: 43 }; // Warm brown/bronze
+    // Score label text: secondary → warm brown
+    if (this.scoreLabelText) {
+      const labelProxy = hexToRgb(PALETTE.neutral[200]);
+      const targetLabel = hexToRgb(PALETTE.victory.warmBrown);
 
-      // Determine starting color based on current
-      if (currentColor.includes('88ee88') || currentColor.includes('TEXT_SUCCESS')) {
-        // Green (total score) → dark goldenrod
-        startColor = { r: 136, g: 238, b: 136 };
-        endColor = { r: 184, g: 134, b: 11 }; // Dark goldenrod
-      } else if (currentColor.includes('ccaaff') || currentColor.includes('TEXT_ACCENT')) {
-        // Purple (run score) → golden bronze
-        startColor = { r: 204, g: 170, b: 255 };
-        endColor = { r: 205, g: 149, b: 12 }; // Golden bronze
-      } else if (currentColor.includes('aaaac0')) {
-        // Secondary text → dark warm gray
-        startColor = { r: 170, g: 170, b: 192 };
-        endColor = { r: 100, g: 80, b: 60 }; // Warm dark gray
-      }
+      const labelTween = this.scene.tweens.add({
+        targets: labelProxy,
+        r: targetLabel.r,
+        g: targetLabel.g,
+        b: targetLabel.b,
+        delay,
+        duration,
+        ease: 'Sine.easeInOut',
+        onUpdate: () => {
+          const hex = Phaser.Display.Color.RGBToString(
+            Math.floor(labelProxy.r),
+            Math.floor(labelProxy.g),
+            Math.floor(labelProxy.b)
+          );
+          this.scoreLabelText?.setColor(hex);
+        },
+      });
+      this.tweens.push(labelTween);
+    }
 
-      const textProxy = { ...startColor };
+    // Score value text: purple accent → golden bronze
+    if (this.scoreValueText) {
+      const valueProxy = hexToRgb(PALETTE.purple[200]);
+      const targetValue = hexToRgb(PALETTE.victory.goldenBronze);
+
+      const valueTween = this.scene.tweens.add({
+        targets: valueProxy,
+        r: targetValue.r,
+        g: targetValue.g,
+        b: targetValue.b,
+        delay,
+        duration,
+        ease: 'Sine.easeInOut',
+        onUpdate: () => {
+          const hex = Phaser.Display.Color.RGBToString(
+            Math.floor(valueProxy.r),
+            Math.floor(valueProxy.g),
+            Math.floor(valueProxy.b)
+          );
+          this.scoreValueText?.setColor(hex);
+        },
+      });
+      this.tweens.push(valueTween);
+    }
+
+    // Round label text: green/red success/danger → dark goldenrod
+    if (this.roundLabelText) {
+      const roundProxy = hexToRgb(PALETTE.green[300]);
+      const targetRound = hexToRgb(PALETTE.victory.darkGoldenrod);
+
+      const roundTween = this.scene.tweens.add({
+        targets: roundProxy,
+        r: targetRound.r,
+        g: targetRound.g,
+        b: targetRound.b,
+        delay,
+        duration,
+        ease: 'Sine.easeInOut',
+        onUpdate: () => {
+          const hex = Phaser.Display.Color.RGBToString(
+            Math.floor(roundProxy.r),
+            Math.floor(roundProxy.g),
+            Math.floor(roundProxy.b)
+          );
+          this.roundLabelText?.setColor(hex);
+        },
+      });
+      this.tweens.push(roundTween);
+    }
+  }
+
+  /**
+   * Shimmer animation for the victory button - synced with panel transitions
+   * Uses stored references instead of fragile detection
+   */
+  private animateVictoryButton(delay: number, duration: number): void {
+    // Animate button background: purple → bright gold
+    if (this.victoryButtonBg) {
+      const fillProxy = hexToRgb(PALETTE.purple[500]);
+      const borderProxy = hexToRgb(PALETTE.purple[500]);
+      const targetFill = hexToRgb(PALETTE.victory.brightGold);
+      const targetBorder = hexToRgb(PALETTE.victory.goldenrod);
+
+      // Set initial colors
+      this.victoryButtonBg.setFillStyle(
+        Phaser.Display.Color.GetColor(fillProxy.r, fillProxy.g, fillProxy.b), 1
+      );
+      this.victoryButtonBg.setStrokeStyle(
+        2, Phaser.Display.Color.GetColor(borderProxy.r, borderProxy.g, borderProxy.b), 1
+      );
+
+      // Fill tween → bright gold
+      const fillTween = this.scene.tweens.add({
+        targets: fillProxy,
+        r: targetFill.r, g: targetFill.g, b: targetFill.b,
+        delay,
+        duration,
+        ease: 'Sine.easeInOut',
+        onUpdate: () => {
+          const color = Phaser.Display.Color.GetColor(
+            Math.floor(fillProxy.r),
+            Math.floor(fillProxy.g),
+            Math.floor(fillProxy.b)
+          );
+          this.victoryButtonBg?.setFillStyle(color, 1);
+        },
+      });
+      this.tweens.push(fillTween);
+
+      // Border tween → goldenrod
+      const borderTween = this.scene.tweens.add({
+        targets: borderProxy,
+        r: targetBorder.r, g: targetBorder.g, b: targetBorder.b,
+        delay,
+        duration,
+        ease: 'Sine.easeInOut',
+        onUpdate: () => {
+          const color = Phaser.Display.Color.GetColor(
+            Math.floor(borderProxy.r),
+            Math.floor(borderProxy.g),
+            Math.floor(borderProxy.b)
+          );
+          this.victoryButtonBg?.setStrokeStyle(2, color, 1);
+        },
+      });
+      this.tweens.push(borderTween);
+    }
+
+    // Animate button text: white → goldenrod
+    if (this.victoryButtonText) {
+      const textProxy = hexToRgb(PALETTE.white);
+      const targetText = hexToRgb(PALETTE.victory.goldenrod);
+
       const textTween = this.scene.tweens.add({
         targets: textProxy,
-        r: endColor.r,
-        g: endColor.g,
-        b: endColor.b,
+        r: targetText.r,
+        g: targetText.g,
+        b: targetText.b,
         delay,
         duration,
         ease: 'Sine.easeInOut',
@@ -783,104 +923,10 @@ export class EndScreenOverlay {
             Math.floor(textProxy.g),
             Math.floor(textProxy.b)
           );
-          text.setColor(hex);
+          this.victoryButtonText?.setColor(hex);
         },
       });
       this.tweens.push(textTween);
-    });
-  }
-
-  /**
-   * Shimmer animation for the victory button - synced with panel transitions
-   */
-  private animateVictoryButton(delay: number, duration: number): void {
-    // Find the button elements (they're near the end of the panel's children)
-    const panelChildren = this.panel.list as Phaser.GameObjects.GameObject[];
-
-    let buttonFound = false;
-
-    // Look for the button background (rectangle near end) and button text
-    for (let i = panelChildren.length - 1; i >= 0; i--) {
-      const child = panelChildren[i];
-
-      // Find button background
-      if (!buttonFound && child instanceof Phaser.GameObjects.Rectangle && child.width > 100) {
-        // This is likely the button background
-        const btn = child;
-        buttonFound = true;
-
-        // Start with purple, shimmer to gold/goldenrod - use unified timing
-        const fillProxy = { r: 124, g: 58, b: 237 }; // Start purple
-        const borderProxy = { r: 124, g: 58, b: 237 }; // Start purple
-
-        btn.setFillStyle(Phaser.Display.Color.GetColor(fillProxy.r, fillProxy.g, fillProxy.b), 1);
-        btn.setStrokeStyle(2, Phaser.Display.Color.GetColor(borderProxy.r, borderProxy.g, borderProxy.b), 1);
-
-        // Fill tween → bright gold
-        const fillTween = this.scene.tweens.add({
-          targets: fillProxy,
-          r: 255, g: 215, b: 0,
-          delay,
-          duration,
-          ease: 'Sine.easeInOut',
-          onUpdate: () => {
-            const color = Phaser.Display.Color.GetColor(
-              Math.floor(fillProxy.r),
-              Math.floor(fillProxy.g),
-              Math.floor(fillProxy.b)
-            );
-            btn.setFillStyle(color, 1);
-          },
-        });
-        this.tweens.push(fillTween);
-
-        // Border tween → goldenrod
-        const borderTween = this.scene.tweens.add({
-          targets: borderProxy,
-          r: 218, g: 165, b: 32,
-          delay,
-          duration,
-          ease: 'Sine.easeInOut',
-          onUpdate: () => {
-            const color = Phaser.Display.Color.GetColor(
-              Math.floor(borderProxy.r),
-              Math.floor(borderProxy.g),
-              Math.floor(borderProxy.b)
-            );
-            btn.setStrokeStyle(2, color, 1);
-          },
-        });
-        this.tweens.push(borderTween);
-      }
-
-      // Find button text (text element near end with "NEW GAME")
-      if (child instanceof Phaser.GameObjects.Text) {
-        const text = child.text.toUpperCase();
-        if (text.includes('NEW') || text.includes('GAME')) {
-          // Animate button text to goldenrod
-          const textProxy = { r: 255, g: 255, b: 255 }; // Start white
-          const targetText = { r: 218, g: 165, b: 32 }; // Goldenrod
-
-          const textTween = this.scene.tweens.add({
-            targets: textProxy,
-            r: targetText.r,
-            g: targetText.g,
-            b: targetText.b,
-            delay,
-            duration,
-            ease: 'Sine.easeInOut',
-            onUpdate: () => {
-              const hex = Phaser.Display.Color.RGBToString(
-                Math.floor(textProxy.r),
-                Math.floor(textProxy.g),
-                Math.floor(textProxy.b)
-              );
-              child.setColor(hex);
-            },
-          });
-          this.tweens.push(textTween);
-        }
-      }
     }
   }
 
@@ -888,45 +934,54 @@ export class EndScreenOverlay {
    * Launch firework explosions at random positions
    */
   private launchFireworks(width: number, height: number): void {
-    const fireworkCount = this.isMobile ? 12 : 20;
+    const fireworkCount = this.isMobile
+      ? CELEBRATION.FIREWORK_COUNT_MOBILE
+      : CELEBRATION.FIREWORK_COUNT_DESKTOP;
     const fireworkColors = [
       PALETTE.gold[300], PALETTE.gold[500],
       PALETTE.green[300], PALETTE.green[500],
       PALETTE.purple[300], PALETTE.purple[500],
-      0xff6b6b, 0x4ecdc4, 0xffe66d
+      PALETTE.fireworks.coral, PALETTE.fireworks.teal, PALETTE.fireworks.yellow
     ];
 
     for (let f = 0; f < fireworkCount; f++) {
-      const delay = f * 250 + Math.random() * 100; // Spread over 5 seconds
+      const delay = f * CELEBRATION.FIREWORK_STAGGER + Math.random() * 100;
 
-      this.scene.time.delayedCall(delay, () => {
+      const fireworkCall = this.scene.time.delayedCall(delay, () => {
+        // Skip if destroyed
+        if (this.destroyed) return;
+
         // Random explosion point (avoid edges and center panel area)
-        const explosionX = 50 + Math.random() * (width - 100);
-        const explosionY = 50 + Math.random() * (height * 0.4);
+        const margin = END_SCREEN.FIREWORK_EXPLOSION_MARGIN;
+        const explosionX = margin + Math.random() * (width - margin * 2);
+        const explosionY = margin + Math.random() * (height * END_SCREEN.FIREWORK_HEIGHT_FACTOR);
 
         // Pick a random color for this firework
         const baseColor = fireworkColors[Math.floor(Math.random() * fireworkColors.length)];
-        const sparkCount = this.isMobile ? 12 : 20;
+        const sparkCount = this.isMobile
+          ? CELEBRATION.FIREWORK_SPARK_COUNT_MOBILE
+          : CELEBRATION.FIREWORK_SPARK_COUNT_DESKTOP;
 
         // Create explosion sparks
         for (let i = 0; i < sparkCount; i++) {
           const spark = this.scene.add.graphics();
-          const sparkSize = 3 + Math.random() * 4;
+          const sparkSizeRange = CELEBRATION.FIREWORK_SPARK_SIZE_MAX - CELEBRATION.FIREWORK_SPARK_SIZE_MIN;
+          const sparkSize = CELEBRATION.FIREWORK_SPARK_SIZE_MIN + Math.random() * sparkSizeRange;
 
           spark.fillStyle(baseColor, 1);
           spark.fillCircle(0, 0, sparkSize);
 
           spark.setPosition(explosionX, explosionY);
-          spark.setDepth(103); // Above confetti
+          spark.setDepth(DEPTH.FIREWORKS);
           spark.setAlpha(1);
 
           this.celebrationParticles.push(spark);
 
           // Explode outward in all directions
           const angle = (i / sparkCount) * Math.PI * 2 + Math.random() * 0.3;
-          const distance = 60 + Math.random() * 80;
+          const distance = END_SCREEN.FIREWORK_DISTANCE_MIN + Math.random() * END_SCREEN.FIREWORK_DISTANCE_VARIANCE;
           const targetX = explosionX + Math.cos(angle) * distance;
-          const targetY = explosionY + Math.sin(angle) * distance + 40; // Slight gravity
+          const targetY = explosionY + Math.sin(angle) * distance + END_SCREEN.FIREWORK_GRAVITY;
 
           const sparkTween = this.scene.tweens.add({
             targets: spark,
@@ -935,7 +990,7 @@ export class EndScreenOverlay {
             alpha: 0,
             scaleX: 0.3,
             scaleY: 0.3,
-            duration: 800 + Math.random() * 400,
+            duration: END_SCREEN.SPARK_DURATION_BASE + Math.random() * END_SCREEN.SPARK_DURATION_VARIANCE,
             ease: 'Quad.easeOut',
             onComplete: () => {
               spark.destroy();
@@ -946,10 +1001,10 @@ export class EndScreenOverlay {
 
         // Add a brief flash at explosion center
         const flash = this.scene.add.graphics();
-        flash.fillStyle(0xffffff, 0.8);
-        flash.fillCircle(0, 0, 15);
+        flash.fillStyle(PALETTE.white, 0.8);
+        flash.fillCircle(0, 0, END_SCREEN.FLASH_RADIUS);
         flash.setPosition(explosionX, explosionY);
-        flash.setDepth(103);
+        flash.setDepth(DEPTH.FIREWORKS);
         this.celebrationParticles.push(flash);
 
         const flashTween = this.scene.tweens.add({
@@ -957,7 +1012,7 @@ export class EndScreenOverlay {
           alpha: 0,
           scaleX: 2,
           scaleY: 2,
-          duration: 200,
+          duration: END_SCREEN.FLASH_DURATION,
           ease: 'Quad.easeOut',
           onComplete: () => {
             flash.destroy();
@@ -965,10 +1020,30 @@ export class EndScreenOverlay {
         });
         this.tweens.push(flashTween);
       });
+      this.delayedCalls.push(fireworkCall);
     }
   }
 
   destroy(): void {
+    // Mark as destroyed to stop ongoing animations
+    this.destroyed = true;
+
+    // Cancel canvas border animation
+    if (this.borderAnimationId !== null) {
+      cancelAnimationFrame(this.borderAnimationId);
+      this.borderAnimationId = null;
+    }
+
+    // Reset canvas border to purple immediately
+    const canvas = document.querySelector('canvas');
+    if (canvas) {
+      (canvas as HTMLCanvasElement).style.borderColor = COLORS.CANVAS_BORDER;
+    }
+
+    // Cancel delayed calls (fireworks, etc.)
+    this.delayedCalls.forEach(call => call.destroy());
+    this.delayedCalls = [];
+
     // Stop all tweens
     this.tweens.forEach(tween => {
       if (tween.isPlaying()) {

@@ -17,7 +17,7 @@ export { DEV } from './config/dev';
 export { PALETTE, COLORS, FONTS } from './config/theme';
 
 // Sizes and timing
-export { CANVAS, SIZES, TIMING } from './config/sizes';
+export { CANVAS, SIZES, TIMING, DEPTH, CELEBRATION, GAMEPLAY_LAYOUT, END_SCREEN } from './config/sizes';
 
 // Game rules
 export { GAME_RULES, SCORING } from './config/game-rules';
