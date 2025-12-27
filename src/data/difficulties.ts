@@ -21,7 +21,7 @@ export interface DifficultyConfig {
 export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
   chill: {
     key: 'chill',
-    label: 'DOOMED',
+    label: 'CREEPING DREAD',
     subtitle: 'A gentle haunting awaits',
     timeMs: 4 * 60 * 1000,
     timeDisplay: '4 min',
@@ -31,7 +31,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
   },
   normal: {
     key: 'normal',
-    label: 'FATED',
+    label: 'PRESSING FATE',
     subtitle: 'The curse tightens its grip',
     timeMs: 3 * 60 * 1000,
     timeDisplay: '3 min',
@@ -41,8 +41,8 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
   },
   intense: {
     key: 'intense',
-    label: 'CONDEMNED',
-    subtitle: 'No mercy. No escape.',
+    label: 'IMMINENT DOOM',
+    subtitle: 'No mercy, no escape',
     timeMs: 2 * 60 * 1000,
     timeDisplay: '2 min',
     color: '#ff4444',

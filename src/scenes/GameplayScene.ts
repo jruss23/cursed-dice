@@ -54,7 +54,7 @@ import { PauseMenu } from '@/ui/pause-menu';
 import { HeaderPanel, DebugPanel, EndScreenOverlay } from '@/ui/gameplay';
 import { ParticlePool } from '@/systems/particle-pool';
 import { DebugController } from '@/systems/debug-controller';
-import { playScoreConfirmSound, playModeCompleteSound, playVictoryFanfare, stopAllSFX } from '@/systems/sfx-manager';
+import { playScoreConfirmSound, playModeCompleteSound, playVictoryFanfare, stopAllSFX, isSFXEnabled } from '@/systems/sfx-manager';
 import { SixthBlessing } from '@/systems/blessings/blessing-sixth';
 import { BaseScene } from './BaseScene';
 import {
@@ -183,6 +183,10 @@ export class GameplayScene extends BaseScene {
 
   create(): void {
     this.log.log('create()');
+
+    // CRITICAL: Create transition overlay FIRST before anything else renders
+    // This prevents flash during scene restart
+    this.fadeIn();
 
     // Register shutdown handler (from BaseScene)
     this.registerShutdown();
@@ -338,9 +342,6 @@ export class GameplayScene extends BaseScene {
   private buildUI(): void {
     const { width, height } = this.cameras.main;
     const progression = getProgression();
-
-    // Fade in
-    this.cameras.main.fadeIn(SIZES.FADE_DURATION_MS, 0, 0, 0);
 
     // Animated background
     createAnimatedBackground(this, width, height);
@@ -718,6 +719,7 @@ export class GameplayScene extends BaseScene {
   }
 
   private playWarningSound(checkpoint: string): void {
+    if (!isSFXEnabled()) return;
     if (this.cache.audio.exists('warning-sound')) {
       // Pre-processed siren (3 octaves down, 3.2x speed)
       const sound = this.sound.add('warning-sound', { volume: 0.5 });
@@ -900,29 +902,33 @@ export class GameplayScene extends BaseScene {
         passThreshold: PASS_THRESHOLD,
       },
       {
+        // NOTE: All callbacks are invoked AFTER the overlay has faded camera to black
         onNewGame: () => {
-          // Destroy overlay first to stop all animations (including canvas border)
           this.endScreenOverlay?.destroy();
           this.endScreenOverlay = null;
           resetGameProgression();
           resetBlessingManager();
-          this.returnToMenu();
+          // Camera already black - skip fade, go directly to menu
+          this.scene.start('MenuScene');
         },
         onQuit: () => {
-          // Destroy overlay first to stop all animations
           this.endScreenOverlay?.destroy();
           this.endScreenOverlay = null;
           resetGameProgression();
           resetBlessingManager();
-          this.returnToMenu();
+          // Camera already black - skip fade, go directly to menu
+          this.scene.start('MenuScene');
         },
         onContinue: () => {
-          this.endScreenOverlay?.destroy();
-          this.endScreenOverlay = null;
           if (showBlessingChoice) {
+            // Keep end screen overlay as background - blessing panel renders on top
+            // It will be cleaned up when scene restarts
             this.showBlessingChoicePanel();
           } else {
-            this.startNextMode();
+            this.endScreenOverlay?.destroy();
+            this.endScreenOverlay = null;
+            // Camera already black - skip fade, restart immediately
+            this.startNextMode(true);
           }
         },
         onTryAgain: () => {
@@ -930,7 +936,8 @@ export class GameplayScene extends BaseScene {
           this.endScreenOverlay = null;
           resetGameProgression();
           resetBlessingManager();
-          this.startNextMode();
+          // Camera already black - skip fade, restart immediately
+          this.startNextMode(true);
         },
       }
     );
@@ -955,7 +962,8 @@ export class GameplayScene extends BaseScene {
     }
 
     if (skipFade) {
-      // Camera already faded, just restart
+      // Camera already faded from blessing panel - restart immediately
+      // The new scene's fadeIn() uses a tween-based overlay that handles the transition
       this.scene.restart({ difficulty: this.difficulty });
     } else {
       this.cameras.main.fadeOut(SIZES.FADE_DURATION_MS, 0, 0, 0);

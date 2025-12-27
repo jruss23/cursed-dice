@@ -105,7 +105,8 @@ export class HighScoresPanel {
       const fullRunHeader = createText(this.scene, x + 10, currentY, '4-Seal Run', {
         fontSize: FONTS.SIZE_TINY,
         fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_MUTED,
+        color: COLORS.TEXT_ACCENT,
+        fontStyle: 'bold',
       });
       fullRunHeader.setOrigin(0, 0.5);
       fullRunHeader.setDepth(depth + 1);
@@ -117,6 +118,7 @@ export class HighScoresPanel {
         fontSize: FONTS.SIZE_TINY,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_SECONDARY,
+        fontStyle: 'bold',
       });
       bestRunLabel.setOrigin(0, 0.5);
       bestRunLabel.setDepth(depth + 1);
@@ -138,6 +140,7 @@ export class HighScoresPanel {
         fontSize: FONTS.SIZE_TINY,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_SECONDARY,
+        fontStyle: 'bold',
       });
       runsLabel.setOrigin(0, 0.5);
       runsLabel.setDepth(depth + 1);
@@ -147,6 +150,7 @@ export class HighScoresPanel {
         fontSize: FONTS.SIZE_TINY,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_SECONDARY,
+        fontStyle: 'bold',
       });
       runsValue.setOrigin(1, 0.5);
       runsValue.setDepth(depth + 1);
@@ -164,7 +168,8 @@ export class HighScoresPanel {
       const sealHeader = createText(this.scene, x + 10, currentY, 'Best Single Seal', {
         fontSize: FONTS.SIZE_TINY,
         fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_MUTED,
+        color: COLORS.TEXT_ACCENT,
+        fontStyle: 'bold',
       });
       sealHeader.setOrigin(0, 0.5);
       sealHeader.setDepth(depth + 1);
@@ -173,9 +178,9 @@ export class HighScoresPanel {
       currentY += 16;
 
       const difficulties: { key: Difficulty; label: string; color: string }[] = [
-        { key: 'chill', label: 'Chill', color: DIFFICULTIES.chill.color },
-        { key: 'normal', label: 'Normal', color: DIFFICULTIES.normal.color },
-        { key: 'intense', label: 'Intense', color: DIFFICULTIES.intense.color },
+        { key: 'chill', label: DIFFICULTIES.chill.label, color: DIFFICULTIES.chill.color },
+        { key: 'normal', label: DIFFICULTIES.normal.label, color: DIFFICULTIES.normal.color },
+        { key: 'intense', label: DIFFICULTIES.intense.label, color: DIFFICULTIES.intense.color },
       ];
 
       for (const diff of difficulties) {
@@ -185,6 +190,7 @@ export class HighScoresPanel {
             fontSize: FONTS.SIZE_TINY,
             fontFamily: FONTS.FAMILY,
             color: diff.color,
+            fontStyle: 'bold',
           });
           diffLabel.setOrigin(0, 0.5);
           diffLabel.setDepth(depth + 1);
@@ -194,6 +200,7 @@ export class HighScoresPanel {
             fontSize: FONTS.SIZE_TINY,
             fontFamily: FONTS.FAMILY,
             color: COLORS.TEXT_PRIMARY,
+            fontStyle: 'bold',
           });
           diffValue.setOrigin(1, 0.5);
           diffValue.setDepth(depth + 1);

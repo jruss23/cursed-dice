@@ -1,6 +1,6 @@
 # Cursed Dice - Development Progress & Architecture Review
 
-## Last Updated: December 25, 2025
+## Last Updated: December 26, 2025
 
 ---
 
@@ -523,10 +523,51 @@ Monitoring for now. If DPR 3 quality complaints arise, consider:
 
 ---
 
+## Recent Session Work (Dec 26, 2025)
+
+### Audio System Improvements - COMPLETE
+- [x] **Music toggle now mutes/unmutes** - Keeps track playing at volume 0 to maintain timing sync with stitched song transitions
+- [x] **SFX toggle respects warning siren** - Added `isSFXEnabled()` check to `playWarningSound()`
+- [x] **Menu/Tutorial music respects setting** - Added `isMusicEnabled()` helper, both scenes start muted if disabled
+- [x] **Exported `isMusicEnabled()`** - For scenes not using MusicManager
+
+### Menu Settings Overlay - COMPLETE
+- [x] **Cog button in bottom-right** - Opens settings overlay on click
+- [x] **Settings overlay matches pause menu** - Same panel styling, animations
+- [x] **MUSIC ON/OFF toggle** - Immediately mutes/unmutes menu music
+- [x] **SFX ON/OFF toggle** - Same as pause menu
+- [x] **CLOSE button** - Red (danger) style, click overlay to dismiss
+
+### Pause Menu Polish - COMPLETE
+- [x] **Changed QUIT TO MENU → QUIT** - Cleaner label
+- [x] **Audio toggles use secondary style** - Purple ON, ghost OFF (not green like Resume)
+- [x] **Visual hierarchy** - Resume (green) > Quit (red) > Audio toggles (purple/ghost)
+
+### Game Size Review - COMPLETE
+- **Total build**: 11 MB (mostly music)
+- **JS bundle**: 1.4 MB / 368 KB gzipped
+- **Initial load**: ~1.1 MB (menu music + JS)
+- **Lazy loading**: Game tracks load on-demand ✓
+- **Verdict**: Well optimized for a Phaser game
+
+### Files Added
+- `src/ui/menu/menu-settings-panel.ts` - Cog button + settings overlay
+
+### Files Modified
+- `src/systems/music-manager.ts` - Mute/unmute toggle, `isMusicEnabled()` export
+- `src/systems/sfx-manager.ts` - Already had `isSFXEnabled()` export
+- `src/scenes/GameplayScene.ts` - Warning siren respects SFX toggle
+- `src/scenes/MenuScene.ts` - Settings panel, music toggle callback
+- `src/scenes/TutorialScene.ts` - Respects music setting
+- `src/ui/pause-menu.ts` - Secondary style for audio toggles, QUIT label
+- `src/ui/menu/index.ts` - Export MenuSettingsPanel
+
+---
+
 ## Next Steps
 
 ### Polish
 1. [ ] Performance profiling on mobile
-2. [ ] Sound effects and haptic feedback refinement
+2. [x] ~~Sound effects and haptic feedback refinement~~ - Audio toggles complete
 3. [ ] Capacitor mobile deployment
 4. [ ] DPR 3 text sharpness solution (if needed)

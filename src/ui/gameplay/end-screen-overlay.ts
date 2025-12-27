@@ -4,8 +4,9 @@
  */
 
 import Phaser from 'phaser';
-import { FONTS, PALETTE, COLORS, SIZES, TIMING, DEPTH, CELEBRATION, END_SCREEN, getViewportMetrics } from '@/config';
+import { FONTS, PALETTE, COLORS, SIZES, TIMING, DEPTH, CELEBRATION, END_SCREEN, FLASH, getViewportMetrics } from '@/config';
 import { createText, hexToRgb } from '@/ui/ui-utils';
+import { MODE_CONFIGS, type GameMode } from '@/systems/game-progression';
 
 export interface EndScreenConfig {
   passed: boolean;
@@ -71,10 +72,14 @@ export class EndScreenOverlay {
     this.overlay.setDepth(DEPTH.OVERLAY);
 
     // Panel dimensions - responsive for mobile
+    // Add extra height when showing next mode preview (passed but not final)
+    const showPreview = config.passed && !config.isRunComplete;
+    const previewExtraHeight = showPreview ? (this.isMobile ? 80 : 90) : 0;
+
     const panelWidth = this.isMobile
       ? Math.min(END_SCREEN.PANEL_WIDTH_MOBILE, width - END_SCREEN.PANEL_MARGIN)
       : END_SCREEN.PANEL_WIDTH_DESKTOP;
-    const panelHeight = this.isMobile ? END_SCREEN.PANEL_HEIGHT_MOBILE : END_SCREEN.PANEL_HEIGHT_DESKTOP;
+    const panelHeight = (this.isMobile ? END_SCREEN.PANEL_HEIGHT_MOBILE : END_SCREEN.PANEL_HEIGHT_DESKTOP) + previewExtraHeight;
     const panelX = (width - panelWidth) / 2;
     const panelY = (height - panelHeight) / 2;
 
@@ -146,21 +151,83 @@ export class EndScreenOverlay {
     this.subtitleText.setOrigin(0.5, 0.5);
     this.panel.add(this.subtitleText);
 
+    // Next mode preview (only when passed and not final seal)
+    if (passed && !isRunComplete) {
+      const nextModeNum = (currentMode + 1) as GameMode;
+      const nextMode = MODE_CONFIGS[nextModeNum];
+      if (nextMode) {
+        const previewBoxY = titleY + END_SCREEN.SUBTITLE_OFFSET + (this.isMobile ? 55 : 60);
+        const previewBoxWidth = panelWidth - 40;
+        const previewBoxHeight = this.isMobile ? 58 : 65;
+
+        // Red warning box
+        const previewBox = this.scene.add.rectangle(
+          panelWidth / 2, previewBoxY,
+          previewBoxWidth, previewBoxHeight,
+          PALETTE.red[800], 0.4
+        );
+        previewBox.setStrokeStyle(1, PALETTE.red[500], 0.5);
+        this.panel.add(previewBox);
+
+        // Warning icons + title
+        const row1Y = previewBoxY - (this.isMobile ? 14 : 16);
+        const iconOffset = this.isMobile ? 20 : 30;
+
+        const iconLeft = createText(this.scene, panelWidth / 2 - previewBoxWidth / 2 + iconOffset, row1Y, '⚠️', {
+          fontSize: this.isMobile ? FONTS.SIZE_SMALL : FONTS.SIZE_BODY,
+          fontFamily: FONTS.FAMILY,
+        });
+        iconLeft.setOrigin(0.5, 0.5);
+        this.panel.add(iconLeft);
+
+        const iconRight = createText(this.scene, panelWidth / 2 + previewBoxWidth / 2 - iconOffset, row1Y, '⚠️', {
+          fontSize: this.isMobile ? FONTS.SIZE_SMALL : FONTS.SIZE_BODY,
+          fontFamily: FONTS.FAMILY,
+        });
+        iconRight.setOrigin(0.5, 0.5);
+        this.panel.add(iconRight);
+
+        const nextTitle = createText(this.scene, panelWidth / 2, row1Y, `NEXT: ${nextMode.name}`, {
+          fontSize: this.isMobile ? FONTS.SIZE_LABEL : FONTS.SIZE_SMALL,
+          fontFamily: FONTS.FAMILY,
+          color: COLORS.TEXT_DANGER,
+          fontStyle: 'bold',
+        });
+        nextTitle.setOrigin(0.5, 0.5);
+        this.panel.add(nextTitle);
+
+        // Mode description
+        const row2Y = previewBoxY + (this.isMobile ? 14 : 16);
+        const nextDesc = createText(this.scene, panelWidth / 2, row2Y, nextMode.description, {
+          fontSize: this.isMobile ? FONTS.SIZE_TINY : FONTS.SIZE_SMALL,
+          fontFamily: FONTS.FAMILY,
+          color: COLORS.TEXT_WARNING,
+          wordWrap: { width: previewBoxWidth - 20 },
+          align: 'center',
+        });
+        nextDesc.setOrigin(0.5, 0.5);
+        this.panel.add(nextDesc);
+      }
+    }
+
+    // Calculate Y offset for everything below (when preview is shown)
+    const yOffset = (passed && !isRunComplete) ? (this.isMobile ? 80 : 90) : 0;
+
     // Divider line
-    const divider1 = this.scene.add.rectangle(panelWidth / 2, END_SCREEN.DIVIDER_1_Y, panelWidth - 60, 1, PALETTE.purple[500], 0.4);
+    const divider1 = this.scene.add.rectangle(panelWidth / 2, END_SCREEN.DIVIDER_1_Y + yOffset, panelWidth - 60, 1, PALETTE.purple[500], 0.4);
     this.panel.add(divider1);
     this.dividers.push(divider1);
 
     // Scores section
-    this.buildScoresSection(panelWidth, modeScore, totalScore, passed);
+    this.buildScoresSection(panelWidth, modeScore, totalScore, passed, yOffset);
 
     // Divider before buttons
-    const divider2 = this.scene.add.rectangle(panelWidth / 2, END_SCREEN.DIVIDER_2_Y, panelWidth - 60, 1, PALETTE.purple[500], 0.4);
+    const divider2 = this.scene.add.rectangle(panelWidth / 2, END_SCREEN.DIVIDER_2_Y + yOffset, panelWidth - 60, 1, PALETTE.purple[500], 0.4);
     this.panel.add(divider2);
     this.dividers.push(divider2);
 
     // Buttons section
-    this.buildButtons(panelWidth, isRunComplete, passed, showBlessingChoice, callbacks);
+    this.buildButtons(panelWidth, isRunComplete, passed, showBlessingChoice, callbacks, yOffset);
 
   }
 
@@ -227,10 +294,11 @@ export class EndScreenOverlay {
     panelWidth: number,
     modeScore: number,
     totalScore: number,
-    passed: boolean
+    passed: boolean,
+    yOffset: number = 0
   ): void {
     const centerX = panelWidth / 2;
-    const scoreY = END_SCREEN.SCORE_Y;
+    const scoreY = END_SCREEN.SCORE_Y + yOffset;
 
     this.scoreLabelText = createText(this.scene, centerX, scoreY + END_SCREEN.SCORE_LABEL_OFFSET, 'FINAL SCORE', {
       fontSize: FONTS.SIZE_SMALL,
@@ -264,34 +332,47 @@ export class EndScreenOverlay {
     isRunComplete: boolean,
     passed: boolean,
     showBlessingChoice: boolean,
-    callbacks: EndScreenCallbacks
+    callbacks: EndScreenCallbacks,
+    yOffset: number = 0
   ): void {
-    const buttonY = this.isMobile ? END_SCREEN.BUTTON_Y_MOBILE : END_SCREEN.BUTTON_Y_DESKTOP;
+    const buttonY = (this.isMobile ? END_SCREEN.BUTTON_Y_MOBILE : END_SCREEN.BUTTON_Y_DESKTOP) + yOffset;
     const buttonOffset = this.isMobile ? END_SCREEN.BUTTON_OFFSET_MOBILE : END_SCREEN.BUTTON_OFFSET_DESKTOP;
 
     if (isRunComplete) {
       // Victory - single menu button (centered, solid gold style)
       // Store references for color animation
-      const { bg, text } = this.createButton(panelWidth / 2, buttonY, 'NEW GAME', callbacks.onNewGame, 'victory');
+      const { bg, text } = this.createButton(panelWidth / 2, buttonY, 'NEW GAME', () => {
+        this.fadeToBlackAndExecute(callbacks.onNewGame, FLASH.VICTORY);
+      }, 'victory');
       this.victoryButtonBg = bg;
       this.victoryButtonText = text;
     } else if (passed) {
       // Passed - quit (danger) left, continue (primary) right
-      this.createButton(panelWidth / 2 - buttonOffset, buttonY, 'QUIT', callbacks.onQuit, 'danger');
+      this.createButton(panelWidth / 2 - buttonOffset, buttonY, 'QUIT', () => {
+        this.fadeToBlackAndExecute(callbacks.onQuit, FLASH.RED);
+      }, 'danger');
       this.createButton(panelWidth / 2 + buttonOffset, buttonY, 'CONTINUE', () => {
+        // Green flash for feedback
+        this.scene.cameras.main.flash(150, FLASH.GREEN.r, FLASH.GREEN.g, FLASH.GREEN.b);
+
         if (showBlessingChoice) {
-          // Fade out just the panel, keep dark overlay for smooth transition
+          // Fade out just the panel, keep dark overlay for blessing choice
           this.fadeOutPanel(() => {
             callbacks.onContinue();
           });
         } else {
-          callbacks.onContinue();
+          // Fade camera to black before continuing (flash already done above)
+          this.fadeToBlackAndExecute(callbacks.onContinue, false);
         }
       }, 'primary');
     } else {
       // Failed - quit (danger) left, try again (warning) right
-      this.createButton(panelWidth / 2 - buttonOffset, buttonY, 'QUIT', callbacks.onQuit, 'danger');
-      this.createButton(panelWidth / 2 + buttonOffset, buttonY, 'TRY AGAIN', callbacks.onTryAgain, 'warning');
+      this.createButton(panelWidth / 2 - buttonOffset, buttonY, 'QUIT', () => {
+        this.fadeToBlackAndExecute(callbacks.onQuit, FLASH.RED);
+      }, 'danger');
+      this.createButton(panelWidth / 2 + buttonOffset, buttonY, 'TRY AGAIN', () => {
+        this.fadeToBlackAndExecute(callbacks.onTryAgain, FLASH.GOLD);
+      }, 'warning');
     }
   }
 
@@ -388,15 +469,13 @@ export class EndScreenOverlay {
   }
 
   private animateEntrance(): void {
-    this.panel.setScale(0.8);
     this.panel.setAlpha(0);
 
     const entranceTween = this.scene.tweens.add({
       targets: this.panel,
-      scale: 1,
       alpha: 1,
       duration: SIZES.ANIM_ENTRANCE,
-      ease: 'Back.easeOut',
+      ease: 'Quad.easeOut',
     });
     this.tweens.push(entranceTween);
   }
@@ -405,7 +484,6 @@ export class EndScreenOverlay {
     const fadeTween = this.scene.tweens.add({
       targets: this.panel,
       alpha: 0,
-      scale: 0.9,
       duration: SIZES.ANIM_NORMAL,
       ease: 'Quad.easeIn',
       onComplete: () => {
@@ -414,6 +492,31 @@ export class EndScreenOverlay {
       },
     });
     this.tweens.push(fadeTween);
+  }
+
+  /**
+   * Fade camera to black with optional flash effect, then execute callback.
+   * This ensures the screen is fully black before any scene transition.
+   */
+  private fadeToBlackAndExecute(callback: () => void, flashColor?: { r: number; g: number; b: number } | false): void {
+    // Disable all button interactions immediately
+    this.panel.each((child: Phaser.GameObjects.GameObject) => {
+      if ('disableInteractive' in child) {
+        (child as Phaser.GameObjects.Rectangle).disableInteractive();
+      }
+    });
+
+    // Flash effect for feedback (skip if flashColor is false)
+    if (flashColor !== false) {
+      const { r, g, b } = flashColor ?? FLASH.PURPLE;
+      this.scene.cameras.main.flash(150, r, g, b);
+    }
+
+    // Fade camera to black
+    this.scene.cameras.main.fadeOut(SIZES.ANIM_NORMAL, 0, 0, 0);
+    this.scene.cameras.main.once('camerafadeoutcomplete', () => {
+      callback();
+    });
   }
 
   /**

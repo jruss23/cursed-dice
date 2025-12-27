@@ -4,10 +4,9 @@
  */
 
 import Phaser from 'phaser';
-import { FONTS, PALETTE, COLORS, SIZES, getViewportMetrics } from '@/config';
+import { FONTS, PALETTE, COLORS, SIZES, FLASH, getViewportMetrics } from '@/config';
 import { createText } from '@/ui/ui-utils';
 import { BLESSING_CONFIGS, type BlessingId } from '@/systems/blessings/types';
-import { MODE_CONFIGS } from '@/systems/game-progression';
 import { getImplementedBlessings } from '@/data/blessings';
 
 export interface BlessingChoiceCallbacks {
@@ -68,86 +67,48 @@ export class BlessingChoicePanel {
     // Title area - more compact on mobile
     const titleY = height / 2 - panelHeight / 2 + (isMobile ? 22 : 30);
 
-    const title = createText(this.scene,width / 2, titleY, 'Choose Your Blessing', {
+    const title = createText(this.scene, width / 2, titleY, 'The Curse Weakens...', {
       fontSize: isMobile ? FONTS.SIZE_LARGE : FONTS.SIZE_HEADING,
       fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_PRIMARY,
+      color: COLORS.TEXT_WARNING,
       fontStyle: 'bold',
     });
     title.setOrigin(0.5, 0.5);
     this.container.add(title);
 
-    // Subtitle
-    const subtitle = createText(this.scene,width / 2, titleY + (isMobile ? 22 : 28), isMobile ? 'Aids you for the rest of your run' : 'This blessing will aid you for the rest of your run', {
+    // Narrative subtitle
+    const subtitleText = isMobile
+      ? 'The first seal is broken. Darker trials await.'
+      : 'The first seal is broken. Darker trials await—but you\'ve earned a blessing to guide you.';
+    const subtitle = createText(this.scene, width / 2, titleY + (isMobile ? 22 : 28), subtitleText, {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_SECONDARY,
+      color: COLORS.TEXT_PRIMARY,
     });
     subtitle.setOrigin(0.5, 0.5);
     this.container.add(subtitle);
 
-    // Next curse warning box (with padding from subtitle)
-    const curseBoxY = titleY + (isMobile ? 75 : 90);
-    const curseBoxWidth = panelWidth - (isMobile ? 20 : 60);
-    const curseBoxHeight = isMobile ? 55 : 60;
-
-    const curseBox = this.scene.add.rectangle(
-      width / 2, curseBoxY,
-      curseBoxWidth, curseBoxHeight,
-      PALETTE.red[800], 0.4
-    );
-    curseBox.setStrokeStyle(1, PALETTE.red[500], 0.5);
-    this.container.add(curseBox);
-
-    // Get next curse info (Mode 2)
-    const nextCurse = MODE_CONFIGS[2];
-
-    // Row 1: Warning icons + title all on same line
-    const row1Y = curseBoxY - (isMobile ? 12 : 10);
-    const iconOffset = isMobile ? 25 : 35;
-
-    const curseIconLeft = createText(this.scene,width / 2 - curseBoxWidth / 2 + iconOffset, row1Y, '⚠️', {
-      fontSize: isMobile ? FONTS.SIZE_BODY : FONTS.SIZE_LARGE,
+    // "Choose Your Blessing" label above cards
+    const chooseLabelY = titleY + (isMobile ? 50 : 60);
+    const chooseLabel = createText(this.scene, width / 2, chooseLabelY, 'Choose Your Blessing', {
+      fontSize: FONTS.SIZE_BODY,
       fontFamily: FONTS.FAMILY,
-    });
-    curseIconLeft.setOrigin(0.5, 0.5);
-    this.container.add(curseIconLeft);
-
-    const curseIconRight = createText(this.scene,width / 2 + curseBoxWidth / 2 - iconOffset, row1Y, '⚠️', {
-      fontSize: isMobile ? FONTS.SIZE_BODY : FONTS.SIZE_LARGE,
-      fontFamily: FONTS.FAMILY,
-    });
-    curseIconRight.setOrigin(0.5, 0.5);
-    this.container.add(curseIconRight);
-
-    const curseTitle = createText(this.scene,width / 2, row1Y, `NEXT: ${nextCurse.name}`, {
-      fontSize: isMobile ? FONTS.SIZE_LABEL : FONTS.SIZE_SMALL,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_DANGER,
+      color: COLORS.TEXT_ACCENT,
       fontStyle: 'bold',
     });
-    curseTitle.setOrigin(0.5, 0.5);
-    this.container.add(curseTitle);
-
-    // Row 2: Description - larger on mobile for readability
-    const row2Y = curseBoxY + (isMobile ? 14 : 12);
-    const curseDesc = createText(this.scene, width / 2, row2Y, nextCurse.description, {
-      fontSize: isMobile ? FONTS.SIZE_SMALL : FONTS.SIZE_TINY,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_WARNING,
-    });
-    curseDesc.setOrigin(0.5, 0.5);
-    this.container.add(curseDesc);
+    chooseLabel.setOrigin(0.5, 0.5);
+    this.container.add(chooseLabel);
 
     // Cards area - vertical on mobile, horizontal on desktop
     const blessingIds: BlessingId[] = ['abundance', 'mercy', 'sanctuary', 'sixth'];
+    const cardsAreaY = chooseLabelY + (isMobile ? 18 : 22);
 
     if (isMobile) {
       // Mobile: 4 compact rows - taller to fit description text
       const cardWidth = panelWidth - 20;
       const cardHeight = 88;
       const cardSpacing = 3;
-      const cardsStartY = curseBoxY + curseBoxHeight / 2 + 8;
+      const cardsStartY = cardsAreaY;
 
       blessingIds.forEach((id, index) => {
         const cardX = (width - cardWidth) / 2;
@@ -157,7 +118,7 @@ export class BlessingChoicePanel {
       });
     } else {
       // Desktop: 1 row, 4 columns
-      const cardAreaY = curseBoxY + curseBoxHeight / 2 + 25;
+      const cardAreaY = cardsAreaY;
       const cardWidth = 210;
       const cardHeight = 320;
       const cardSpacing = 15;
@@ -636,23 +597,14 @@ export class BlessingChoicePanel {
       }
     });
 
-    // Flash effect
-    this.scene.cameras.main.flash(200, 100, 255, 100);
+    // Quick flash effect then fade to black (green to match button)
+    this.scene.cameras.main.flash(150, FLASH.GREEN.r, FLASH.GREEN.g, FLASH.GREEN.b);
 
-    // Fade container slightly, then fade camera to black
-    this.scene.tweens.add({
-      targets: this.container,
-      alpha: 0.3,
-      duration: SIZES.ANIM_NORMAL,
-      ease: 'Quad.easeIn',
-      onComplete: () => {
-        // Fade camera to black before loading next scene
-        this.scene.cameras.main.fadeOut(400, 0, 0, 0);
-        this.scene.cameras.main.once('camerafadeoutcomplete', () => {
-          this.callbacks.onSelect(blessingId);
-          this.destroy();
-        });
-      },
+    // Fade camera directly to black (keeps dark overlay intact)
+    this.scene.cameras.main.fadeOut(300, 0, 0, 0);
+    this.scene.cameras.main.once('camerafadeoutcomplete', () => {
+      this.callbacks.onSelect(blessingId);
+      this.destroy();
     });
   }
 

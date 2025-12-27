@@ -8,7 +8,9 @@ import {
   FONTS,
   PALETTE,
   COLORS,
+  FLASH,
   RESPONSIVE,
+  DEV,
   getViewportMetrics,
   getScaledSizes,
   getPortraitLayout,
@@ -23,6 +25,10 @@ import { createLogger } from '@/systems/logger';
 import { createText } from '@/ui/ui-utils';
 import { TutorialOverlay } from '@/ui/tutorial/tutorial-overlay';
 import { TutorialController } from '@/systems/tutorial';
+import { TutorialDebugPanel } from '@/ui/tutorial/tutorial-debug-panel';
+import { TutorialDebugController } from '@/systems/tutorial-debug-controller';
+import { TutorialCompleteOverlay } from '@/ui/tutorial/tutorial-complete-overlay';
+import { isMusicEnabled } from '@/systems/music-manager';
 
 const log = createLogger('TutorialScene');
 
@@ -51,6 +57,13 @@ export class TutorialScene extends Phaser.Scene {
 
   // Tutorial controller (owns all tutorial logic)
   private controller: TutorialController | null = null;
+
+  // Debug
+  private debugPanel: TutorialDebugPanel | null = null;
+  private debugController: TutorialDebugController | null = null;
+
+  // Completion overlay
+  private completeOverlay: TutorialCompleteOverlay | null = null;
 
   // Audio
   private music: Phaser.Sound.BaseSound | null = null;
@@ -181,6 +194,29 @@ export class TutorialScene extends Phaser.Scene {
     this.diceManager.setEnabled(false);
     this.scorecardPanel.lockInput();
     this.scorecardPanel.setHoverEnabled(false);
+
+    // Debug panel (development only)
+    this.createDebugPanel(height);
+  }
+
+  private createDebugPanel(height: number): void {
+    if (!DEV.IS_DEVELOPMENT) return;
+
+    // Create debug controller with tutorial-specific dependencies
+    this.debugController = new TutorialDebugController({
+      scene: this,
+      isInFreePlay: () => this.skipTutorial,
+      skipToFreePlay: () => this.scene.restart({ skipTutorial: true }),
+      hideTutorialOverlay: () => this.tutorialOverlay?.hide(),
+      showCompletion: (overrideScore?: number) => this.showTutorialComplete(overrideScore),
+    });
+
+    // Create debug panel wired to controller
+    this.debugPanel = new TutorialDebugPanel(this, height, {
+      onSkipToPractice: () => this.debugController?.skipToPractice(),
+      onPassTutorial: () => this.debugController?.passTutorial(),
+      onFailTutorial: () => this.debugController?.failTutorial(),
+    });
   }
 
   private createBackground(width: number, height: number): void {
@@ -191,7 +227,9 @@ export class TutorialScene extends Phaser.Scene {
 
   private startMusic(): void {
     if (this.cache.audio.exists('tutorial-music')) {
-      this.music = this.sound.add('tutorial-music', { loop: true, volume: 0.4 });
+      // Use volume 0 if music disabled, so it can be unmuted later
+      const vol = isMusicEnabled() ? 0.4 : 0;
+      this.music = this.sound.add('tutorial-music', { loop: true, volume: vol });
       if (!this.sound.locked) {
         this.music.play();
       } else {
@@ -252,7 +290,10 @@ export class TutorialScene extends Phaser.Scene {
     text.setOrigin(0.5, 0.5);
     this.backButton.add(text);
 
-    bg.on('pointerdown', () => this.onBackPressed());
+    bg.on('pointerdown', () => {
+      this.cameras.main.flash(150, FLASH.PURPLE.r, FLASH.PURPLE.g, FLASH.PURPLE.b);
+      this.onBackPressed();
+    });
     bg.on('pointerover', () => bg.setFillStyle(PALETTE.purple[700], 1));
     bg.on('pointerout', () => bg.setFillStyle(PALETTE.purple[800], 0.95));
 
@@ -336,102 +377,31 @@ export class TutorialScene extends Phaser.Scene {
   // COMPLETION SCREEN
   // ===========================================================================
 
-  private showTutorialComplete(): void {
-    const { width, height } = this.scale.gameSize;
-    const totalScore = this.scorecard.getTotal();
-    const passed = totalScore >= 250;
+  /**
+   * Show tutorial completion overlay
+   * @param overrideScore Optional score to display (for debug testing pass/fail)
+   */
+  private showTutorialComplete(overrideScore?: number): void {
+    const totalScore = overrideScore ?? this.scorecard.getTotal();
+    const passThreshold = 250;
 
-    const overlay = this.add.container(0, 0);
-    overlay.setDepth(1000);
-
-    const dimBg = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.8);
-    overlay.add(dimBg);
-
-    const panelWidth = Math.min(width - 40, 340);
-    const panelHeight = 280;
-    const panel = this.add.rectangle(width / 2, height / 2, panelWidth, panelHeight, PALETTE.purple[800], 0.95);
-    panel.setStrokeStyle(2, PALETTE.purple[500], 0.8);
-    overlay.add(panel);
-
-    const title = createText(this, width / 2, height / 2 - 90, 'Tutorial Complete!', {
-      fontSize: FONTS.SIZE_HEADING,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_PRIMARY,
-      fontStyle: 'bold',
-    });
-    title.setOrigin(0.5, 0.5);
-    overlay.add(title);
-
-    const scoreText = createText(this, width / 2, height / 2 - 40, `Final Score: ${totalScore}`, {
-      fontSize: FONTS.SIZE_BODY,
-      fontFamily: FONTS.FAMILY,
-      color: passed ? COLORS.TEXT_SUCCESS : COLORS.TEXT_WARNING,
-      fontStyle: 'bold',
-    });
-    scoreText.setOrigin(0.5, 0.5);
-    overlay.add(scoreText);
-
-    const resultMsg = passed
-      ? 'You would have broken this seal!'
-      : 'You need 250+ to break a seal.';
-    const resultText = createText(this, width / 2, height / 2, resultMsg, {
-      fontSize: FONTS.SIZE_SMALL,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_SECONDARY,
-    });
-    resultText.setOrigin(0.5, 0.5);
-    overlay.add(resultText);
-
-    const btnY = height / 2 + 60;
-    const btnWidth = 120;
-    const btnHeight = 40;
-    const btnGap = 20;
-
-    const tryAgainBg = this.add.rectangle(
-      width / 2 - btnWidth / 2 - btnGap / 2,
-      btnY,
-      btnWidth,
-      btnHeight,
-      PALETTE.green[700],
-      0.95
+    this.completeOverlay = new TutorialCompleteOverlay(
+      this,
+      { totalScore, passThreshold },
+      {
+        onTryAgain: () => {
+          this.completeOverlay?.destroy();
+          this.completeOverlay = null;
+          // Go to practice mode, skip the tutorial popups
+          this.scene.restart({ skipTutorial: true });
+        },
+        onMenu: () => {
+          this.completeOverlay?.destroy();
+          this.completeOverlay = null;
+          this.scene.start('MenuScene');
+        },
+      }
     );
-    tryAgainBg.setStrokeStyle(2, PALETTE.green[500]);
-    tryAgainBg.setInteractive({ useHandCursor: true });
-    overlay.add(tryAgainBg);
-
-    const tryAgainText = createText(this, width / 2 - btnWidth / 2 - btnGap / 2, btnY, 'TRY AGAIN', {
-      fontSize: FONTS.SIZE_SMALL,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_SUCCESS,
-      fontStyle: 'bold',
-    });
-    tryAgainText.setOrigin(0.5, 0.5);
-    overlay.add(tryAgainText);
-
-    tryAgainBg.on('pointerdown', () => this.scene.restart());
-
-    const menuBg = this.add.rectangle(
-      width / 2 + btnWidth / 2 + btnGap / 2,
-      btnY,
-      btnWidth,
-      btnHeight,
-      PALETTE.purple[700],
-      0.95
-    );
-    menuBg.setStrokeStyle(2, PALETTE.purple[500]);
-    menuBg.setInteractive({ useHandCursor: true });
-    overlay.add(menuBg);
-
-    const menuText = createText(this, width / 2 + btnWidth / 2 + btnGap / 2, btnY, 'MENU', {
-      fontSize: FONTS.SIZE_SMALL,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_PRIMARY,
-      fontStyle: 'bold',
-    });
-    menuText.setOrigin(0.5, 0.5);
-    overlay.add(menuText);
-
-    menuBg.on('pointerdown', () => this.scene.start('MenuScene'));
   }
 
   private onBackPressed = (): void => {
@@ -458,5 +428,7 @@ export class TutorialScene extends Phaser.Scene {
     this.scorecardPanel?.destroy();
     this.tutorialOverlay?.destroy();
     this.headerPanel?.destroy();
+    this.debugPanel?.destroy();
+    this.completeOverlay?.destroy();
   };
 }

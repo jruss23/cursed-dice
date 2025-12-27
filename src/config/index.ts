@@ -6,8 +6,8 @@
 // Development flags
 export { DEV } from './dev';
 
-// Theme (colors, fonts)
-export { PALETTE, COLORS, FONTS } from './theme';
+// Theme (colors, fonts, flash effects)
+export { PALETTE, COLORS, FONTS, FLASH } from './theme';
 
 // Sizes and timing
 export { CANVAS, SIZES, TIMING, ANIM } from './sizes';

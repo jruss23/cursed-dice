@@ -11,6 +11,7 @@ import {
   PALETTE,
   COLORS,
   DEV,
+  FLASH,
   type ViewportMetrics,
 } from '@/config';
 import { HeaderPanel } from '@/ui/gameplay';
@@ -206,7 +207,10 @@ export function createControlButtons(config: ControlButtonsConfig): ControlButto
     quitBg.setStrokeStyle(2, PALETTE.red[500], 0.8);
     quitText.setColor(COLORS.TEXT_DANGER);
   });
-  quitBg.on('pointerdown', () => config.onQuit());
+  quitBg.on('pointerdown', () => {
+    scene.cameras.main.flash(150, FLASH.RED.r, FLASH.RED.g, FLASH.RED.b);
+    config.onQuit();
+  });
 
   // Create pause menu (centered on screen)
   const { width: screenWidth, height: screenHeight } = scene.cameras.main;

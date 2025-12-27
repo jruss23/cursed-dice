@@ -58,7 +58,6 @@ export class DifficultyButton {
 
     // Font sizes - keep readable on mobile
     const labelSize = isMobile ? FONTS.SIZE_LARGE : FONTS.SIZE_HEADING;
-    const subSize = FONTS.SIZE_SMALL;
     const iconSize = isMobile ? FONTS.SIZE_LARGE : FONTS.SIZE_HEADING;
 
     const config = this.config;
@@ -111,7 +110,7 @@ export class DifficultyButton {
     iconText.setOrigin(0.5, 0.5);
     this.container.add(iconText);
 
-    // Difficulty label
+    // Difficulty label (centered)
     const label = createText(this.scene, 10, -12, config.label, {
       fontSize: labelSize,
       fontFamily: FONTS.FAMILY,
@@ -121,15 +120,35 @@ export class DifficultyButton {
     label.setOrigin(0.5, 0.5);
     this.container.add(label);
 
-    // Subtitle description
-    const subtitleText = createText(this.scene, 10, 14, config.subtitle, {
-      fontSize: subSize,
+    // Subtitle with time (two parts: flavor text + time in difficulty color)
+    const subtitleSize = isMobile ? FONTS.SIZE_SMALL : FONTS.SIZE_BODY;
+    const flavorPart = `${config.subtitle} •`;
+    const timePart = ` ${config.timeDisplay}/seal`;
+
+    // Create both texts to measure
+    const flavorText = createText(this.scene, 0, 14, flavorPart, {
+      fontSize: subtitleSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SECONDARY,
       fontStyle: 'italic',
     });
-    subtitleText.setOrigin(0.5, 0.5);
-    this.container.add(subtitleText);
+    const timeText = createText(this.scene, 0, 14, timePart, {
+      fontSize: subtitleSize,
+      fontFamily: FONTS.FAMILY,
+      color: config.color,
+      fontStyle: 'bold',
+    });
+
+    // Center the combined subtitle (offset by -8 to compensate for text padding)
+    const totalSubWidth = flavorText.width + timeText.width - 8;
+    const subStartX = 10 - totalSubWidth / 2;
+    flavorText.setX(subStartX);
+    flavorText.setOrigin(0, 0.5);
+    timeText.setX(subStartX + flavorText.width - 8);
+    timeText.setOrigin(0, 0.5);
+
+    this.container.add(flavorText);
+    this.container.add(timeText);
 
     // Decorative skulls on sides (hidden on mobile to save space)
     let leftSkull: Phaser.GameObjects.Text | null = null;
@@ -206,8 +225,9 @@ export class DifficultyButton {
     });
 
     bg.on('pointerdown', () => {
-      // Click flash effect
-      this.scene.cameras.main.flash(200, 100, 50, 150);
+      // Click flash effect - use difficulty's own color
+      const flashColor = Phaser.Display.Color.HexStringToColor(config.color);
+      this.scene.cameras.main.flash(200, flashColor.red, flashColor.green, flashColor.blue);
 
       // Scale down briefly
       this.scene.tweens.add({

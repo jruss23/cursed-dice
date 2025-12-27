@@ -4,7 +4,7 @@
  */
 
 import Phaser from 'phaser';
-import { FONTS, COLORS, PALETTE, TIMING } from '@/config';
+import { FONTS, COLORS, PALETTE, TIMING, FLASH } from '@/config';
 import { createText, createPanelFrame, addPanelFrameToContainer } from '@/ui/ui-utils';
 import { BaseButton } from '@/ui/base/base-button';
 import { toggleSFX, isSFXEnabled } from '@/systems/sfx-manager';
@@ -93,7 +93,7 @@ export class PauseMenu {
     audioLabel.setOrigin(0.5, 0.5);
     this.container.add(audioLabel);
 
-    // Music toggle button
+    // Music toggle button (secondary style - less prominent than Resume)
     const musicEnabled = this.musicManager?.isEnabled() ?? true;
     this.musicButton = new BaseButton(this.scene, {
       x: -70,
@@ -101,12 +101,12 @@ export class PauseMenu {
       width: 120,
       height: 38,
       label: musicEnabled ? 'MUSIC: ON' : 'MUSIC: OFF',
-      style: musicEnabled ? 'primary' : 'secondary',
+      style: musicEnabled ? 'secondary' : 'ghost',
       onClick: () => this.toggleMusic(),
     });
     this.container.add(this.musicButton.getContainer());
 
-    // SFX toggle button
+    // SFX toggle button (secondary style - less prominent than Resume)
     const sfxEnabled = isSFXEnabled();
     this.sfxButton = new BaseButton(this.scene, {
       x: 70,
@@ -114,7 +114,7 @@ export class PauseMenu {
       width: 120,
       height: 38,
       label: sfxEnabled ? 'SFX: ON' : 'SFX: OFF',
-      style: sfxEnabled ? 'primary' : 'secondary',
+      style: sfxEnabled ? 'secondary' : 'ghost',
       onClick: () => this.toggleSfx(),
     });
     this.container.add(this.sfxButton.getContainer());
@@ -137,9 +137,12 @@ export class PauseMenu {
       y: 90,
       width: 180,
       height: 44,
-      label: 'QUIT TO MENU',
+      label: 'QUIT',
       style: 'danger',
-      onClick: () => this.callbacks.onQuit(),
+      onClick: () => {
+        this.scene.cameras.main.flash(150, FLASH.RED.r, FLASH.RED.g, FLASH.RED.b);
+        this.callbacks.onQuit();
+      },
     });
     this.container.add(this.quitButton.getContainer());
   }
@@ -148,13 +151,13 @@ export class PauseMenu {
     if (!this.musicManager) return;
     const enabled = this.musicManager.toggle();
     this.musicButton?.setLabel(enabled ? 'MUSIC: ON' : 'MUSIC: OFF');
-    this.musicButton?.setStyle(enabled ? 'primary' : 'secondary');
+    this.musicButton?.setStyle(enabled ? 'secondary' : 'ghost');
   }
 
   private toggleSfx(): void {
     const enabled = toggleSFX();
     this.sfxButton?.setLabel(enabled ? 'SFX: ON' : 'SFX: OFF');
-    this.sfxButton?.setStyle(enabled ? 'primary' : 'secondary');
+    this.sfxButton?.setStyle(enabled ? 'secondary' : 'ghost');
   }
 
   show(animate: boolean = true): void {

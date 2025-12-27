@@ -21,28 +21,28 @@ export const MODE_CONFIGS: Record<GameMode, ModeConfig> = {
   1: {
     mode: 1,
     name: 'THE AWAKENING',
-    description: 'Standard dice game - fill all categories',
+    description: 'Standard rules - fill all 13 categories before time runs out',
     cursedDice: false,
     lockedCategories: 0,
   },
   2: {
     mode: 2,
     name: 'SHACKLED DIE',
-    description: 'Your highest die becomes cursed after each score',
+    description: 'Each turn, your highest die is cursed and cannot be rerolled',
     cursedDice: true,
     lockedCategories: 0,
   },
   3: {
     mode: 3,
     name: 'SEALED PATHS',
-    description: '3 random categories locked - new locks after each score',
+    description: '3 categories locked at random. After you score, 3 new ones lock',
     cursedDice: false,
     lockedCategories: 3,
   },
   4: {
     mode: 4,
     name: 'THE GAUNTLET',
-    description: 'Only 3 categories available at a time',
+    description: 'Only 3 random categories available. They shuffle after each score',
     cursedDice: false,
     lockedCategories: 10, // 10 locked = only 3 available
   },

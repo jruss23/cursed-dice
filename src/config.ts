@@ -13,8 +13,8 @@
 // Development flags
 export { DEV } from './config/dev';
 
-// Theme (colors, typography)
-export { PALETTE, COLORS, FONTS } from './config/theme';
+// Theme (colors, typography, flash effects)
+export { PALETTE, COLORS, FONTS, FLASH } from './config/theme';
 
 // Sizes and timing
 export { CANVAS, SIZES, TIMING, DEPTH, CELEBRATION, GAMEPLAY_LAYOUT, END_SCREEN } from './config/sizes';

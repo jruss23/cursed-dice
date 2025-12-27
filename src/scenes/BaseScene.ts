@@ -59,10 +59,33 @@ export abstract class BaseScene extends Phaser.Scene {
   }
 
   /**
-   * Fade camera in
+   * Fade in using a tween-based overlay for reliable scene transitions.
+   * This approach is more robust than camera.fadeIn() for scene.restart() cases,
+   * as it doesn't depend on camera state persisting through scene recreation.
+   *
+   * The overlay sits at highest depth and tweens from opaque to transparent.
    */
   protected fadeIn(duration: number = SIZES.FADE_DURATION_MS): void {
-    this.cameras.main.fadeIn(duration, 0, 0, 0);
+    const { width, height } = this.cameras.main;
+
+    // Create a black overlay at highest depth - starts fully opaque
+    const transitionOverlay = this.add.rectangle(
+      width / 2, height / 2,
+      width + 100, height + 100,
+      0x000000, 1
+    );
+    transitionOverlay.setDepth(1000);
+
+    // Tween the overlay alpha from 1 to 0 (more reliable than camera fade events)
+    this.tweens.add({
+      targets: transitionOverlay,
+      alpha: 0,
+      duration,
+      ease: 'Linear',
+      onComplete: () => {
+        transitionOverlay.destroy();
+      },
+    });
   }
 
   /**

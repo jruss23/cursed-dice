@@ -131,6 +131,25 @@ export const PALETTE = {
 } as const;
 
 // =============================================================================
+// FLASH COLORS (RGB values for camera.flash() effects)
+// =============================================================================
+
+/**
+ * Pre-computed RGB values for camera flash effects.
+ * Usage: scene.cameras.main.flash(duration, FLASH.RED.r, FLASH.RED.g, FLASH.RED.b)
+ */
+export const FLASH = {
+  // Button feedback flashes (match button styles)
+  GREEN: { r: 68, g: 170, b: 68 },      // PALETTE.green[500] = 0x44aa44
+  RED: { r: 204, g: 68, b: 68 },        // PALETTE.red[500] = 0xcc4444
+  GOLD: { r: 204, g: 170, b: 68 },      // PALETTE.gold[500] = 0xccaa44
+  PURPLE: { r: 102, g: 68, b: 170 },    // PALETTE.purple[500] = 0x6644aa
+
+  // Special flashes
+  VICTORY: { r: 255, g: 215, b: 0 },    // Bright gold for victory
+} as const;
+
+// =============================================================================
 // SEMANTIC COLORS (use these in components)
 // =============================================================================
 

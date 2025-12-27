@@ -41,6 +41,11 @@ function saveMusicEnabled(enabled: boolean): void {
   }
 }
 
+/** Check if music is enabled (for scenes not using MusicManager) */
+export function isMusicEnabled(): boolean {
+  return loadMusicEnabled();
+}
+
 // ============================================================================
 // MUSIC CONFIGURATION
 // ============================================================================
@@ -131,11 +136,6 @@ export class MusicManager {
       await this.init(this.scene);
     }
 
-    if (!this.musicEnabled) {
-      this.currentMode = difficulty;
-      return;
-    }
-
     this.stopAll();
     this.currentMode = difficulty;
     this.totalDurationMs = DIFFICULTIES[difficulty].timeMs;
@@ -150,7 +150,9 @@ export class MusicManager {
       return;
     }
 
-    log.log(`Playing: ${difficulty} mode → "${songName}" (${this.totalDurationMs / 1000}s)`);
+    // Always play to keep timing in sync - use volume 0 if muted
+    const vol = this.musicEnabled ? this.currentVolume : 0;
+    log.log(`Playing: ${difficulty} mode → "${songName}" (vol=${vol}, ${this.totalDurationMs / 1000}s)`);
 
     // Try to resume audio context first (helps with iOS Safari)
     // Phaser's WebAudioSoundManager handles unlock queue internally
@@ -164,13 +166,13 @@ export class MusicManager {
       // Not WebAudio or context not available - that's fine
     }
 
-    sound.play({ loop: true, volume: this.currentVolume });
+    sound.play({ loop: true, volume: vol });
     this.currentSound = sound;
   }
 
-  /** Sync audio to game time - handle time skips */
+  /** Sync audio to game time - handle time skips (works even when muted) */
   syncToGameTime(timeRemainingMs: number): void {
-    if (!this.currentMode || !this.musicEnabled || !this.currentSound) return;
+    if (!this.currentMode || !this.currentSound) return;
 
     // Detect time jumps (e.g., debug skip) - if time jumped more than threshold, seek audio
     const timeDelta = this.lastTimeRemainingMs - timeRemainingMs;
@@ -249,11 +251,18 @@ export class MusicManager {
     }
   }
 
-  /** Toggle music on/off */
+  /** Toggle music on/off - mutes/unmutes to keep timing in sync */
   toggle(): boolean {
     this.musicEnabled = !this.musicEnabled;
     saveMusicEnabled(this.musicEnabled);
-    if (!this.musicEnabled) this.stop();
+
+    // Mute/unmute to keep timing in sync
+    if (this.currentSound && 'setVolume' in this.currentSound) {
+      const vol = this.musicEnabled ? this.currentVolume : 0;
+      (this.currentSound as Phaser.Sound.WebAudioSound).setVolume(vol);
+      log.log(`Music ${this.musicEnabled ? 'unmuted' : 'muted'} (vol=${vol})`);
+    }
+
     return this.musicEnabled;
   }
 

@@ -11,11 +11,13 @@ import {
   FONTS,
   SIZES,
   COLORS,
+  FLASH,
 } from '@/config';
 import { version } from '../../package.json';
 import { resetGameProgression, debugSetMode, type GameMode } from '@/systems/game-progression';
 import { resetBlessingManager, debugSetBlessing } from '@/systems/blessings';
-import { DifficultyButton, FlickeringTitle, HighScoresPanel, SpookyBackground } from '@/ui/menu';
+import { isMusicEnabled } from '@/systems/music-manager';
+import { DifficultyButton, FlickeringTitle, HighScoresPanel, MenuSettingsPanel, SpookyBackground } from '@/ui/menu';
 import { createText } from '@/ui/ui-utils';
 import { BaseScene } from './BaseScene';
 
@@ -27,6 +29,7 @@ interface DebugSkipData {
 export class MenuScene extends BaseScene {
   private menuMusic: Phaser.Sound.BaseSound | null = null;
   private difficultyButtons: DifficultyButton[] = [];
+  private settingsPanel: MenuSettingsPanel | null = null;
   private debugSkipData: DebugSkipData | null = null;
   private boundOnAudioUnlocked: (() => void) | null = null;
 
@@ -60,15 +63,19 @@ export class MenuScene extends BaseScene {
   create(): void {
     this.log.log('create() called');
 
-    // Reset canvas border to purple (in case returning from victory gold)
-    const canvas = document.querySelector('canvas');
-    if (canvas) (canvas as HTMLCanvasElement).style.borderColor = COLORS.CANVAS_BORDER;
-
-    // Handle debug skip to mode
+    // Handle debug skip to mode (skip fadeIn for debug)
     if (this.debugSkipData?.debugSkipToMode) {
       this.debugStartGame(this.debugSkipData);
       return;
     }
+
+    // CRITICAL: Create transition overlay FIRST before anything else renders
+    // This prevents flash during scene transitions
+    this.fadeIn(800);
+
+    // Reset canvas border to purple (in case returning from victory gold)
+    const canvas = document.querySelector('canvas');
+    if (canvas) (canvas as HTMLCanvasElement).style.borderColor = COLORS.CANVAS_BORDER;
 
     // Register shutdown handler (from BaseScene)
     this.registerShutdown();
@@ -76,12 +83,14 @@ export class MenuScene extends BaseScene {
     // Load and play menu music
     const playMenuMusic = () => {
       if (this.cache.audio.exists('menu-music') && !this.menuMusic) {
-        this.menuMusic = this.sound.add('menu-music', { loop: true, volume: 0.4 });
+        // Use volume 0 if music disabled, so it can be unmuted later
+        const vol = isMusicEnabled() ? 0.4 : 0;
+        this.menuMusic = this.sound.add('menu-music', { loop: true, volume: vol });
 
         // Only play if not locked, otherwise wait for unlock
         if (!this.sound.locked) {
           this.menuMusic.play();
-          this.log.log('Menu music started');
+          this.log.log(`Menu music started (vol=${vol})`);
           // Start background preloading gameplay tracks
           this.preloadGameplayTracks();
         }
@@ -132,6 +141,7 @@ export class MenuScene extends BaseScene {
       fontSize: subtitleSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.MENU_SUBTITLE,
+      fontStyle: 'bold',
     });
     subtitle.setOrigin(0.5, 0.5);
 
@@ -206,6 +216,13 @@ export class MenuScene extends BaseScene {
       new HighScoresPanel(this, { x: 20, y: height - 210 });
     }
 
+    // Settings cog button - bottom right corner
+    this.settingsPanel = new MenuSettingsPanel(this, {
+      x: width - 32,
+      y: height - 32,
+      onMusicToggle: (enabled) => this.onMusicToggle(enabled),
+    });
+
     // Mode info - positioned just below last button
     const lastButtonY = buttonStartY + buttonSpacing * 2;
     const modeInfoY = isMobile
@@ -222,6 +239,7 @@ export class MenuScene extends BaseScene {
         fontSize: modeInfoSize,
         fontFamily: FONTS.FAMILY,
         color: COLORS.MENU_INFO_GLOW,
+        fontStyle: 'bold',
       }
     );
     modeInfoGlow.setOrigin(0.5, 0.5);
@@ -236,6 +254,7 @@ export class MenuScene extends BaseScene {
         fontSize: modeInfoSize,
         fontFamily: FONTS.FAMILY,
         color: COLORS.MENU_INFO,
+        fontStyle: 'bold',
       }
     );
     modeInfo.setOrigin(0.5, 0.5);
@@ -262,9 +281,6 @@ export class MenuScene extends BaseScene {
 
     // Pulsing vignette effect (disabled on mobile)
     this.createPulsingVignette(width, height, isMobile);
-
-    // Fade in (using BaseScene helper with custom duration)
-    this.fadeIn(800);
   }
 
   private createLearnToPlayButton(width: number, y: number, isMobile: boolean): void {
@@ -318,6 +334,7 @@ export class MenuScene extends BaseScene {
     });
 
     bg.on('pointerdown', () => {
+      this.cameras.main.flash(150, FLASH.GREEN.r, FLASH.GREEN.g, FLASH.GREEN.b);
       this.log.log('Starting tutorial');
       this.startTutorial();
     });
@@ -378,6 +395,16 @@ export class MenuScene extends BaseScene {
       repeat: -1,
       ease: 'Sine.easeInOut',
     });
+  }
+
+  /**
+   * Handle music toggle from settings panel
+   */
+  private onMusicToggle(enabled: boolean): void {
+    if (this.menuMusic && 'setVolume' in this.menuMusic) {
+      (this.menuMusic as Phaser.Sound.WebAudioSound).setVolume(enabled ? 0.4 : 0);
+      this.log.log(`Menu music ${enabled ? 'unmuted' : 'muted'}`);
+    }
   }
 
   private startGame(difficulty: Difficulty): void {
@@ -482,6 +509,10 @@ export class MenuScene extends BaseScene {
     // Cleanup difficulty buttons
     this.difficultyButtons.forEach(btn => btn.destroy());
     this.difficultyButtons = [];
+
+    // Cleanup settings panel
+    this.settingsPanel?.destroy();
+    this.settingsPanel = null;
 
     // Call base cleanup
     this.cleanup();
