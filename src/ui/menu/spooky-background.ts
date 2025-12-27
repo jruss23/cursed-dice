@@ -4,7 +4,7 @@
  */
 
 import Phaser from 'phaser';
-import { FONTS, SIZES } from '@/config';
+import { FONTS, SIZES, PALETTE } from '@/config';
 import { createText } from '@/ui/ui-utils';
 
 export class SpookyBackground {
@@ -34,15 +34,15 @@ export class SpookyBackground {
 
     // Deep dark gradient with purple/green tints
     const bg = this.scene.add.graphics();
-    bg.fillGradientStyle(0x050510, 0x050510, 0x100520, 0x051510, 1);
+    bg.fillGradientStyle(PALETTE.spooky.bgDark, PALETTE.spooky.bgDark, PALETTE.spooky.bgPurpleTint, PALETTE.spooky.bgGreenTint, 1);
     bg.fillRect(0, 0, width, height);
     this.gameObjects.push(bg);
 
     // Eerie ambient glow spots
     const glowSpots = [
-      { x: width * 0.2, y: height * 0.3, color: 0x2a0a3a, size: 350 },
-      { x: width * 0.8, y: height * 0.6, color: 0x0a2a1a, size: 300 },
-      { x: width * 0.5, y: height * 0.8, color: 0x1a0a2a, size: 400 },
+      { x: width * 0.2, y: height * 0.3, color: PALETTE.spooky.glowPurple, size: 350 },
+      { x: width * 0.8, y: height * 0.6, color: PALETTE.spooky.glowGreen, size: 300 },
+      { x: width * 0.5, y: height * 0.8, color: PALETTE.spooky.glowDeepPurple, size: 400 },
     ];
 
     for (const spot of glowSpots) {
@@ -79,7 +79,7 @@ export class SpookyBackground {
 
     skullPositions.forEach((pos, i) => {
       // Glow behind skull - subtle
-      const glow = this.scene.add.circle(pos.x, pos.y, pos.size * 0.6, 0x6633aa, 0.08);
+      const glow = this.scene.add.circle(pos.x, pos.y, pos.size * 0.6, PALETTE.spooky.skullGlow, 0.08);
       this.gameObjects.push(glow);
 
       const skull = createText(this.scene, pos.x, pos.y, '💀', {
@@ -147,15 +147,15 @@ export class SpookyBackground {
       this.gameObjects.push(dice);
 
       // Outer glow
-      const outerGlow = this.scene.add.rectangle(0, 0, size + 16, size + 16, 0x6600aa, 0.1);
+      const outerGlow = this.scene.add.rectangle(0, 0, size + 16, size + 16, PALETTE.spooky.diceOuterGlow, 0.1);
       dice.add(outerGlow);
 
       // Dice body with eerie glow
-      const diceGlow = this.scene.add.rectangle(0, 0, size + 8, size + 8, 0x8833bb, 0.25);
+      const diceGlow = this.scene.add.rectangle(0, 0, size + 8, size + 8, PALETTE.spooky.diceGlow, 0.25);
       dice.add(diceGlow);
 
-      const diceBg = this.scene.add.rectangle(0, 0, size, size, 0x1a0a2a, 0.7);
-      diceBg.setStrokeStyle(2, 0x6a3a8a, 0.8);
+      const diceBg = this.scene.add.rectangle(0, 0, size, size, PALETTE.spooky.diceBg, 0.7);
+      diceBg.setStrokeStyle(2, PALETTE.spooky.diceBorder, 0.8);
       dice.add(diceBg);
 
       // Random pip pattern
@@ -173,7 +173,7 @@ export class SpookyBackground {
       ];
 
       pipPositions[pipCount - 1].forEach(pip => {
-        const pipCircle = this.scene.add.circle(pip.x, pip.y, pipSize, 0xaa66cc, 0.8);
+        const pipCircle = this.scene.add.circle(pip.x, pip.y, pipSize, PALETTE.spooky.dicePip, 0.8);
         dice.add(pipCircle);
       });
 
@@ -220,7 +220,7 @@ export class SpookyBackground {
         const startX = (i - 1) * width * 0.5;
         this.gameObjects.push(fog);
 
-        fog.fillStyle(0x2a1a3a, 0.03 + layer * 0.01);
+        fog.fillStyle(PALETTE.spooky.fog, 0.03 + layer * 0.01);
         fog.fillEllipse(startX, fogY, width * 0.6, fogHeight);
 
         // Drift animation
@@ -267,16 +267,16 @@ export class SpookyBackground {
       const spacing = pos.size * 3;
 
       // Left eye with multiple glow layers
-      const leftOuterGlow = this.scene.add.circle(pos.x - spacing, pos.y, pos.size * 5, 0xff0000, 0);
-      const leftGlow = this.scene.add.circle(pos.x - spacing, pos.y, pos.size * 2.5, 0xff2200, 0);
-      const leftEye = this.scene.add.circle(pos.x - spacing, pos.y, pos.size, 0xff4400, 0);
-      const leftPupil = this.scene.add.circle(pos.x - spacing, pos.y, pos.size * 0.35, 0xffff00, 0);
+      const leftOuterGlow = this.scene.add.circle(pos.x - spacing, pos.y, pos.size * 5, PALETTE.spooky.eyeOuterGlow, 0);
+      const leftGlow = this.scene.add.circle(pos.x - spacing, pos.y, pos.size * 2.5, PALETTE.spooky.eyeGlow, 0);
+      const leftEye = this.scene.add.circle(pos.x - spacing, pos.y, pos.size, PALETTE.spooky.eyeCore, 0);
+      const leftPupil = this.scene.add.circle(pos.x - spacing, pos.y, pos.size * 0.35, PALETTE.spooky.eyePupil, 0);
 
       // Right eye with multiple glow layers
-      const rightOuterGlow = this.scene.add.circle(pos.x + spacing, pos.y, pos.size * 5, 0xff0000, 0);
-      const rightGlow = this.scene.add.circle(pos.x + spacing, pos.y, pos.size * 2.5, 0xff2200, 0);
-      const rightEye = this.scene.add.circle(pos.x + spacing, pos.y, pos.size, 0xff4400, 0);
-      const rightPupil = this.scene.add.circle(pos.x + spacing, pos.y, pos.size * 0.35, 0xffff00, 0);
+      const rightOuterGlow = this.scene.add.circle(pos.x + spacing, pos.y, pos.size * 5, PALETTE.spooky.eyeOuterGlow, 0);
+      const rightGlow = this.scene.add.circle(pos.x + spacing, pos.y, pos.size * 2.5, PALETTE.spooky.eyeGlow, 0);
+      const rightEye = this.scene.add.circle(pos.x + spacing, pos.y, pos.size, PALETTE.spooky.eyeCore, 0);
+      const rightPupil = this.scene.add.circle(pos.x + spacing, pos.y, pos.size * 0.35, PALETTE.spooky.eyePupil, 0);
 
       const allParts = [leftOuterGlow, leftGlow, leftEye, leftPupil, rightOuterGlow, rightGlow, rightEye, rightPupil];
       allParts.forEach(part => this.gameObjects.push(part));
@@ -364,20 +364,20 @@ export class SpookyBackground {
       const flameSize = 12 * pos.size;
 
       // Candle body (simple dark rectangle)
-      const candleBody = this.scene.add.rectangle(pos.x, pos.y, 8 * pos.size, candleHeight, 0x2a1a1a, 0.6);
+      const candleBody = this.scene.add.rectangle(pos.x, pos.y, 8 * pos.size, candleHeight, PALETTE.spooky.candleBody, 0.6);
       this.gameObjects.push(candleBody);
 
       // Flame outer glow (largest, dimmest)
-      const flameGlow3 = this.scene.add.ellipse(pos.x, pos.y - candleHeight / 2 - flameSize * 0.8, flameSize * 3, flameSize * 4, 0xff4400, 0.08);
+      const flameGlow3 = this.scene.add.ellipse(pos.x, pos.y - candleHeight / 2 - flameSize * 0.8, flameSize * 3, flameSize * 4, PALETTE.spooky.flameOuter, 0.08);
 
       // Flame medium glow
-      const flameGlow2 = this.scene.add.ellipse(pos.x, pos.y - candleHeight / 2 - flameSize * 0.7, flameSize * 2, flameSize * 2.5, 0xff6600, 0.15);
+      const flameGlow2 = this.scene.add.ellipse(pos.x, pos.y - candleHeight / 2 - flameSize * 0.7, flameSize * 2, flameSize * 2.5, PALETTE.spooky.flameMid, 0.15);
 
       // Flame inner glow
-      const flameGlow1 = this.scene.add.ellipse(pos.x, pos.y - candleHeight / 2 - flameSize * 0.6, flameSize, flameSize * 1.5, 0xff8800, 0.3);
+      const flameGlow1 = this.scene.add.ellipse(pos.x, pos.y - candleHeight / 2 - flameSize * 0.6, flameSize, flameSize * 1.5, PALETTE.spooky.flameInner, 0.3);
 
       // Flame core (brightest)
-      const flameCore = this.scene.add.ellipse(pos.x, pos.y - candleHeight / 2 - flameSize * 0.5, flameSize * 0.4, flameSize * 0.8, 0xffcc00, 0.6);
+      const flameCore = this.scene.add.ellipse(pos.x, pos.y - candleHeight / 2 - flameSize * 0.5, flameSize * 0.4, flameSize * 0.8, PALETTE.spooky.flameCore, 0.6);
 
       const allFlame = [flameGlow3, flameGlow2, flameGlow1, flameCore];
       allFlame.forEach(f => this.gameObjects.push(f));
@@ -448,7 +448,7 @@ export class SpookyBackground {
       this.gameObjects.push(ghost);
 
       // Outer glow behind ghost
-      const outerGlow = this.scene.add.circle(0, 0, size * 1.2, 0x8866cc, 0.08);
+      const outerGlow = this.scene.add.circle(0, 0, size * 1.2, PALETTE.spooky.ghostGlow, 0.08);
       ghost.add(outerGlow);
 
       // Ghost emoji with ethereal effect

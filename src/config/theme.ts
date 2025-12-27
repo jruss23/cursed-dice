@@ -128,6 +128,81 @@ export const PALETTE = {
     teal: 0x4ecdc4,
     yellow: 0xffe66d,
   },
+
+  // === BLUE (Info/Normal difficulty) ===
+  blue: {
+    900: 0x0a1a2a,
+    800: 0x142838,
+    700: 0x1e3a4e,
+    600: 0x2a3a5a,
+    500: 0x4488ff,
+    400: 0x55aaff,
+    300: 0x77ccff,
+    200: 0x99ddff,
+    100: 0xbbeeFF,
+  },
+
+  // === SPOOKY MENU COLORS ===
+  spooky: {
+    // Background gradients
+    bgDark: 0x050510,
+    bgPurpleTint: 0x100520,
+    bgGreenTint: 0x051510,
+
+    // Ambient glow spots
+    glowPurple: 0x2a0a3a,
+    glowGreen: 0x0a2a1a,
+    glowDeepPurple: 0x1a0a2a,
+
+    // Floating elements
+    skullGlow: 0x6633aa,
+    diceOuterGlow: 0x6600aa,
+    diceGlow: 0x8833bb,
+    diceBg: 0x1a0a2a,
+    diceBorder: 0x6a3a8a,
+    dicePip: 0xaa66cc,
+
+    // Fog
+    fog: 0x2a1a3a,
+
+    // Eyes
+    eyeOuterGlow: 0xff0000,
+    eyeGlow: 0xff2200,
+    eyeCore: 0xff4400,
+    eyePupil: 0xffff00,
+
+    // Candles
+    candleBody: 0x2a1a1a,
+    flameOuter: 0xff4400,
+    flameMid: 0xff6600,
+    flameInner: 0xff8800,
+    flameCore: 0xffcc00,
+
+    // Ghosts
+    ghostGlow: 0x8866cc,
+  },
+
+  // === MENU BUTTON COLORS ===
+  menu: {
+    // Learn to Play button (green accent)
+    playGlow: 0x4a9a4a,
+    playBg: 0x2a4a2a,
+    playBgHover: 0x3a5a3a,
+    playBorder: 0x4a9a4a,
+    playBorderHover: 0x6aba6a,
+  },
+
+  // === GAMEPLAY BACKGROUND ===
+  gameplay: {
+    // Background gradient corners
+    bgTopLeft: 0x0a0a1a,
+    bgTopRight: 0x0a0a1a,
+    bgBottomLeft: 0x0a1a2a,
+    bgBottomRight: 0x1a0a2a,
+
+    // Ambient particles
+    particle: 0x4a4a8a,
+  },
 } as const;
 
 // =============================================================================

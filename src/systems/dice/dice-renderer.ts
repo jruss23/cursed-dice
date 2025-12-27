@@ -83,7 +83,7 @@ export class DiceRenderer {
     const size = this.sizeConfig.size;
 
     // Shadow beneath die (centered)
-    const shadow = this.scene.add.ellipse(0, size / 2 + 6, size * 0.85, size * 0.25, 0x000000, 0.4);
+    const shadow = this.scene.add.ellipse(0, size / 2 + 6, size * 0.85, size * 0.25, PALETTE.black, 0.4);
     container.add(shadow);
 
     // Glow effect (behind die)
@@ -101,7 +101,7 @@ export class DiceRenderer {
 
     // Shine/highlight effect
     const shine = this.scene.add.graphics();
-    shine.fillStyle(0xffffff, 0.06);
+    shine.fillStyle(PALETTE.white, 0.06);
     shine.fillRoundedRect(-size / 2 + 5, -size / 2 + 5, size - 16, 10, 3);
     container.add(shine);
 
@@ -138,7 +138,7 @@ export class DiceRenderer {
     cursedIcon.fillStyle(cursedColor, 1);
     cursedIcon.fillCircle(0, iconY - 2, 6);
     cursedIcon.fillRoundedRect(-4, iconY + 2, 8, 4, 2);
-    cursedIcon.fillStyle(0x000000, 1);
+    cursedIcon.fillStyle(PALETTE.black, 1);
     cursedIcon.fillCircle(-2, iconY - 3, 1.5);
     cursedIcon.fillCircle(2, iconY - 3, 1.5);
     cursedIcon.setVisible(false);
@@ -228,7 +228,7 @@ export class DiceRenderer {
       sprite.bg.setFillStyle(PALETTE.purple[600]);
       sprite.bg.setStrokeStyle(3, PALETTE.purple[400]);
       sprite.innerBg.setFillStyle(PALETTE.purple[700]);
-      this.drawPips(sprite.pipsGraphics, value, 0xffffff);
+      this.drawPips(sprite.pipsGraphics, value, PALETTE.white);
       sprite.pipsGraphics.setAlpha(1);
 
       // Draw purple glow
@@ -527,7 +527,7 @@ export class DiceRenderer {
     });
 
     // Impact ring
-    const ring = this.scene.add.circle(sprite.container.x, sprite.originalY, 20, 0xffffff, 0);
+    const ring = this.scene.add.circle(sprite.container.x, sprite.originalY, 20, PALETTE.white, 0);
     ring.setStrokeStyle(2, PALETTE.purple[400], 0.8);
 
     this.scene.tweens.add({

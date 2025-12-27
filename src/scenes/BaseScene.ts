@@ -10,7 +10,7 @@
  */
 
 import Phaser from 'phaser';
-import { SIZES, getViewportMetrics, type ViewportMetrics } from '@/config';
+import { SIZES, PALETTE, getViewportMetrics, type ViewportMetrics } from '@/config';
 import { createLogger } from '@/systems/logger';
 
 type Logger = ReturnType<typeof createLogger>;
@@ -72,7 +72,7 @@ export abstract class BaseScene extends Phaser.Scene {
     const transitionOverlay = this.add.rectangle(
       width / 2, height / 2,
       width + 100, height + 100,
-      0x000000, 1
+      PALETTE.black, 1
     );
     transitionOverlay.setDepth(1000);
 

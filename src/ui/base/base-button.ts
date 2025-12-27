@@ -91,9 +91,9 @@ const BUTTON_COLORS: Record<ButtonStyle, ButtonColors> = {
     textDisabled: COLORS.TEXT_MUTED,
   },
   ghost: {
-    bg: 0x000000,
+    bg: PALETTE.black,
     bgHover: PALETTE.purple[800],
-    bgDisabled: 0x000000,
+    bgDisabled: PALETTE.black,
     border: PALETTE.purple[600],
     borderHover: PALETTE.purple[500],
     glow: PALETTE.purple[600],

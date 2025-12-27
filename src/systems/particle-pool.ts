@@ -4,6 +4,7 @@
  */
 
 import Phaser from 'phaser';
+import { PALETTE } from '@/config';
 
 const POOL_SIZE = 30; // Max particles we'll ever need at once
 
@@ -22,7 +23,7 @@ export class ParticlePool {
    */
   private createPool(): void {
     for (let i = 0; i < POOL_SIZE; i++) {
-      const particle = this.scene.add.circle(0, 0, 5, 0xffffff, 0);
+      const particle = this.scene.add.circle(0, 0, 5, PALETTE.white, 0);
       particle.setVisible(false);
       particle.setActive(false);
       this.pool.push(particle);

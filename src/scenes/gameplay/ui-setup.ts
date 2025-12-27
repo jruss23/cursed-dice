@@ -34,7 +34,7 @@ import type { MusicManager } from '@/systems/music-manager';
 export function createAnimatedBackground(scene: Phaser.Scene, width: number, height: number): void {
   // Dark gradient base
   const bg = scene.add.graphics();
-  bg.fillGradientStyle(0x0a0a1a, 0x0a0a1a, 0x0a1a2a, 0x1a0a2a, 1);
+  bg.fillGradientStyle(PALETTE.gameplay.bgTopLeft, PALETTE.gameplay.bgTopRight, PALETTE.gameplay.bgBottomLeft, PALETTE.gameplay.bgBottomRight, 1);
   bg.fillRect(0, 0, width, height);
 
   // Subtle ambient particles
@@ -43,7 +43,7 @@ export function createAnimatedBackground(scene: Phaser.Scene, width: number, hei
     const y = Phaser.Math.Between(0, height);
     const size = Phaser.Math.Between(2, 6);
 
-    const particle = scene.add.circle(x, y, size, 0x4a4a8a, 0.1);
+    const particle = scene.add.circle(x, y, size, PALETTE.gameplay.particle, 0.1);
 
     scene.tweens.add({
       targets: particle,
@@ -59,7 +59,7 @@ export function createAnimatedBackground(scene: Phaser.Scene, width: number, hei
 
   // Corner vignettes
   const vignette = scene.add.graphics();
-  vignette.fillStyle(0x000000, 0.3);
+  vignette.fillStyle(PALETTE.black, 0.3);
   vignette.fillCircle(0, 0, 200);
   vignette.fillCircle(width, 0, 200);
   vignette.fillCircle(0, height, 200);

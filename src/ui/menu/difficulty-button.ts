@@ -65,7 +65,7 @@ export class DifficultyButton {
     // Outer glow (pulsing) - much smaller on mobile to avoid overlap
     const glowStroke = isMobile ? SIZES.GLOW_STROKE_SMALL : SIZES.GLOW_STROKE_LARGE;
     const glowPadding = isMobile ? 8 : 20;
-    const outerGlow = this.scene.add.rectangle(0, 0, buttonWidth + glowPadding, buttonHeight + glowPadding, 0x000000, 0);
+    const outerGlow = this.scene.add.rectangle(0, 0, buttonWidth + glowPadding, buttonHeight + glowPadding, PALETTE.black, 0);
     outerGlow.setStrokeStyle(glowStroke, Phaser.Display.Color.HexStringToColor(config.color).color, 0.2);
     this.container.add(outerGlow);
 
@@ -78,7 +78,7 @@ export class DifficultyButton {
     this.container.add(bg);
 
     // Inner highlight
-    const innerHighlight = this.scene.add.rectangle(0, -buttonHeight / 4, buttonWidth - 20, buttonHeight / 3, 0xffffff, 0.03);
+    const innerHighlight = this.scene.add.rectangle(0, -buttonHeight / 4, buttonWidth - 20, buttonHeight / 3, PALETTE.white, 0.03);
     this.container.add(innerHighlight);
 
     // Decorative corner accents

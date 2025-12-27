@@ -154,9 +154,10 @@ export class TutorialCompleteOverlay {
 
   private buildScoresSection(panelWidth: number, totalScore: number, passed: boolean): void {
     const centerX = panelWidth / 2;
-    const scoreY = END_SCREEN.SCORE_Y;
+    // Center score in the space between dividers (no subtext in tutorial)
+    const sectionCenter = (END_SCREEN.DIVIDER_1_Y + END_SCREEN.DIVIDER_2_Y) / 2;
 
-    const scoreLabel = createText(this.scene, centerX, scoreY + END_SCREEN.SCORE_LABEL_OFFSET, 'FINAL SCORE', {
+    const scoreLabel = createText(this.scene, centerX, sectionCenter - 20, 'FINAL SCORE', {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SECONDARY,
@@ -164,7 +165,7 @@ export class TutorialCompleteOverlay {
     scoreLabel.setOrigin(0.5, 0.5);
     this.panel.add(scoreLabel);
 
-    const scoreValue = createText(this.scene, centerX, scoreY + END_SCREEN.SCORE_VALUE_OFFSET, `${totalScore}`, {
+    const scoreValue = createText(this.scene, centerX, sectionCenter + 15, `${totalScore}`, {
       fontSize: FONTS.SIZE_MODE_TITLE,
       fontFamily: FONTS.FAMILY,
       color: passed ? COLORS.TEXT_SUCCESS : COLORS.TEXT_DANGER,

@@ -36,8 +36,8 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
     timeMs: 3 * 60 * 1000,
     timeDisplay: '3 min',
     color: '#4488ff',
-    hoverColor: 0x55aaff,
-    bgColor: 0x2a3a5a,
+    hoverColor: PALETTE.blue[400],
+    bgColor: PALETTE.blue[600],
   },
   intense: {
     key: 'intense',

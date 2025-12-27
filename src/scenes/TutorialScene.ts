@@ -221,7 +221,7 @@ export class TutorialScene extends Phaser.Scene {
 
   private createBackground(width: number, height: number): void {
     const bg = this.add.graphics();
-    bg.fillGradientStyle(0x0a0a1a, 0x0a0a1a, 0x0a1a2a, 0x1a0a2a, 1);
+    bg.fillGradientStyle(PALETTE.gameplay.bgTopLeft, PALETTE.gameplay.bgTopRight, PALETTE.gameplay.bgBottomLeft, PALETTE.gameplay.bgBottomRight, 1);
     bg.fillRect(0, 0, width, height);
   }
 

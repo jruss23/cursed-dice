@@ -11,6 +11,7 @@ import {
   FONTS,
   SIZES,
   COLORS,
+  PALETTE,
   FLASH,
 } from '@/config';
 import { version } from '../../package.json';
@@ -291,12 +292,12 @@ export class MenuScene extends BaseScene {
     container.setDepth(50);
 
     // Outer glow for emphasis
-    const glow = this.add.rectangle(0, 0, btnWidth + 8, btnHeight + 8, 0x4a9a4a, 0.15);
+    const glow = this.add.rectangle(0, 0, btnWidth + 8, btnHeight + 8, PALETTE.menu.playGlow, 0.15);
     container.add(glow);
 
     // Background with green accent (stands out from purple theme)
-    const bg = this.add.rectangle(0, 0, btnWidth, btnHeight, 0x2a4a2a, 0.9);
-    bg.setStrokeStyle(2, 0x4a9a4a, 0.8);
+    const bg = this.add.rectangle(0, 0, btnWidth, btnHeight, PALETTE.menu.playBg, 0.9);
+    bg.setStrokeStyle(2, PALETTE.menu.playBorder, 0.8);
     bg.setInteractive({ useHandCursor: true });
     container.add(bg);
 
@@ -324,13 +325,13 @@ export class MenuScene extends BaseScene {
 
     // Hover effects
     bg.on('pointerover', () => {
-      bg.setFillStyle(0x3a5a3a, 0.95);
-      bg.setStrokeStyle(2, 0x6aba6a, 1);
+      bg.setFillStyle(PALETTE.menu.playBgHover, 0.95);
+      bg.setStrokeStyle(2, PALETTE.menu.playBorderHover, 1);
     });
 
     bg.on('pointerout', () => {
-      bg.setFillStyle(0x2a4a2a, 0.9);
-      bg.setStrokeStyle(2, 0x4a9a4a, 0.8);
+      bg.setFillStyle(PALETTE.menu.playBg, 0.9);
+      bg.setStrokeStyle(2, PALETTE.menu.playBorder, 0.8);
     });
 
     bg.on('pointerdown', () => {
@@ -364,23 +365,23 @@ export class MenuScene extends BaseScene {
     }
 
     const vignette = this.add.graphics();
-    vignette.fillStyle(0x000000, 1);
+    vignette.fillStyle(PALETTE.black, 1);
 
     // Create vignette around edges - scale with viewport
     const thickness = Math.min(100, height * 0.12);
 
     // Top
-    vignette.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0.8, 0.8, 0, 0);
+    vignette.fillGradientStyle(PALETTE.black, PALETTE.black, PALETTE.black, PALETTE.black, 0.8, 0.8, 0, 0);
     vignette.fillRect(0, 0, width, thickness);
 
     // Bottom
-    vignette.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0, 0, 0.8, 0.8);
+    vignette.fillGradientStyle(PALETTE.black, PALETTE.black, PALETTE.black, PALETTE.black, 0, 0, 0.8, 0.8);
     vignette.fillRect(0, height - thickness, width, thickness);
 
     // Corners with radial darkness - scale with viewport
     const cornerRadius = Math.min(250, Math.min(width, height) * 0.3);
     const cornerGraphics = this.add.graphics();
-    cornerGraphics.fillStyle(0x000000, 0.5);
+    cornerGraphics.fillStyle(PALETTE.black, 0.5);
     cornerGraphics.fillCircle(0, 0, cornerRadius);
     cornerGraphics.fillCircle(width, 0, cornerRadius);
     cornerGraphics.fillCircle(0, height, cornerRadius);
