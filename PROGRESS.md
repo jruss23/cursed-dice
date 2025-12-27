@@ -522,22 +522,44 @@ Monitoring for now. If DPR 3 quality complaints arise, consider:
 
 ### Game Size Review - COMPLETE
 - **Total build**: 11 MB (mostly music)
-- **JS bundle**: 1.4 MB / 368 KB gzipped
+- **JS bundle**: 1.4 MB / 389 KB gzipped
 - **Initial load**: ~1.1 MB (menu music + JS)
 - **Lazy loading**: Game tracks load on-demand ✓
 - **Verdict**: Well optimized for a Phaser game
 
-### Files Added
-- `src/ui/menu/menu-settings-panel.ts` - Cog button + settings overlay
+### Magic Color Extraction - COMPLETE
+Extracted all hardcoded hex colors to `PALETTE` in `config/theme.ts`:
 
-### Files Modified
-- `src/systems/music-manager.ts` - Mute/unmute toggle, `isMusicEnabled()` export
-- `src/systems/sfx-manager.ts` - Already had `isSFXEnabled()` export
-- `src/scenes/GameplayScene.ts` - Warning siren respects SFX toggle
-- `src/scenes/MenuScene.ts` - Settings panel, music toggle callback
-- `src/scenes/TutorialScene.ts` - Respects music setting
-- `src/ui/pause-menu.ts` - Secondary style for audio toggles, QUIT label
-- `src/ui/menu/index.ts` - Export MenuSettingsPanel
+| New PALETTE Section | Purpose |
+|---------------------|---------|
+| `PALETTE.blue` | Normal difficulty colors (was hardcoded 0x55aaff, 0x2a3a5a) |
+| `PALETTE.spooky` | Menu atmospheric effects (eyes, candles, fog, floating dice, ghosts) |
+| `PALETTE.menu` | Learn to Play button colors |
+| `PALETTE.gameplay` | Background gradient corners and ambient particles |
+
+**Files updated to use PALETTE:**
+- `spooky-background.ts` - ~30 hardcoded colors → `PALETTE.spooky.*`
+- `MenuScene.ts` - Play button + vignette → `PALETTE.menu.*`, `PALETTE.black`
+- `gameplay/ui-setup.ts` - Background gradient → `PALETTE.gameplay.*`
+- `dice-renderer.ts` - Shadow, shine, pips → `PALETTE.black`, `PALETTE.white`
+- `difficulty-button.ts` - Glow, highlight → `PALETTE.black`, `PALETTE.white`
+- `difficulties.ts` - Normal difficulty → `PALETTE.blue[400/600]`
+- `base-button.ts` - Ghost style bg → `PALETTE.black`
+- `TutorialScene.ts` - Background gradient → `PALETTE.gameplay.*`
+- `BaseScene.ts` - Transition overlay → `PALETTE.black`
+- `particle-pool.ts` - Particle color → `PALETTE.white`
+
+**Result:** All hex colors now live in `theme.ts` only - single source of truth.
+
+### Tutorial Complete Overlay - IMPROVED
+- [x] **Centered score in divided space** - Score was too high when no subtext present
+- [x] **Calculated section center** - `(DIVIDER_1_Y + DIVIDER_2_Y) / 2` for proper centering
+
+### Code Cleanup
+- [x] **Fixed ESLint warning** - Removed unused `e` variable in catch block (`music-manager.ts`)
+- [x] **Zero lint warnings** - Clean ESLint pass
+
+### Current Version: v1.1.13
 
 ---
 
