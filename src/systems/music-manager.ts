@@ -162,7 +162,7 @@ export class MusicManager {
         log.log('Audio context suspended, attempting resume...');
         await ctx.resume();
       }
-    } catch (e) {
+    } catch {
       // Not WebAudio or context not available - that's fine
     }
 
