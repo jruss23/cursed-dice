@@ -22,3 +22,6 @@ _backup/
 .env
 .env.local
 coverage/
+
+# Dev audio processing (intermediate files)
+dev-assets/audio-sources/test-sources/processed/
