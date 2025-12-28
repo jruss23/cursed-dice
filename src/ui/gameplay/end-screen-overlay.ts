@@ -4,9 +4,129 @@
  */
 
 import Phaser from 'phaser';
-import { FONTS, PALETTE, COLORS, SIZES, TIMING, DEPTH, CELEBRATION, END_SCREEN, FLASH, getViewportMetrics } from '@/config';
+import { FONTS, PALETTE, COLORS, SIZES, TIMING, DEPTH, CELEBRATION, END_SCREEN, FLASH } from '@/config';
 import { createText, hexToRgb } from '@/ui/ui-utils';
 import { MODE_CONFIGS, type GameMode } from '@/systems/game-progression';
+
+// =============================================================================
+// LAYOUT CALCULATION - Group-based positioning
+// =============================================================================
+
+interface EndScreenLayout {
+  panelWidth: number;
+  panelHeight: number;
+  titleY: number;
+  subtitleY: number;
+  previewBoxY: number;
+  divider1Y: number;
+  scoreLabelY: number;
+  scoreValueY: number;
+  scoreRoundY: number;
+  divider2Y: number;
+  buttonY: number;
+  buttonWidth: number;
+  buttonHeight: number;
+  buttonOffset: number;
+  previewBoxHeight: number;
+}
+
+function getEndScreenLayout(showPreview: boolean): EndScreenLayout {
+  const S = END_SCREEN;
+  const panelWidth = S.PANEL_WIDTH;
+  const buttonHeight = S.BUTTON_HEIGHT;
+  const previewBoxHeight = showPreview ? S.PREVIEW_BOX_HEIGHT : 0;
+
+  // Calculate total content height
+  let contentHeight = 0;
+
+  // Title group
+  contentHeight += S.TITLE_HEIGHT;
+  contentHeight += S.GAP_TITLE_TO_SUBTITLE;
+  contentHeight += S.SUBTITLE_HEIGHT;
+
+  // Preview box (conditional)
+  if (showPreview) {
+    contentHeight += S.GAP_SUBTITLE_TO_PREVIEW;
+    contentHeight += previewBoxHeight;
+    contentHeight += S.GAP_PREVIEW_TO_DIVIDER;
+  } else {
+    contentHeight += S.GAP_SUBTITLE_TO_DIVIDER;
+  }
+
+  // Divider 1
+  contentHeight += S.DIVIDER_HEIGHT;
+  contentHeight += S.GAP_DIVIDER_TO_SCORES;
+
+  // Score group
+  contentHeight += S.SCORE_LABEL_HEIGHT;
+  contentHeight += S.GAP_SCORE_LABEL_TO_VALUE;
+  contentHeight += S.SCORE_VALUE_HEIGHT;
+  contentHeight += S.GAP_SCORE_VALUE_TO_ROUND;
+  contentHeight += S.SCORE_ROUND_HEIGHT;
+  contentHeight += S.GAP_SCORES_TO_DIVIDER;
+
+  // Divider 2
+  contentHeight += S.DIVIDER_HEIGHT;
+  contentHeight += S.GAP_DIVIDER_TO_BUTTON;
+
+  // Button
+  contentHeight += buttonHeight;
+
+  const panelHeight = contentHeight + S.PANEL_PADDING * 2;
+
+  // Calculate Y positions (relative to panel top-left at 0,0)
+  let y = S.PANEL_PADDING;
+
+  const titleY = y + S.TITLE_HEIGHT / 2;
+  y += S.TITLE_HEIGHT + S.GAP_TITLE_TO_SUBTITLE;
+
+  const subtitleY = y + S.SUBTITLE_HEIGHT / 2;
+  y += S.SUBTITLE_HEIGHT;
+
+  let previewBoxY = 0;
+  if (showPreview) {
+    y += S.GAP_SUBTITLE_TO_PREVIEW;
+    previewBoxY = y + previewBoxHeight / 2;
+    y += previewBoxHeight + S.GAP_PREVIEW_TO_DIVIDER;
+  } else {
+    y += S.GAP_SUBTITLE_TO_DIVIDER;
+  }
+
+  const divider1Y = y + S.DIVIDER_HEIGHT / 2;
+  y += S.DIVIDER_HEIGHT + S.GAP_DIVIDER_TO_SCORES;
+
+  const scoreLabelY = y + S.SCORE_LABEL_HEIGHT / 2;
+  y += S.SCORE_LABEL_HEIGHT + S.GAP_SCORE_LABEL_TO_VALUE;
+
+  const scoreValueY = y + S.SCORE_VALUE_HEIGHT / 2;
+  y += S.SCORE_VALUE_HEIGHT + S.GAP_SCORE_VALUE_TO_ROUND;
+
+  const scoreRoundY = y + S.SCORE_ROUND_HEIGHT / 2;
+  y += S.SCORE_ROUND_HEIGHT + S.GAP_SCORES_TO_DIVIDER;
+
+  const divider2Y = y + S.DIVIDER_HEIGHT / 2;
+  y += S.DIVIDER_HEIGHT + S.GAP_DIVIDER_TO_BUTTON;
+
+  const buttonY = y + buttonHeight / 2;
+
+  return {
+    panelWidth,
+    panelHeight,
+    titleY,
+    subtitleY,
+    previewBoxY,
+    divider1Y,
+    scoreLabelY,
+    scoreValueY,
+    scoreRoundY,
+    divider2Y,
+    buttonY,
+    buttonWidth: S.BUTTON_WIDTH,
+    buttonHeight,
+    buttonOffset: S.BUTTON_OFFSET,
+    previewBoxHeight,
+  };
+}
 
 export interface EndScreenConfig {
   passed: boolean;
@@ -33,11 +153,13 @@ export class EndScreenOverlay {
   private overlay: Phaser.GameObjects.Rectangle;
   private panel: Phaser.GameObjects.Container;
   private tweens: Phaser.Tweens.Tween[] = [];
-  private isMobile: boolean = false;
   private celebrationParticles: Phaser.GameObjects.Graphics[] = [];
   private destroyed: boolean = false;
   private borderAnimationId: number | null = null;
   private delayedCalls: Phaser.Time.TimerEvent[] = [];
+
+  // Layout calculated dynamically
+  private layout: EndScreenLayout;
 
   // Elements to animate during victory color transition
   private panelBg: Phaser.GameObjects.Rectangle | null = null;
@@ -63,23 +185,19 @@ export class EndScreenOverlay {
   ) {
     this.scene = scene;
     const { width, height } = this.scene.cameras.main;
-    const metrics = getViewportMetrics(scene);
-    this.isMobile = metrics.isMobile;
 
     // Dark overlay - blocks clicks to elements behind (like pause button)
     this.overlay = this.scene.add.rectangle(width / 2, height / 2, width, height, PALETTE.purple[900], 0.95);
     this.overlay.setInteractive();
     this.overlay.setDepth(DEPTH.OVERLAY);
 
-    // Panel dimensions - responsive for mobile
-    // Add extra height when showing next mode preview (passed but not final)
+    // Calculate layout based on whether preview is shown
     const showPreview = config.passed && !config.isRunComplete;
-    const previewExtraHeight = showPreview ? (this.isMobile ? 80 : 90) : 0;
+    this.layout = getEndScreenLayout(showPreview);
 
-    const panelWidth = this.isMobile
-      ? Math.min(END_SCREEN.PANEL_WIDTH_MOBILE, width - END_SCREEN.PANEL_MARGIN)
-      : END_SCREEN.PANEL_WIDTH_DESKTOP;
-    const panelHeight = (this.isMobile ? END_SCREEN.PANEL_HEIGHT_MOBILE : END_SCREEN.PANEL_HEIGHT_DESKTOP) + previewExtraHeight;
+    // Constrain panel width to viewport
+    const panelWidth = Math.min(this.layout.panelWidth, width - END_SCREEN.PANEL_MARGIN);
+    const panelHeight = this.layout.panelHeight;
     const panelX = (width - panelWidth) / 2;
     const panelY = (height - panelHeight) / 2;
 
@@ -103,6 +221,7 @@ export class EndScreenOverlay {
     callbacks: EndScreenCallbacks
   ): void {
     const { passed, isRunComplete, showBlessingChoice, modeScore, totalScore, currentMode, completed, passThreshold } = config;
+    const L = this.layout;
 
     this.panelBg = this.scene.add.rectangle(
       panelWidth / 2, panelHeight / 2,
@@ -121,8 +240,7 @@ export class EndScreenOverlay {
     );
 
     // Title with glow
-    const titleY = END_SCREEN.TITLE_Y;
-    this.titleGlow = createText(this.scene, panelWidth / 2, titleY, titleText, {
+    this.titleGlow = createText(this.scene, panelWidth / 2, L.titleY, titleText, {
       fontSize: FONTS.SIZE_HEADING,
       fontFamily: FONTS.FAMILY,
       color: titleColor,
@@ -133,7 +251,7 @@ export class EndScreenOverlay {
     this.titleGlow.setBlendMode(Phaser.BlendModes.ADD);
     this.panel.add(this.titleGlow);
 
-    this.titleText = createText(this.scene, panelWidth / 2, titleY, titleText, {
+    this.titleText = createText(this.scene, panelWidth / 2, L.titleY, titleText, {
       fontSize: FONTS.SIZE_HEADING,
       fontFamily: FONTS.FAMILY,
       color: titleColor,
@@ -143,7 +261,7 @@ export class EndScreenOverlay {
     this.panel.add(this.titleText);
 
     // Subtitle
-    this.subtitleText = createText(this.scene, panelWidth / 2, titleY + END_SCREEN.SUBTITLE_OFFSET, subtitleText, {
+    this.subtitleText = createText(this.scene, panelWidth / 2, L.subtitleY, subtitleText, {
       fontSize: FONTS.SIZE_BODY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SECONDARY,
@@ -156,39 +274,38 @@ export class EndScreenOverlay {
       const nextModeNum = (currentMode + 1) as GameMode;
       const nextMode = MODE_CONFIGS[nextModeNum];
       if (nextMode) {
-        const previewBoxY = titleY + END_SCREEN.SUBTITLE_OFFSET + (this.isMobile ? 55 : 60);
         const previewBoxWidth = panelWidth - 40;
-        const previewBoxHeight = this.isMobile ? 58 : 65;
 
         // Red warning box
         const previewBox = this.scene.add.rectangle(
-          panelWidth / 2, previewBoxY,
-          previewBoxWidth, previewBoxHeight,
+          panelWidth / 2, L.previewBoxY,
+          previewBoxWidth, L.previewBoxHeight,
           PALETTE.red[800], 0.4
         );
         previewBox.setStrokeStyle(1, PALETTE.red[500], 0.5);
         this.panel.add(previewBox);
 
-        // Warning icons + title
-        const row1Y = previewBoxY - (this.isMobile ? 14 : 16);
-        const iconOffset = this.isMobile ? 20 : 30;
+        // Warning icons + title (inside preview box)
+        const row1Offset = 14;
+        const row1Y = L.previewBoxY - row1Offset;
+        const iconOffset = 20;
 
         const iconLeft = createText(this.scene, panelWidth / 2 - previewBoxWidth / 2 + iconOffset, row1Y, '⚠️', {
-          fontSize: this.isMobile ? FONTS.SIZE_SMALL : FONTS.SIZE_BODY,
+          fontSize: FONTS.SIZE_SMALL,
           fontFamily: FONTS.FAMILY,
         });
         iconLeft.setOrigin(0.5, 0.5);
         this.panel.add(iconLeft);
 
         const iconRight = createText(this.scene, panelWidth / 2 + previewBoxWidth / 2 - iconOffset, row1Y, '⚠️', {
-          fontSize: this.isMobile ? FONTS.SIZE_SMALL : FONTS.SIZE_BODY,
+          fontSize: FONTS.SIZE_SMALL,
           fontFamily: FONTS.FAMILY,
         });
         iconRight.setOrigin(0.5, 0.5);
         this.panel.add(iconRight);
 
         const nextTitle = createText(this.scene, panelWidth / 2, row1Y, `NEXT: ${nextMode.name}`, {
-          fontSize: this.isMobile ? FONTS.SIZE_LABEL : FONTS.SIZE_SMALL,
+          fontSize: FONTS.SIZE_LABEL,
           fontFamily: FONTS.FAMILY,
           color: COLORS.TEXT_DANGER,
           fontStyle: 'bold',
@@ -197,9 +314,9 @@ export class EndScreenOverlay {
         this.panel.add(nextTitle);
 
         // Mode description
-        const row2Y = previewBoxY + (this.isMobile ? 14 : 16);
+        const row2Y = L.previewBoxY + row1Offset;
         const nextDesc = createText(this.scene, panelWidth / 2, row2Y, nextMode.description, {
-          fontSize: this.isMobile ? FONTS.SIZE_TINY : FONTS.SIZE_SMALL,
+          fontSize: FONTS.SIZE_TINY,
           fontFamily: FONTS.FAMILY,
           color: COLORS.TEXT_WARNING,
           wordWrap: { width: previewBoxWidth - 20 },
@@ -210,24 +327,21 @@ export class EndScreenOverlay {
       }
     }
 
-    // Calculate Y offset for everything below (when preview is shown)
-    const yOffset = (passed && !isRunComplete) ? (this.isMobile ? 80 : 90) : 0;
-
     // Divider line
-    const divider1 = this.scene.add.rectangle(panelWidth / 2, END_SCREEN.DIVIDER_1_Y + yOffset, panelWidth - 60, 1, PALETTE.purple[500], 0.4);
+    const divider1 = this.scene.add.rectangle(panelWidth / 2, L.divider1Y, panelWidth - 60, 1, PALETTE.purple[500], 0.4);
     this.panel.add(divider1);
     this.dividers.push(divider1);
 
     // Scores section
-    this.buildScoresSection(panelWidth, modeScore, totalScore, passed, yOffset);
+    this.buildScoresSection(panelWidth, modeScore, totalScore, passed);
 
     // Divider before buttons
-    const divider2 = this.scene.add.rectangle(panelWidth / 2, END_SCREEN.DIVIDER_2_Y + yOffset, panelWidth - 60, 1, PALETTE.purple[500], 0.4);
+    const divider2 = this.scene.add.rectangle(panelWidth / 2, L.divider2Y, panelWidth - 60, 1, PALETTE.purple[500], 0.4);
     this.panel.add(divider2);
     this.dividers.push(divider2);
 
     // Buttons section
-    this.buildButtons(panelWidth, isRunComplete, passed, showBlessingChoice, callbacks, yOffset);
+    this.buildButtons(panelWidth, isRunComplete, passed, showBlessingChoice, callbacks);
 
   }
 
@@ -294,13 +408,12 @@ export class EndScreenOverlay {
     panelWidth: number,
     modeScore: number,
     totalScore: number,
-    passed: boolean,
-    yOffset: number = 0
+    passed: boolean
   ): void {
     const centerX = panelWidth / 2;
-    const scoreY = END_SCREEN.SCORE_Y + yOffset;
+    const L = this.layout;
 
-    this.scoreLabelText = createText(this.scene, centerX, scoreY + END_SCREEN.SCORE_LABEL_OFFSET, 'FINAL SCORE', {
+    this.scoreLabelText = createText(this.scene, centerX, L.scoreLabelY, 'FINAL SCORE', {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SECONDARY,
@@ -308,7 +421,7 @@ export class EndScreenOverlay {
     this.scoreLabelText.setOrigin(0.5, 0.5);
     this.panel.add(this.scoreLabelText);
 
-    this.scoreValueText = createText(this.scene, centerX, scoreY + END_SCREEN.SCORE_VALUE_OFFSET, `${totalScore}`, {
+    this.scoreValueText = createText(this.scene, centerX, L.scoreValueY, `${totalScore}`, {
       fontSize: FONTS.SIZE_MODE_TITLE,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_ACCENT,
@@ -318,7 +431,7 @@ export class EndScreenOverlay {
     this.panel.add(this.scoreValueText);
 
     // Round score - smaller, underneath
-    this.roundLabelText = createText(this.scene, centerX, scoreY + END_SCREEN.SCORE_ROUND_OFFSET, `This round: +${modeScore}`, {
+    this.roundLabelText = createText(this.scene, centerX, L.scoreRoundY, `This round: +${modeScore}`, {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: passed ? COLORS.TEXT_SUCCESS : COLORS.TEXT_DANGER,
@@ -332,11 +445,11 @@ export class EndScreenOverlay {
     isRunComplete: boolean,
     passed: boolean,
     showBlessingChoice: boolean,
-    callbacks: EndScreenCallbacks,
-    yOffset: number = 0
+    callbacks: EndScreenCallbacks
   ): void {
-    const buttonY = (this.isMobile ? END_SCREEN.BUTTON_Y_MOBILE : END_SCREEN.BUTTON_Y_DESKTOP) + yOffset;
-    const buttonOffset = this.isMobile ? END_SCREEN.BUTTON_OFFSET_MOBILE : END_SCREEN.BUTTON_OFFSET_DESKTOP;
+    const L = this.layout;
+    const buttonY = L.buttonY;
+    const buttonOffset = L.buttonOffset;
 
     if (isRunComplete) {
       // Victory - single menu button (centered, solid gold style)
@@ -383,8 +496,8 @@ export class EndScreenOverlay {
     onClick: () => void,
     style: ButtonStyle = 'primary'
   ): { bg: Phaser.GameObjects.Rectangle; text: Phaser.GameObjects.Text } {
-    const btnWidth = this.isMobile ? END_SCREEN.BUTTON_WIDTH_MOBILE : END_SCREEN.BUTTON_WIDTH_DESKTOP;
-    const btnHeight = this.isMobile ? END_SCREEN.BUTTON_HEIGHT_MOBILE : END_SCREEN.BUTTON_HEIGHT_DESKTOP;
+    const btnWidth = this.layout.buttonWidth;
+    const btnHeight = this.layout.buttonHeight;
 
     // Style configurations
     const styles = {
@@ -534,7 +647,7 @@ export class EndScreenOverlay {
 
     // Create celebratory particles (confetti-like) - lots over extended time
     const colors = [PALETTE.gold[400], PALETTE.gold[500], PALETTE.white, PALETTE.gold[200]];
-    const particleCount = this.isMobile ? CELEBRATION.CONFETTI_COUNT_MOBILE : CELEBRATION.CONFETTI_COUNT_DESKTOP;
+    const particleCount = CELEBRATION.CONFETTI_COUNT;
 
     for (let i = 0; i < particleCount; i++) {
       const particle = this.scene.add.graphics();
@@ -1037,9 +1150,7 @@ export class EndScreenOverlay {
    * Launch firework explosions at random positions
    */
   private launchFireworks(width: number, height: number): void {
-    const fireworkCount = this.isMobile
-      ? CELEBRATION.FIREWORK_COUNT_MOBILE
-      : CELEBRATION.FIREWORK_COUNT_DESKTOP;
+    const fireworkCount = CELEBRATION.FIREWORK_COUNT;
     const fireworkColors = [
       PALETTE.gold[300], PALETTE.gold[500],
       PALETTE.green[300], PALETTE.green[500],
@@ -1061,9 +1172,7 @@ export class EndScreenOverlay {
 
         // Pick a random color for this firework
         const baseColor = fireworkColors[Math.floor(Math.random() * fireworkColors.length)];
-        const sparkCount = this.isMobile
-          ? CELEBRATION.FIREWORK_SPARK_COUNT_MOBILE
-          : CELEBRATION.FIREWORK_SPARK_COUNT_DESKTOP;
+        const sparkCount = CELEBRATION.FIREWORK_SPARK_COUNT;
 
         // Create explosion sparks
         for (let i = 0; i < sparkCount; i++) {

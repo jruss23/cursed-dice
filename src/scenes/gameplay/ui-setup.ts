@@ -12,6 +12,8 @@ import {
   COLORS,
   DEV,
   FLASH,
+  ALPHA,
+  TIMING,
   type ViewportMetrics,
 } from '@/config';
 import { HeaderPanel } from '@/ui/gameplay';
@@ -43,7 +45,7 @@ export function createAnimatedBackground(scene: Phaser.Scene, width: number, hei
     const y = Phaser.Math.Between(0, height);
     const size = Phaser.Math.Between(2, 6);
 
-    const particle = scene.add.circle(x, y, size, PALETTE.gameplay.particle, 0.1);
+    const particle = scene.add.circle(x, y, size, PALETTE.gameplay.particle, ALPHA.GLOW_SOFT);
 
     scene.tweens.add({
       targets: particle,
@@ -59,7 +61,7 @@ export function createAnimatedBackground(scene: Phaser.Scene, width: number, hei
 
   // Corner vignettes
   const vignette = scene.add.graphics();
-  vignette.fillStyle(PALETTE.black, 0.3);
+  vignette.fillStyle(PALETTE.black, ALPHA.GLOW_HOVER);
   vignette.fillCircle(0, 0, 200);
   vignette.fillCircle(width, 0, 200);
   vignette.fillCircle(0, height, 200);
@@ -159,9 +161,9 @@ export function createControlButtons(config: ControlButtonsConfig): ControlButto
 
   // PAUSE button (left)
   const pauseX = 6;
-  const pauseBg = scene.add.rectangle(pauseX, btnY, btnWidth, btnHeight, PALETTE.purple[700], 0.9);
+  const pauseBg = scene.add.rectangle(pauseX, btnY, btnWidth, btnHeight, PALETTE.purple[700], ALPHA.PANEL_SOLID);
   pauseBg.setOrigin(0, 1);
-  pauseBg.setStrokeStyle(2, PALETTE.purple[500], 0.8);
+  pauseBg.setStrokeStyle(2, PALETTE.purple[500], ALPHA.BORDER_SOLID);
   pauseBg.setInteractive({ useHandCursor: true });
 
   const pauseText = createText(scene, pauseX + btnWidth / 2, btnY - btnHeight / 2, 'PAUSE', {
@@ -177,16 +179,16 @@ export function createControlButtons(config: ControlButtonsConfig): ControlButto
     pauseBg.setStrokeStyle(2, PALETTE.purple[400], 1);
   });
   pauseBg.on('pointerout', () => {
-    pauseBg.setFillStyle(PALETTE.purple[700], 0.9);
-    pauseBg.setStrokeStyle(2, PALETTE.purple[500], 0.8);
+    pauseBg.setFillStyle(PALETTE.purple[700], ALPHA.PANEL_SOLID);
+    pauseBg.setStrokeStyle(2, PALETTE.purple[500], ALPHA.BORDER_SOLID);
   });
   pauseBg.on('pointerdown', () => config.onPause());
 
   // QUIT button (right of pause)
   const quitX = pauseX + btnWidth + 4;
-  const quitBg = scene.add.rectangle(quitX, btnY, btnWidth, btnHeight, PALETTE.red[800], 0.9);
+  const quitBg = scene.add.rectangle(quitX, btnY, btnWidth, btnHeight, PALETTE.red[800], ALPHA.PANEL_SOLID);
   quitBg.setOrigin(0, 1);
-  quitBg.setStrokeStyle(2, PALETTE.red[500], 0.8);
+  quitBg.setStrokeStyle(2, PALETTE.red[500], ALPHA.BORDER_SOLID);
   quitBg.setInteractive({ useHandCursor: true });
 
   const quitText = createText(scene, quitX + btnWidth / 2, btnY - btnHeight / 2, 'QUIT', {
@@ -200,11 +202,11 @@ export function createControlButtons(config: ControlButtonsConfig): ControlButto
   quitBg.on('pointerover', () => {
     quitBg.setFillStyle(PALETTE.red[700], 1);
     quitBg.setStrokeStyle(2, PALETTE.red[400], 1);
-    quitText.setColor('#ffffff');
+    quitText.setColor(COLORS.TEXT_PRIMARY);
   });
   quitBg.on('pointerout', () => {
-    quitBg.setFillStyle(PALETTE.red[800], 0.9);
-    quitBg.setStrokeStyle(2, PALETTE.red[500], 0.8);
+    quitBg.setFillStyle(PALETTE.red[800], ALPHA.PANEL_SOLID);
+    quitBg.setStrokeStyle(2, PALETTE.red[500], ALPHA.BORDER_SOLID);
     quitText.setColor(COLORS.TEXT_DANGER);
   });
   quitBg.on('pointerdown', () => {
@@ -273,7 +275,7 @@ export function createSelectPrompt(
   // Add pulse animation
   scene.tweens.add({
     targets: prompt,
-    alpha: 0.3,
+    alpha: ALPHA.GLOW_HOVER,
     duration: SIZES.ANIM_PULSE,
     yoyo: true,
     repeat: -1,
@@ -303,24 +305,24 @@ export function showScoreEffect(config: ScoreEffectConfig): void {
 
   // Determine color and size based on score quality
   let color: string = COLORS.TEXT_SUCCESS;
-  let glowColor: string = '#22aa44';
-  let size: string = '48px';
+  let glowColor: string = COLORS.SCORE_EFFECT_GREEN;
+  let size: string = FONTS.SIZE_TITLE;
   if (points >= 50) {
     color = COLORS.TEXT_WARNING;
-    glowColor = '#ffaa00';
-    size = '72px';
+    glowColor = COLORS.SCORE_EFFECT_GOLD;
+    size = FONTS.SIZE_SCORE_HUGE;
   } else if (points >= 30) {
     color = COLORS.TEXT_ACCENT;
-    glowColor = '#aa66ff';
-    size = '56px';
+    glowColor = COLORS.SCORE_EFFECT_PURPLE;
+    size = FONTS.SIZE_SCORE_LARGE;
   } else if (points >= 15) {
     color = COLORS.TEXT_SUCCESS;
-    glowColor = '#22aa44';
-    size = '48px';
+    glowColor = COLORS.SCORE_EFFECT_GREEN;
+    size = FONTS.SIZE_TITLE;
   } else if (points === 0) {
     color = COLORS.TEXT_MUTED;
-    glowColor = '#666666';
-    size = '36px';
+    glowColor = COLORS.SCORE_EFFECT_GRAY;
+    size = FONTS.SIZE_DISPLAY;
   }
 
   // Glow layer behind text
@@ -354,7 +356,7 @@ export function showScoreEffect(config: ScoreEffectConfig): void {
     alpha: 1,
     scaleX: 1.3,
     scaleY: 1.3,
-    duration: 250,
+    duration: TIMING.MEDIUM,
     ease: 'Back.easeOut',
     onComplete: () => {
       // Settle to normal scale
@@ -362,7 +364,7 @@ export function showScoreEffect(config: ScoreEffectConfig): void {
         targets,
         scaleX: 1,
         scaleY: 1,
-        duration: 150,
+        duration: TIMING.FAST,
         ease: 'Quad.easeOut',
         onComplete: () => {
           // Hold for a moment, then fade out
@@ -370,8 +372,8 @@ export function showScoreEffect(config: ScoreEffectConfig): void {
             targets,
             y: centerY - 120,
             alpha: 0,
-            duration: 500,
-            delay: 600,
+            duration: TIMING.SLOW + TIMING.QUICK,
+            delay: TIMING.SLOW + TIMING.NORMAL,
             ease: 'Quad.easeIn',
             onComplete: () => {
               scoreText.destroy();
@@ -392,6 +394,6 @@ export function showScoreEffect(config: ScoreEffectConfig): void {
 
   // Screen flash for Five Dice (5 of a kind)
   if (points >= 50) {
-    scene.cameras.main.flash(300, 255, 220, 100);
+    scene.cameras.main.flash(TIMING.ENTRANCE, 255, 220, 100);
   }
 }

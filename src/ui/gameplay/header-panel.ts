@@ -4,8 +4,8 @@
  */
 
 import Phaser from 'phaser';
-import { FONTS, PALETTE, COLORS, SIZES, type ViewportMetrics } from '@/config';
-import { createText } from '@/ui/ui-utils';
+import { FONTS, COLORS, SIZES, LAYOUT, type ViewportMetrics } from '@/config';
+import { createText, createPanelFrame, addPanelFrameToContainer } from '@/ui/ui-utils';
 
 export interface HeaderPanelConfig {
   currentMode: number;
@@ -43,21 +43,21 @@ export class HeaderPanel {
 
   private build(centerX: number, config: HeaderPanelConfig): void {
     const { currentMode, modeName, totalScore, timeRemaining, compact = false, metrics, compactHeight } = config;
+    const L = LAYOUT.headerPanel;
 
     // Responsive sizing based on viewport
-    const isMobile = metrics?.isMobile ?? false;
-    const viewportWidth = metrics?.width ?? 1200;
+    const viewportWidth = metrics?.width ?? 430;
     const scale = metrics?.scale ?? 1;
 
-    // Panel width: constrained by viewport, smaller on mobile
-    const baseWidth = compact ? 340 : 420;
-    const panelWidth = Math.min(baseWidth, viewportWidth - 20);
+    // Panel width: constrained by viewport
+    const baseWidth = compact ? L.WIDTH_COMPACT : L.WIDTH_NORMAL;
+    const panelWidth = Math.min(baseWidth, viewportWidth - L.MARGIN);
 
-    // Panel height: use provided compactHeight if available, otherwise calculate
-    const panelHeight = compactHeight ?? (isMobile ? (compact ? 70 : 85) : (compact ? 110 : 140));
+    // Panel height: use provided compactHeight if available, otherwise use defaults
+    const panelHeight = compactHeight ?? (compact ? L.HEIGHT_COMPACT : L.HEIGHT_NORMAL);
 
     const panelX = centerX - panelWidth / 2;
-    const panelY = (metrics?.safeArea.top ?? 0) + 10;
+    const panelY = (metrics?.safeArea.top ?? 0) + L.SAFE_AREA_OFFSET;
 
     // Store panel bounds for getBounds()
     this.panelX = panelX;
@@ -65,50 +65,34 @@ export class HeaderPanel {
     this.panelWidth = panelWidth;
     this.panelHeight = panelHeight;
 
-    // Font scaling for mobile - bigger labels, tighter spacing
+    // Font scaling
     const fontScale = Math.max(0.75, Math.min(1, scale));
-    const labelSize = `${Math.round((isMobile ? 13 : 14) * fontScale)}px`;
-    const valueSize = `${Math.round((isMobile ? 18 : 24) * fontScale)}px`;
-    const timerSize = `${Math.round(isMobile ? 20 : 44)}px`;
+    const labelSize = `${Math.round(L.FONT_LABEL * fontScale)}px`;
+    const valueSize = `${Math.round(L.FONT_VALUE * fontScale)}px`;
+    const timerSize = `${L.FONT_TIMER}px`;
 
     this.container.setPosition(panelX, panelY);
 
-    const panelBg = this.scene.add.rectangle(
-      panelWidth / 2, panelHeight / 2,
-      panelWidth, panelHeight,
-      PALETTE.purple[900], 0.92
-    );
-    panelBg.setStrokeStyle(SIZES.PANEL_BORDER_WIDTH, PALETTE.purple[500], 0.7);
-    this.container.add(panelBg);
-
-    // Corner accents
-    const cornerSize = 10;
-    const corners = [
-      { x: 6, y: 6, ax: 1, ay: 1 },
-      { x: panelWidth - 6, y: 6, ax: -1, ay: 1 },
-      { x: panelWidth - 6, y: panelHeight - 6, ax: -1, ay: -1 },
-      { x: 6, y: panelHeight - 6, ax: 1, ay: -1 },
-    ];
-
-    corners.forEach(corner => {
-      const accent = this.scene.add.graphics();
-      accent.lineStyle(2, PALETTE.purple[400], 0.5);
-      accent.beginPath();
-      accent.moveTo(corner.x, corner.y + cornerSize * corner.ay);
-      accent.lineTo(corner.x, corner.y);
-      accent.lineTo(corner.x + cornerSize * corner.ax, corner.y);
-      accent.strokePath();
-      this.container.add(accent);
+    // Panel frame (glow, background, corners)
+    const frame = createPanelFrame(this.scene, {
+      x: 0,
+      y: 0,
+      width: panelWidth,
+      height: panelHeight,
+      glowAlpha: 0.06,
+      borderWidth: SIZES.PANEL_BORDER_WIDTH,
+      cornerAlpha: 0.5,
     });
+    addPanelFrameToContainer(this.container, frame);
 
     // === SIDE COLUMNS: Curse # (left) | Run Total (right) ===
-    const sideInset = Math.max(40, panelWidth * 0.12); // Proportional side columns
+    const sideInset = Math.max(L.SIDE_INSET_MIN, panelWidth * L.SIDE_INSET_RATIO);
     this.sideInset = sideInset;
 
     // Tighter vertical spacing - labels and values closer together
-    const sideCenterY = isMobile ? panelHeight / 2 : 25;
-    const labelOffset = isMobile ? -10 : -8;
-    const valueOffset = isMobile ? 8 : 12;
+    const sideCenterY = panelHeight * L.SIDE_CENTER_Y_RATIO;
+    const labelOffset = L.LABEL_OFFSET;
+    const valueOffset = L.VALUE_OFFSET;
 
     // Left: Seal number
     const sealLabel = createText(this.scene, sideInset, sideCenterY + labelOffset, 'SEAL', {
@@ -237,14 +221,14 @@ export class HeaderPanel {
    * Get bounds for curse counter section (left side)
    */
   getCurseBounds(): { x: number; y: number; width: number; height: number } {
-    const sectionWidth = 70; // Tight around "CURSE" and "0/4"
-    const padding = 8;
-    // Center on sideInset
+    const L = LAYOUT.headerPanel;
+    // Tighter bounds around the seal counter
+    const tighterWidth = L.SECTION_WIDTH - 12;
     return {
-      x: this.panelX + this.sideInset - sectionWidth / 2,
-      y: this.panelY + padding,
-      width: sectionWidth,
-      height: this.panelHeight - padding * 2,
+      x: this.panelX + this.sideInset - tighterWidth / 2,
+      y: this.panelY + L.SECTION_PADDING,
+      width: tighterWidth,
+      height: this.panelHeight - L.SECTION_PADDING * 2,
     };
   }
 
@@ -252,13 +236,13 @@ export class HeaderPanel {
    * Get bounds for timer section (center)
    */
   getTimerBounds(): { x: number; y: number; width: number; height: number } {
+    const L = LAYOUT.headerPanel;
     const sectionWidth = this.panelWidth - this.sideInset * 4;
-    const padding = 8;
     return {
-      x: this.panelX + this.sideInset * 2 - padding,
-      y: this.panelY + padding,
-      width: sectionWidth + padding * 2,
-      height: this.panelHeight - padding * 2,
+      x: this.panelX + this.sideInset * 2 - L.SECTION_PADDING,
+      y: this.panelY + L.SECTION_PADDING,
+      width: sectionWidth + L.SECTION_PADDING * 2,
+      height: this.panelHeight - L.SECTION_PADDING * 2,
     };
   }
 
@@ -266,14 +250,14 @@ export class HeaderPanel {
    * Get bounds for total score section (right side)
    */
   getTotalBounds(): { x: number; y: number; width: number; height: number } {
-    const sectionWidth = 70; // Tight around "TOTAL" and score
-    const padding = 8;
-    // Center on panelWidth - sideInset
+    const L = LAYOUT.headerPanel;
+    // Slightly tighter on the right side
+    const tighterWidth = L.SECTION_WIDTH - 6;
     return {
-      x: this.panelX + this.panelWidth - this.sideInset - sectionWidth / 2,
-      y: this.panelY + padding,
-      width: sectionWidth,
-      height: this.panelHeight - padding * 2,
+      x: this.panelX + this.panelWidth - this.sideInset - tighterWidth / 2,
+      y: this.panelY + L.SECTION_PADDING,
+      width: tighterWidth,
+      height: this.panelHeight - L.SECTION_PADDING * 2,
     };
   }
 

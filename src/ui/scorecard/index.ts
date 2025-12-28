@@ -18,7 +18,6 @@ export type {
 // Layout calculator (pure functions, no Phaser)
 export {
   calculateLayout,
-  determineLayoutMode,
   type LayoutInput,
 } from './layout-calculator';
 

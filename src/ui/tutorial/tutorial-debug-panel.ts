@@ -6,7 +6,7 @@
  */
 
 import Phaser from 'phaser';
-import { FONTS, PALETTE, COLORS, SIZES, getViewportMetrics } from '@/config';
+import { FONTS, PALETTE, COLORS, SIZES } from '@/config';
 import { createText } from '@/ui/ui-utils';
 
 // Debug-specific colors
@@ -42,12 +42,8 @@ export class TutorialDebugPanel {
     this.callbacks = callbacks;
     this.container = this.scene.add.container(0, 0);
 
-    const metrics = getViewportMetrics(scene);
-    if (metrics.isMobile) {
-      this.buildMobileIcon(height);
-    } else {
-      this.buildDesktopPanel(height);
-    }
+    // Always use mobile icon (game is locked to 430px width)
+    this.buildMobileIcon(height);
   }
 
   private buildMobileIcon(height: number): void {
@@ -204,77 +200,6 @@ export class TutorialDebugPanel {
       this.modalContainer = null;
     }
     this.isModalOpen = false;
-  }
-
-  private buildDesktopPanel(height: number): void {
-    const panelWidth = 130;
-    const panelHeight = 130;
-    const panelX = 15;
-    const panelY = (height - panelHeight) / 2;
-
-    this.container.setPosition(panelX, panelY);
-
-    const panelBg = this.scene.add.rectangle(panelWidth / 2, panelHeight / 2, panelWidth, panelHeight, DEBUG_COLORS.panelBg, 0.95);
-    panelBg.setStrokeStyle(SIZES.PANEL_BORDER_WIDTH, DEBUG_COLORS.panelBorder, 0.9);
-    this.container.add(panelBg);
-
-    let yPos = 18;
-    const debugLabel = createText(this.scene, panelWidth / 2, yPos, '⚡ DEBUG', {
-      fontSize: FONTS.SIZE_SMALL,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_WARNING,
-      fontStyle: 'bold',
-    });
-    debugLabel.setOrigin(0.5, 0.5);
-    this.container.add(debugLabel);
-
-    // Skip to Practice button (cyan)
-    yPos += 28;
-    this.createDesktopButton(panelWidth / 2, yPos, panelWidth - 16, 26, 'Practice',
-      DEBUG_COLORS.practiceBg, DEBUG_COLORS.practiceBorder, DEBUG_COLORS.practiceBgHover,
-      COLORS.DEBUG_CYAN, () => this.callbacks.onSkipToPractice());
-
-    // Pass Tutorial button (green)
-    yPos += 30;
-    this.createDesktopButton(panelWidth / 2, yPos, panelWidth - 16, 26, 'Pass',
-      DEBUG_COLORS.passBg, DEBUG_COLORS.passBorder, DEBUG_COLORS.passBgHover,
-      COLORS.DEBUG_GREEN, () => this.callbacks.onPassTutorial());
-
-    // Fail Tutorial button (red)
-    yPos += 30;
-    this.createDesktopButton(panelWidth / 2, yPos, panelWidth - 16, 26, 'Fail',
-      DEBUG_COLORS.failBg, DEBUG_COLORS.failBorder, DEBUG_COLORS.failBgHover,
-      COLORS.DEBUG_RED, () => this.callbacks.onFailTutorial());
-  }
-
-  private createDesktopButton(
-    x: number, y: number, width: number, height: number, label: string,
-    bgColor: number, borderColor: number, hoverBg: number, textColor: string,
-    onClick: () => void
-  ): void {
-    const btn = this.scene.add.rectangle(x, y, width, height, bgColor, 1);
-    btn.setStrokeStyle(2, borderColor, 0.8);
-    btn.setInteractive({ useHandCursor: true });
-    this.container.add(btn);
-
-    const text = createText(this.scene, x, y, label, {
-      fontSize: FONTS.SIZE_SMALL,
-      fontFamily: FONTS.FAMILY,
-      color: textColor,
-      fontStyle: 'bold',
-    });
-    text.setOrigin(0.5, 0.5);
-    this.container.add(text);
-
-    btn.on('pointerover', () => {
-      btn.setFillStyle(hoverBg);
-      btn.setStrokeStyle(2, borderColor, 1);
-    });
-    btn.on('pointerout', () => {
-      btn.setFillStyle(bgColor);
-      btn.setStrokeStyle(2, borderColor, 0.8);
-    });
-    btn.on('pointerdown', onClick);
   }
 
   destroy(): void {

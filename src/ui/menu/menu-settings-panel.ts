@@ -5,8 +5,9 @@
  */
 
 import Phaser from 'phaser';
-import { FONTS, PALETTE, COLORS, TIMING } from '@/config';
-import { createText, createPanelFrame, addPanelFrameToContainer } from '@/ui/ui-utils';
+import { FONTS, PALETTE, COLORS, TIMING, LAYOUT, ALPHA } from '@/config';
+import { type ViewportSizing } from '@/systems/responsive';
+import { createText, createPanelFrame, addPanelFrameToContainer, PANEL_PRESETS } from '@/ui/ui-utils';
 import { BaseButton } from '@/ui/base/base-button';
 import { toggleSFX, isSFXEnabled } from '@/systems/sfx-manager';
 import { isMusicEnabled } from '@/systems/music-manager';
@@ -22,10 +23,57 @@ function saveMusicEnabled(enabled: boolean): void {
   }
 }
 
+/**
+ * Calculate settings panel layout
+ * Uses LAYOUT.settingsPanel as source of truth
+ */
+function getSettingsLayout() {
+  const L = LAYOUT.settingsPanel;
+
+  const contentHeight =
+    L.TITLE_HEIGHT +
+    L.GAP_TITLE_TO_AUDIO +
+    L.AUDIO_LABEL_HEIGHT +
+    L.GAP_AUDIO_TO_TOGGLES +
+    L.TOGGLE_BUTTON_HEIGHT +
+    L.GAP_TOGGLES_TO_CLOSE +
+    L.CLOSE_BUTTON_HEIGHT;
+
+  const panelHeight = contentHeight + L.PANEL_PADDING * 2;
+
+  // Calculate Y positions relative to panel center
+  let y = -panelHeight / 2 + L.PANEL_PADDING;
+
+  const titleY = y + L.TITLE_HEIGHT / 2;
+  y += L.TITLE_HEIGHT + L.GAP_TITLE_TO_AUDIO;
+
+  const audioLabelY = y + L.AUDIO_LABEL_HEIGHT / 2;
+  y += L.AUDIO_LABEL_HEIGHT + L.GAP_AUDIO_TO_TOGGLES;
+
+  const togglesY = y + L.TOGGLE_BUTTON_HEIGHT / 2;
+  y += L.TOGGLE_BUTTON_HEIGHT + L.GAP_TOGGLES_TO_CLOSE;
+
+  const closeY = y + L.CLOSE_BUTTON_HEIGHT / 2;
+
+  return {
+    panelWidth: L.PANEL_WIDTH,
+    panelHeight,
+    titleY,
+    audioLabelY,
+    togglesY,
+    closeY,
+    toggleButtonWidth: L.TOGGLE_BUTTON_WIDTH,
+    toggleButtonHeight: L.TOGGLE_BUTTON_HEIGHT,
+    closeButtonWidth: L.CLOSE_BUTTON_WIDTH,
+    closeButtonHeight: L.CLOSE_BUTTON_HEIGHT,
+  };
+}
+
 export interface MenuSettingsPanelConfig {
   x: number;
   y: number;
   onMusicToggle?: (enabled: boolean) => void;
+  sizing?: ViewportSizing;
 }
 
 export class MenuSettingsPanel {
@@ -40,8 +88,7 @@ export class MenuSettingsPanel {
   private onMusicToggle?: (enabled: boolean) => void;
   private isOpen: boolean = false;
 
-  private readonly panelWidth = 280;
-  private readonly panelHeight = 250;
+  private layout = getSettingsLayout();
 
   constructor(scene: Phaser.Scene, config: MenuSettingsPanelConfig) {
     this.scene = scene;
@@ -59,14 +106,14 @@ export class MenuSettingsPanel {
     const size = 44;
 
     // Button background
-    const bg = this.scene.add.rectangle(0, 0, size, size, PALETTE.purple[800], 0.9);
-    bg.setStrokeStyle(2, PALETTE.purple[500], 0.6);
+    const bg = this.scene.add.rectangle(0, 0, size, size, PALETTE.purple[800], ALPHA.PANEL_SOLID);
+    bg.setStrokeStyle(2, PALETTE.purple[500], ALPHA.BORDER_MEDIUM);
     bg.setInteractive({ useHandCursor: true });
     container.add(bg);
 
     // Cog icon (using unicode gear)
     const icon = createText(this.scene, 0, 0, '⚙', {
-      fontSize: '24px',
+      fontSize: FONTS.SIZE_LARGE,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
     });
@@ -76,11 +123,11 @@ export class MenuSettingsPanel {
     // Hover effects
     bg.on('pointerover', () => {
       bg.setFillStyle(PALETTE.purple[700], 1);
-      bg.setStrokeStyle(2, PALETTE.purple[400], 0.8);
+      bg.setStrokeStyle(2, PALETTE.purple[400], ALPHA.BORDER_SOLID);
     });
     bg.on('pointerout', () => {
-      bg.setFillStyle(PALETTE.purple[800], 0.9);
-      bg.setStrokeStyle(2, PALETTE.purple[500], 0.6);
+      bg.setFillStyle(PALETTE.purple[800], ALPHA.PANEL_SOLID);
+      bg.setStrokeStyle(2, PALETTE.purple[500], ALPHA.BORDER_MEDIUM);
     });
     bg.on('pointerdown', () => this.open());
 
@@ -97,7 +144,7 @@ export class MenuSettingsPanel {
     this.overlay = this.scene.add.rectangle(
       width / 2, height / 2,
       width, height,
-      COLORS.OVERLAY, 0.85
+      COLORS.OVERLAY, ALPHA.OVERLAY_HEAVY
     );
     this.overlay.setInteractive();
     this.overlay.setDepth(299);
@@ -106,7 +153,7 @@ export class MenuSettingsPanel {
     // Animate overlay in
     this.scene.tweens.add({
       targets: this.overlay,
-      alpha: 0.85,
+      alpha: ALPHA.OVERLAY_HEAVY,
       duration: TIMING.QUICK,
       ease: 'Quad.easeOut',
     });
@@ -115,21 +162,20 @@ export class MenuSettingsPanel {
     this.panel = this.scene.add.container(width / 2, height / 2);
     this.panel.setDepth(300);
 
+    const L = this.layout;
+
     // Panel frame
     const frame = createPanelFrame(this.scene, {
-      x: -this.panelWidth / 2,
-      y: -this.panelHeight / 2,
-      width: this.panelWidth,
-      height: this.panelHeight,
-      glowColor: PALETTE.purple[500],
-      bgColor: PALETTE.purple[900],
-      borderColor: PALETTE.purple[500],
-      cornerColor: PALETTE.purple[400],
+      x: -L.panelWidth / 2,
+      y: -L.panelHeight / 2,
+      width: L.panelWidth,
+      height: L.panelHeight,
+      ...PANEL_PRESETS.modal,
     });
     addPanelFrameToContainer(this.panel, frame);
 
     // Title
-    const title = createText(this.scene, 0, -55, 'SETTINGS', {
+    const title = createText(this.scene, 0, L.titleY, 'SETTINGS', {
       fontSize: FONTS.SIZE_HEADING,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
@@ -139,7 +185,7 @@ export class MenuSettingsPanel {
     this.panel.add(title);
 
     // Audio label
-    const audioLabel = createText(this.scene, 0, -15, 'AUDIO', {
+    const audioLabel = createText(this.scene, 0, L.audioLabelY, 'AUDIO', {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SECONDARY,
@@ -147,12 +193,15 @@ export class MenuSettingsPanel {
     audioLabel.setOrigin(0.5, 0.5);
     this.panel.add(audioLabel);
 
+    // Toggle buttons spacing
+    const toggleSpacing = L.toggleButtonWidth / 2 + 6;
+
     // Music toggle button
     this.musicButton = new BaseButton(this.scene, {
-      x: -70,
-      y: 25,
-      width: 120,
-      height: 38,
+      x: -toggleSpacing,
+      y: L.togglesY,
+      width: L.toggleButtonWidth,
+      height: L.toggleButtonHeight,
       label: this.musicEnabled ? 'MUSIC: ON' : 'MUSIC: OFF',
       style: this.musicEnabled ? 'secondary' : 'ghost',
       onClick: () => this.toggleMusic(),
@@ -162,10 +211,10 @@ export class MenuSettingsPanel {
     // SFX toggle button
     const sfxEnabled = isSFXEnabled();
     this.sfxButton = new BaseButton(this.scene, {
-      x: 70,
-      y: 25,
-      width: 120,
-      height: 38,
+      x: toggleSpacing,
+      y: L.togglesY,
+      width: L.toggleButtonWidth,
+      height: L.toggleButtonHeight,
       label: sfxEnabled ? 'SFX: ON' : 'SFX: OFF',
       style: sfxEnabled ? 'secondary' : 'ghost',
       onClick: () => this.toggleSfx(),
@@ -175,9 +224,9 @@ export class MenuSettingsPanel {
     // Close button
     this.closeButton = new BaseButton(this.scene, {
       x: 0,
-      y: 85,
-      width: 120,
-      height: 38,
+      y: L.closeY,
+      width: L.closeButtonWidth,
+      height: L.closeButtonHeight,
       label: 'CLOSE',
       style: 'danger',
       onClick: () => this.close(),

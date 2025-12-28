@@ -5,8 +5,87 @@
  */
 
 import Phaser from 'phaser';
-import { FONTS, PALETTE, COLORS, SIZES, DEPTH, END_SCREEN, FLASH, getViewportMetrics } from '@/config';
-import { createText } from '@/ui/ui-utils';
+import { FONTS, PALETTE, COLORS, SIZES, DEPTH, FLASH, END_SCREEN } from '@/config';
+import { createText, createPanelFrame, addPanelFrameToContainer, PANEL_PRESETS } from '@/ui/ui-utils';
+
+// Use END_SCREEN constants for consistency with end-screen-overlay.ts
+const S = END_SCREEN;
+
+interface TutorialCompleteLayout {
+  panelWidth: number;
+  panelHeight: number;
+  titleY: number;
+  subtitleY: number;
+  divider1Y: number;
+  scoreLabelY: number;
+  scoreValueY: number;
+  divider2Y: number;
+  buttonY: number;
+  buttonWidth: number;
+  buttonHeight: number;
+  buttonOffset: number;
+}
+
+function getTutorialCompleteLayout(): TutorialCompleteLayout {
+  const panelWidth = S.PANEL_WIDTH;
+  const buttonHeight = S.BUTTON_HEIGHT;
+
+  // Calculate total content height
+  let contentHeight = 0;
+  contentHeight += S.TITLE_HEIGHT;
+  contentHeight += S.GAP_TITLE_TO_SUBTITLE;
+  contentHeight += S.SUBTITLE_HEIGHT;
+  contentHeight += S.GAP_SUBTITLE_TO_DIVIDER;
+  contentHeight += S.DIVIDER_HEIGHT;
+  contentHeight += S.GAP_DIVIDER_TO_SCORES;
+  contentHeight += S.SCORE_LABEL_HEIGHT;
+  contentHeight += S.GAP_SCORE_LABEL_TO_VALUE;
+  contentHeight += S.SCORE_VALUE_HEIGHT;
+  contentHeight += S.GAP_SCORES_TO_DIVIDER;
+  contentHeight += S.DIVIDER_HEIGHT;
+  contentHeight += S.GAP_DIVIDER_TO_BUTTON;
+  contentHeight += buttonHeight;
+
+  const panelHeight = contentHeight + S.PANEL_PADDING * 2;
+
+  // Calculate Y positions (relative to panel top-left at 0,0)
+  let y = S.PANEL_PADDING;
+
+  const titleY = y + S.TITLE_HEIGHT / 2;
+  y += S.TITLE_HEIGHT + S.GAP_TITLE_TO_SUBTITLE;
+
+  const subtitleY = y + S.SUBTITLE_HEIGHT / 2;
+  y += S.SUBTITLE_HEIGHT + S.GAP_SUBTITLE_TO_DIVIDER;
+
+  const divider1Y = y + S.DIVIDER_HEIGHT / 2;
+  y += S.DIVIDER_HEIGHT + S.GAP_DIVIDER_TO_SCORES;
+
+  const scoreLabelY = y + S.SCORE_LABEL_HEIGHT / 2;
+  y += S.SCORE_LABEL_HEIGHT + S.GAP_SCORE_LABEL_TO_VALUE;
+
+  const scoreValueY = y + S.SCORE_VALUE_HEIGHT / 2;
+  y += S.SCORE_VALUE_HEIGHT + S.GAP_SCORES_TO_DIVIDER;
+
+  const divider2Y = y + S.DIVIDER_HEIGHT / 2;
+  y += S.DIVIDER_HEIGHT + S.GAP_DIVIDER_TO_BUTTON;
+
+  const buttonY = y + buttonHeight / 2;
+
+  return {
+    panelWidth,
+    panelHeight,
+    titleY,
+    subtitleY,
+    divider1Y,
+    scoreLabelY,
+    scoreValueY,
+    divider2Y,
+    buttonY,
+    buttonWidth: S.BUTTON_WIDTH,
+    buttonHeight,
+    buttonOffset: S.BUTTON_OFFSET,
+  };
+}
 
 export interface TutorialCompleteConfig {
   totalScore: number;
@@ -23,7 +102,7 @@ export class TutorialCompleteOverlay {
   private overlay: Phaser.GameObjects.Rectangle;
   private panel: Phaser.GameObjects.Container;
   private tweens: Phaser.Tweens.Tween[] = [];
-  private isMobile: boolean = false;
+  private layout: TutorialCompleteLayout;
 
   constructor(
     scene: Phaser.Scene,
@@ -32,8 +111,9 @@ export class TutorialCompleteOverlay {
   ) {
     this.scene = scene;
     const { width, height } = this.scene.cameras.main;
-    const metrics = getViewportMetrics(scene);
-    this.isMobile = metrics.isMobile;
+
+    // Calculate layout
+    this.layout = getTutorialCompleteLayout();
 
     // Dark overlay - matches end-screen-overlay
     this.overlay = this.scene.add.rectangle(width / 2, height / 2, width, height, PALETTE.purple[900], 0.95);
@@ -41,10 +121,8 @@ export class TutorialCompleteOverlay {
     this.overlay.setDepth(DEPTH.OVERLAY);
 
     // Panel dimensions - responsive for mobile
-    const panelWidth = this.isMobile
-      ? Math.min(END_SCREEN.PANEL_WIDTH_MOBILE, width - END_SCREEN.PANEL_MARGIN)
-      : END_SCREEN.PANEL_WIDTH_DESKTOP;
-    const panelHeight = this.isMobile ? END_SCREEN.PANEL_HEIGHT_MOBILE : END_SCREEN.PANEL_HEIGHT_DESKTOP;
+    const panelWidth = Math.min(this.layout.panelWidth, width - S.PANEL_MARGIN);
+    const panelHeight = this.layout.panelHeight;
     const panelX = (width - panelWidth) / 2;
     const panelY = (height - panelHeight) / 2;
 
@@ -64,26 +142,25 @@ export class TutorialCompleteOverlay {
   ): void {
     const { totalScore, passThreshold } = config;
     const passed = totalScore >= passThreshold;
+    const L = this.layout;
 
-    // Panel background - matches end-screen-overlay
-    const panelBg = this.scene.add.rectangle(
-      panelWidth / 2, panelHeight / 2,
-      panelWidth, panelHeight,
-      PALETTE.purple[900], 0.98
-    );
-    panelBg.setStrokeStyle(SIZES.PANEL_BORDER_WIDTH, PALETTE.purple[500], 0.8);
-    this.panel.add(panelBg);
-
-    // Corner accents
-    this.addCornerAccents(panelWidth, panelHeight);
+    // Panel frame (glow, background, corners)
+    const frame = createPanelFrame(this.scene, {
+      x: 0,
+      y: 0,
+      width: panelWidth,
+      height: panelHeight,
+      ...PANEL_PRESETS.overlay,
+      borderWidth: SIZES.PANEL_BORDER_WIDTH,
+    });
+    addPanelFrameToContainer(this.panel, frame);
 
     // Title - changes based on pass/fail
-    const titleY = END_SCREEN.TITLE_Y;
     const titleString = passed ? 'Tutorial Complete!' : 'Almost There!';
     const titleColor = passed ? COLORS.TEXT_SUCCESS : COLORS.TEXT_WARNING;
 
     // Title glow
-    const titleGlow = createText(this.scene, panelWidth / 2, titleY, titleString, {
+    const titleGlow = createText(this.scene, panelWidth / 2, L.titleY, titleString, {
       fontSize: FONTS.SIZE_HEADING,
       fontFamily: FONTS.FAMILY,
       color: titleColor,
@@ -94,7 +171,7 @@ export class TutorialCompleteOverlay {
     titleGlow.setBlendMode(Phaser.BlendModes.ADD);
     this.panel.add(titleGlow);
 
-    const titleText = createText(this.scene, panelWidth / 2, titleY, titleString, {
+    const titleText = createText(this.scene, panelWidth / 2, L.titleY, titleString, {
       fontSize: FONTS.SIZE_HEADING,
       fontFamily: FONTS.FAMILY,
       color: titleColor,
@@ -107,7 +184,7 @@ export class TutorialCompleteOverlay {
     const subtitleText = passed
       ? 'You would have broken this seal!'
       : `Need ${passThreshold}+ to break a seal`;
-    const subtitle = createText(this.scene, panelWidth / 2, titleY + END_SCREEN.SUBTITLE_OFFSET, subtitleText, {
+    const subtitle = createText(this.scene, panelWidth / 2, L.subtitleY, subtitleText, {
       fontSize: FONTS.SIZE_BODY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SECONDARY,
@@ -116,48 +193,25 @@ export class TutorialCompleteOverlay {
     this.panel.add(subtitle);
 
     // Divider line
-    const divider1 = this.scene.add.rectangle(panelWidth / 2, END_SCREEN.DIVIDER_1_Y, panelWidth - 60, 1, PALETTE.purple[500], 0.4);
+    const divider1 = this.scene.add.rectangle(panelWidth / 2, L.divider1Y, panelWidth - 60, 1, PALETTE.purple[500], 0.4);
     this.panel.add(divider1);
 
     // Score section
     this.buildScoresSection(panelWidth, totalScore, passed);
 
     // Divider before buttons
-    const divider2 = this.scene.add.rectangle(panelWidth / 2, END_SCREEN.DIVIDER_2_Y, panelWidth - 60, 1, PALETTE.purple[500], 0.4);
+    const divider2 = this.scene.add.rectangle(panelWidth / 2, L.divider2Y, panelWidth - 60, 1, PALETTE.purple[500], 0.4);
     this.panel.add(divider2);
 
     // Buttons
     this.buildButtons(panelWidth, passed, callbacks);
   }
 
-  private addCornerAccents(panelWidth: number, panelHeight: number): void {
-    const cornerSize = SIZES.PANEL_CORNER_SIZE;
-    const cornerInset = SIZES.PANEL_CORNER_INSET;
-    const corners = [
-      { x: cornerInset, y: cornerInset, ax: 1, ay: 1 },
-      { x: panelWidth - cornerInset, y: cornerInset, ax: -1, ay: 1 },
-      { x: panelWidth - cornerInset, y: panelHeight - cornerInset, ax: -1, ay: -1 },
-      { x: cornerInset, y: panelHeight - cornerInset, ax: 1, ay: -1 },
-    ];
-
-    corners.forEach(corner => {
-      const accent = this.scene.add.graphics();
-      accent.lineStyle(2, PALETTE.purple[400], 0.6);
-      accent.beginPath();
-      accent.moveTo(corner.x, corner.y + cornerSize * corner.ay);
-      accent.lineTo(corner.x, corner.y);
-      accent.lineTo(corner.x + cornerSize * corner.ax, corner.y);
-      accent.strokePath();
-      this.panel.add(accent);
-    });
-  }
-
   private buildScoresSection(panelWidth: number, totalScore: number, passed: boolean): void {
     const centerX = panelWidth / 2;
-    // Center score in the space between dividers (no subtext in tutorial)
-    const sectionCenter = (END_SCREEN.DIVIDER_1_Y + END_SCREEN.DIVIDER_2_Y) / 2;
+    const L = this.layout;
 
-    const scoreLabel = createText(this.scene, centerX, sectionCenter - 20, 'FINAL SCORE', {
+    const scoreLabel = createText(this.scene, centerX, L.scoreLabelY, 'FINAL SCORE', {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SECONDARY,
@@ -165,7 +219,7 @@ export class TutorialCompleteOverlay {
     scoreLabel.setOrigin(0.5, 0.5);
     this.panel.add(scoreLabel);
 
-    const scoreValue = createText(this.scene, centerX, sectionCenter + 15, `${totalScore}`, {
+    const scoreValue = createText(this.scene, centerX, L.scoreValueY, `${totalScore}`, {
       fontSize: FONTS.SIZE_MODE_TITLE,
       fontFamily: FONTS.FAMILY,
       color: passed ? COLORS.TEXT_SUCCESS : COLORS.TEXT_DANGER,
@@ -176,8 +230,9 @@ export class TutorialCompleteOverlay {
   }
 
   private buildButtons(panelWidth: number, passed: boolean, callbacks: TutorialCompleteCallbacks): void {
-    const buttonY = this.isMobile ? END_SCREEN.BUTTON_Y_MOBILE : END_SCREEN.BUTTON_Y_DESKTOP;
-    const buttonOffset = this.isMobile ? END_SCREEN.BUTTON_OFFSET_MOBILE : END_SCREEN.BUTTON_OFFSET_DESKTOP;
+    const L = this.layout;
+    const buttonY = L.buttonY;
+    const buttonOffset = L.buttonOffset;
 
     if (passed) {
       // Pass: single centered FINISH button (they're ready for real game)
@@ -203,8 +258,8 @@ export class TutorialCompleteOverlay {
     onClick: () => void,
     style: 'primary' | 'secondary' | 'warning' | 'danger'
   ): void {
-    const btnWidth = this.isMobile ? END_SCREEN.BUTTON_WIDTH_MOBILE : END_SCREEN.BUTTON_WIDTH_DESKTOP;
-    const btnHeight = this.isMobile ? END_SCREEN.BUTTON_HEIGHT_MOBILE : END_SCREEN.BUTTON_HEIGHT_DESKTOP;
+    const btnWidth = this.layout.buttonWidth;
+    const btnHeight = this.layout.buttonHeight;
 
     const styles = {
       primary: {

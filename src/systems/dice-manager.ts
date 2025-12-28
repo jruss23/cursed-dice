@@ -5,7 +5,7 @@
  */
 
 import Phaser from 'phaser';
-import { SIZES, FONTS, GAME_RULES, COLORS, type ScaledSizes, getViewportMetrics } from '@/config';
+import { SIZES, FONTS, GAME_RULES, COLORS, type GameplayLayout } from '@/config';
 import { createText } from '@/ui/ui-utils';
 import { GameEventEmitter } from './game-events';
 import { createLogger } from './logger';
@@ -48,7 +48,6 @@ export class DiceManager implements TutorialControllableDice {
   // Layout info for repositioning dice and getting bounds
   private layoutCenterX: number = 0;
   private layoutCenterY: number = 0;
-  private layoutControlsY: number = 0;
   private layoutTipOffset: number = 0; // Distance from dice center to "Tap dice to lock" text
 
   // Current size configuration (responsive)
@@ -463,41 +462,35 @@ export class DiceManager implements TutorialControllableDice {
   // ===========================================================================
 
   /**
-   * Create the dice UI at the specified position
-   * @param scaledSizes Optional scaled sizes for responsive layout
-   * @param isUltraCompact Whether to use ultra-compact mode for very short screens
+   * Create the dice UI using values from GameplayLayout (single source of truth)
+   * @param layout - Complete layout configuration from getGameplayLayout()
    */
-  createUI(centerX: number, centerY: number, scaledSizes?: ScaledSizes, isUltraCompact?: boolean): void {
+  createUI(layout: GameplayLayout): void {
+    const { dice, tip, controls } = layout;
+
     // Store layout info for repositioning and bounds
-    this.layoutCenterX = centerX;
-    this.layoutCenterY = centerY;
+    this.layoutCenterX = dice.centerX;
+    this.layoutCenterY = dice.centerY;
+    // Offset from dice center to tip text (accounts for dice radius + tip gap)
+    this.layoutTipOffset = dice.centerY - tip.y;
 
-    // Get viewport metrics for responsive adjustments
-    const metrics = getViewportMetrics(this.scene);
-    const isMobile = metrics.isMobile;
-    const ultraCompact = isUltraCompact ?? false;
+    // Apply sizes from layout
+    this.sizeConfig = {
+      size: dice.size,
+      spacing: dice.spacing,
+      pipRadius: dice.pipRadius,
+      pipOffset: dice.pipOffset,
+    };
 
-    // Apply scaled sizes if provided
-    if (scaledSizes) {
-      this.sizeConfig = {
-        size: scaledSizes.dice,
-        spacing: scaledSizes.diceSpacing,
-        pipRadius: scaledSizes.pipRadius,
-        pipOffset: scaledSizes.pipOffset,
-      };
-    }
-
-    // Create renderer
+    // Create renderer with size config
     this.renderer = new DiceRenderer(this.scene, this.sizeConfig);
 
-    const diceAreaWidth = (GAME_RULES.DICE_COUNT - 1) * this.sizeConfig.spacing;
-    const startX = centerX - diceAreaWidth / 2;
+    const diceAreaWidth = (GAME_RULES.DICE_COUNT - 1) * dice.spacing;
+    const startX = dice.centerX - diceAreaWidth / 2;
 
-    // Pulsing tip text above dice
-    const tipOffset = ultraCompact ? 32 : (isMobile ? 38 : 70);
-    this.layoutTipOffset = tipOffset;
-    const tipText = createText(this.scene, centerX, centerY - tipOffset, 'Tap dice to lock', {
-      fontSize: isMobile ? FONTS.SIZE_MICRO : FONTS.SIZE_SMALL,
+    // Pulsing tip text above dice (using layout values)
+    const tipText = createText(this.scene, dice.centerX, tip.y, 'Tap dice to lock', {
+      fontSize: tip.fontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SUCCESS,
     });
@@ -505,18 +498,18 @@ export class DiceManager implements TutorialControllableDice {
 
     // Create dice sprites via renderer
     for (let i = 0; i < GAME_RULES.DICE_COUNT; i++) {
-      const x = startX + i * this.sizeConfig.spacing;
+      const x = startX + i * dice.spacing;
       this.sprites.push(this.renderer.createDieSprite(
-        x, centerY, i,
+        x, dice.centerY, i,
         (idx) => this.onDieClicked(idx),
         (sprite, isHovered) => this.onDieHover(sprite, isHovered)
       ));
     }
 
     // Create 6th die sprite (hidden until Sixth Blessing activates)
-    const sixthX = startX + GAME_RULES.DICE_COUNT * this.sizeConfig.spacing;
+    const sixthX = startX + GAME_RULES.DICE_COUNT * dice.spacing;
     const sixthDie = this.renderer.createDieSprite(
-      sixthX, centerY, GAME_RULES.DICE_COUNT,
+      sixthX, dice.centerY, GAME_RULES.DICE_COUNT,
       (idx) => this.onDieClicked(idx),
       (sprite, isHovered) => this.onDieHover(sprite, isHovered)
     );
@@ -528,16 +521,10 @@ export class DiceManager implements TutorialControllableDice {
     this.state.values.push(1);
     this.state.locked.push(false);
 
-    // Create controls panel
-    const controlsOffset = ultraCompact ? 75 : (isMobile ? 85 : 140);
-    this.layoutControlsY = centerY + controlsOffset;
-
+    // Create controls panel (using layout values)
     this.controls = new DiceControls({
       scene: this.scene,
-      centerX: centerX,
-      centerY: this.layoutControlsY,
-      isMobile,
-      ultraCompact,
+      layout: controls, // Pass the controls layout section
       includeBlessingSlot: this.includeBlessingSlot,
       initialRerolls: this.state.rerollsLeft,
       onRoll: () => {

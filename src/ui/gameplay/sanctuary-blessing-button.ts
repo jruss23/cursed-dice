@@ -5,17 +5,15 @@
  */
 
 import Phaser from 'phaser';
-import { FONTS, PALETTE, COLORS } from '@/config';
+import { FONTS, PALETTE, COLORS, ALPHA } from '@/config';
 import { createText } from '@/ui/ui-utils';
 import { GameEventEmitter } from '@/systems/game-events';
 import { createLogger } from '@/systems/logger';
+import { BlessingButtonBase, BlessingButtonBaseConfig } from './blessing-button-base';
 
 const log = createLogger('SanctuaryBlessingButton');
 
-export interface SanctuaryBlessingButtonConfig {
-  x: number;
-  y: number;
-  height: number;
+export interface SanctuaryBlessingButtonConfig extends BlessingButtonBaseConfig {
   onBank: () => boolean; // Returns true if bank succeeded
   onRestore: () => boolean; // Returns true if restore succeeded
   canBank: () => boolean;
@@ -23,59 +21,19 @@ export interface SanctuaryBlessingButtonConfig {
   getBankedValues: () => number[] | null;
 }
 
-export class SanctuaryBlessingButton {
-  private scene: Phaser.Scene;
-  private events: GameEventEmitter;
-  private container: Phaser.GameObjects.Container;
-  private config: SanctuaryBlessingButtonConfig;
-
-  private buttonBg: Phaser.GameObjects.Rectangle;
-  private buttonGlow: Phaser.GameObjects.Rectangle;
-  private labelText: Phaser.GameObjects.Text;
-  private bankedPreview: Phaser.GameObjects.Text;
+export class SanctuaryBlessingButton extends BlessingButtonBase<SanctuaryBlessingButtonConfig> {
+  private bankedPreview!: Phaser.GameObjects.Text;
 
   constructor(
     scene: Phaser.Scene,
     events: GameEventEmitter,
     config: SanctuaryBlessingButtonConfig
   ) {
-    this.scene = scene;
-    this.events = events;
-    this.config = config;
-    this.container = scene.add.container(config.x, config.y);
-
-    this.buttonBg = null!;
-    this.buttonGlow = null!;
-    this.labelText = null!;
-    this.bankedPreview = null!;
-
-    this.create();
-    this.setupEventListeners();
+    super(scene, events, config);
   }
 
-  private create(): void {
-    const width = 95;
-    const height = this.config.height;
-
-    // Glow - gold theme for sanctuary (storing treasure)
-    this.buttonGlow = this.scene.add.rectangle(0, 0, width + 6, height + 6, PALETTE.gold[500], 0.12);
-    this.container.add(this.buttonGlow);
-
-    // Background
-    this.buttonBg = this.scene.add.rectangle(0, 0, width, height, PALETTE.gold[800], 0.95);
-    this.buttonBg.setStrokeStyle(2, PALETTE.gold[500], 0.7);
-    this.buttonBg.setInteractive({ useHandCursor: true });
-    this.container.add(this.buttonBg);
-
-    // Label
-    this.labelText = createText(this.scene, 0, -4, '', {
-      fontSize: FONTS.SIZE_SMALL,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_PRIMARY,
-      fontStyle: 'bold',
-    });
-    this.labelText.setOrigin(0.5, 0.5);
-    this.container.add(this.labelText);
+  protected create(): void {
+    this.createButtonBase(PALETTE.gold[500], PALETTE.gold[800], PALETTE.gold[500], -4);
 
     // Banked preview (shows small dice values when banking)
     this.bankedPreview = createText(this.scene, 0, 10, '', {
@@ -83,7 +41,7 @@ export class SanctuaryBlessingButton {
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SECONDARY,
     });
-    this.bankedPreview.setOrigin(0.5, 0.5);
+    this.bankedPreview.setOrigin(0.5, ALPHA.BORDER_LIGHT);
     this.container.add(this.bankedPreview);
 
     // Button interactions
@@ -91,7 +49,7 @@ export class SanctuaryBlessingButton {
       if (this.config.canBank() || this.config.canRestore()) {
         const hoverColor = this.config.canRestore() ? PALETTE.green[700] : PALETTE.gold[700];
         this.buttonBg.setFillStyle(hoverColor, 1);
-        this.buttonGlow.setAlpha(0.3);
+        this.buttonGlow.setAlpha(ALPHA.GLOW_HOVER);
       }
     });
 
@@ -125,13 +83,13 @@ export class SanctuaryBlessingButton {
     this.updateDisplay();
   }
 
-  private setupEventListeners(): void {
+  protected setupEventListeners(): void {
     this.events.on('blessing:sanctuary:banked', this.updateDisplay, this);
     this.events.on('blessing:sanctuary:restored', this.updateDisplay, this);
     this.events.on('blessing:sanctuary:reset', this.updateDisplay, this);
   }
 
-  private updateDisplay = (): void => {
+  protected updateDisplay = (): void => {
     const canBank = this.config.canBank();
     const canRestore = this.config.canRestore();
     const bankedValues = this.config.getBankedValues();
@@ -147,9 +105,9 @@ export class SanctuaryBlessingButton {
       this.labelText.setColor(COLORS.TEXT_WARNING);
       this.labelText.setY(0);
 
-      this.buttonBg.setFillStyle(PALETTE.gold[800], 0.9);
-      this.buttonBg.setStrokeStyle(2, PALETTE.gold[500], 0.8);
-      this.buttonGlow.setFillStyle(PALETTE.gold[500], 0.15);
+      this.buttonBg.setFillStyle(PALETTE.gold[800], ALPHA.PANEL_SOLID);
+      this.buttonBg.setStrokeStyle(2, PALETTE.gold[500], ALPHA.BORDER_SOLID);
+      this.buttonGlow.setFillStyle(PALETTE.gold[500], ALPHA.GLOW_MEDIUM);
       this.buttonBg.setInteractive({ useHandCursor: true });
     } else if (canRestore && bankedValues) {
       // Ready to use - green theme, clickable
@@ -161,9 +119,9 @@ export class SanctuaryBlessingButton {
       this.bankedPreview.setText(bankedValues.join(' '));
       this.bankedPreview.setVisible(true);
 
-      this.buttonBg.setFillStyle(PALETTE.green[800], 0.9);
-      this.buttonBg.setStrokeStyle(2, PALETTE.green[500], 0.8);
-      this.buttonGlow.setFillStyle(PALETTE.green[500], 0.15);
+      this.buttonBg.setFillStyle(PALETTE.green[800], ALPHA.PANEL_SOLID);
+      this.buttonBg.setStrokeStyle(2, PALETTE.green[500], ALPHA.BORDER_SOLID);
+      this.buttonGlow.setFillStyle(PALETTE.green[500], ALPHA.GLOW_MEDIUM);
       this.buttonBg.setInteractive({ useHandCursor: true });
 
       // Subtle pulse to draw attention
@@ -184,41 +142,20 @@ export class SanctuaryBlessingButton {
       this.bankedPreview.setText(bankedValues.join(' '));
       this.bankedPreview.setVisible(true);
 
-      this.buttonBg.setFillStyle(PALETTE.purple[800], 0.8);
-      this.buttonBg.setStrokeStyle(2, PALETTE.purple[500], 0.6);
-      this.buttonGlow.setAlpha(0.05);
+      this.buttonBg.setFillStyle(PALETTE.purple[800], ALPHA.BORDER_SOLID);
+      this.buttonBg.setStrokeStyle(2, PALETTE.purple[500], ALPHA.BORDER_MEDIUM);
+      this.buttonGlow.setAlpha(ALPHA.GLOW_SUBTLE);
       this.buttonBg.disableInteractive();
     } else {
       // Spent - dimmed
-      this.labelText.setText('SPENT');
-      this.labelText.setColor(COLORS.TEXT_MUTED);
+      this.setSpentState('SPENT');
       this.labelText.setY(0);
-
-      this.buttonBg.setFillStyle(PALETTE.purple[800], 0.7);
-      this.buttonBg.setStrokeStyle(2, PALETTE.purple[600], 0.5);
-      this.buttonGlow.setAlpha(0);
-      this.buttonBg.disableInteractive();
     }
   };
 
-  show(): void {
-    this.container.setVisible(true);
-    this.updateDisplay();
-  }
-
-  hide(): void {
-    this.container.setVisible(false);
-  }
-
-  setPosition(x: number, y: number): void {
-    this.container.setPosition(x, y);
-  }
-
-  destroy(): void {
+  protected cleanupEvents(): void {
     this.events.off('blessing:sanctuary:banked', this.updateDisplay, this);
     this.events.off('blessing:sanctuary:restored', this.updateDisplay, this);
     this.events.off('blessing:sanctuary:reset', this.updateDisplay, this);
-    this.scene.tweens.killTweensOf(this.buttonGlow);
-    this.container.destroy();
   }
 }

@@ -500,6 +500,51 @@ Monitoring for now. If DPR 3 quality complaints arise, consider:
 
 ---
 
+## Recent Session Work (Dec 27, 2025)
+
+### Responsive Layout Refactoring - COMPLETE
+- [x] **Removed dead `isMobile` code** - Game locked to 430px width via CSS, so `isMobile` always true
+- [x] **Removed desktop code paths** from: blessing-choice-panel, end-screen-overlay, header-panel, debug-panel, tutorial-debug-panel
+- [x] **Simplified config** - Removed `_MOBILE`/`_DESKTOP` suffix pattern, single values now
+
+### BlessingButtonBase Extraction - COMPLETE
+- [x] **Created abstract base class** `src/ui/gameplay/blessing-button-base.ts`
+- [x] **Reduced duplication** - mercy-blessing-button (150→81 lines), sixth-blessing-button, sanctuary-blessing-button all extend base
+- [x] **Shared methods** - `createButtonBase()`, `setAvailableState()`, `setSpentState()`, `show()`, `hide()`, `destroy()`
+
+### PANEL_PRESETS Addition - COMPLETE
+- [x] **Added to ui-utils.ts** - `modal`, `subtle`, `overlay` presets for consistent panel styling
+- [x] **Updated panels** - pause-menu, menu-settings-panel, tutorial-complete-overlay now use presets
+
+### Scorecard Layout Improvements - COMPLETE
+- [x] **Separated internal/external padding** - New `INTERNAL_BOTTOM_PADDING` (10px) vs external `BOTTOM_PADDING` (45px)
+- [x] **Removed dead space** below "TOTAL (250+ to pass)" text
+- [x] **Added tip.GAP** (18px) - Space between "Tap dice to lock" and dice for new content
+
+### Dice Icon Improvements - COMPLETE
+- [x] **Bigger checkmarks** - Increased from size 6 to 9, stroke 3 to 4
+- [x] **Fixed checkmark proportions** - Y coordinates now relative to checkSize
+- [x] **Bigger skull icon** - Matched checkmark size (skullSize = 9 * iconScale)
+- [x] **Lowered icons** - Added 2px offset down
+- [x] **Increased icon spacing** - GAP_BASE 12→14, HEIGHT_BASE 10→16
+
+### Tutorial Highlight Fixes - COMPLETE
+- [x] **Taller header highlights** - Reduced SECTION_PADDING from 8 to 2
+- [x] **Tighter seal counter bounds** - Reduced width by 12px, re-centered
+- [x] **Tighter total score bounds** - Reduced width by 6px
+- [x] **Fixed categories counter (0/13)** - Adjusted x offset and width
+- [x] **Fixed dice area bounds** - layoutTipOffset now calculated from actual layout positions
+
+### Config Constant Additions
+- `LAYOUT.gameplay.SCORECARD_RIGHT_MARGIN` (15) - Landscape scorecard margin
+- `LAYOUT.scorecard.INTERNAL_BOTTOM_PADDING` (10) - Inside panel padding
+- `LAYOUT.scorecard.INTERNAL_BOTTOM_PADDING_COMPACT` (6)
+- `LAYOUT.tip.GAP` increased to 18 - Space for new content above dice
+
+### Current Version: v1.1.14
+
+---
+
 ## Recent Session Work (Dec 26, 2025)
 
 ### Audio System Improvements - COMPLETE

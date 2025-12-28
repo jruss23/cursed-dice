@@ -1,19 +1,40 @@
 /**
  * Dice Controls Panel
  * Reusable component for roll button and rerolls display
- * Matches original DiceManager.createControlsPanel exactly
+ *
+ * Uses values from GameplayLayout.controls - no local sizing calculations.
  */
 
 import Phaser from 'phaser';
-import { FONTS, SIZES, PALETTE, COLORS } from '@/config';
-import { createText } from '@/ui/ui-utils';
+import { FONTS, SIZES, PALETTE, COLORS, type GameplayLayout } from '@/config';
+import { createText, createPanelFrame, addPanelFrameToContainer } from '@/ui/ui-utils';
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+/** Controls layout from GameplayLayout.controls */
+type ControlsLayout = GameplayLayout['controls'];
+
+/** Sizing values extracted from layout */
+interface DiceControlsSizing {
+  colWidth: number;
+  panelHeight: number;
+  rollButtonHeight: number;
+  dividerPadding: number;
+  rollButtonWidth: number;
+  rollFontSize: string;
+  glowPaddingX: number;
+  glowPaddingY: number;
+  labelValueGap: number;
+  compactMeetOffset: number;
+  useCompactLayout: boolean;
+}
 
 export interface DiceControlsConfig {
   scene: Phaser.Scene;
-  centerX: number;
-  centerY: number;
-  isMobile?: boolean;
-  ultraCompact?: boolean;
+  /** Layout values from GameplayLayout.controls */
+  layout: ControlsLayout;
   includeBlessingSlot?: boolean;
   initialRerolls?: number;
   onRoll: () => void;
@@ -33,47 +54,63 @@ export class DiceControls {
   private colWidth: number;
 
   // Config
-  private isMobile: boolean;
   private includeBlessingSlot: boolean;
+  private sizing: DiceControlsSizing;
 
   constructor(config: DiceControlsConfig) {
     this.scene = config.scene;
-    this.isMobile = config.isMobile ?? false;
     this.includeBlessingSlot = config.includeBlessingSlot ?? false;
 
-    const ultraCompact = config.ultraCompact ?? false;
+    const { layout } = config;
+
+    // Extract sizing from layout (single source of truth)
+    this.sizing = {
+      colWidth: layout.colWidth,
+      panelHeight: layout.height,
+      rollButtonHeight: layout.buttonHeight,
+      dividerPadding: layout.dividerPadding,
+      rollButtonWidth: layout.buttonWidth,
+      rollFontSize: layout.fontSize,
+      glowPaddingX: layout.glowPaddingX,
+      glowPaddingY: layout.glowPaddingY,
+      labelValueGap: layout.labelValueGap,
+      compactMeetOffset: layout.compactMeetOffset,
+      useCompactLayout: layout.useCompactLayout,
+    };
 
     // Column-based layout: divide panel into equal columns
     const numCols = this.includeBlessingSlot ? 3 : 2;
-    this.colWidth = this.isMobile ? 120 : 130;
+    this.colWidth = this.sizing.colWidth;
     this.panelWidth = numCols * this.colWidth;
-    this.panelHeight = ultraCompact ? 50 : (this.isMobile ? 60 : 84);
-    this.rollButtonHeight = ultraCompact ? 28 : (this.isMobile ? 32 : 44);
+    this.panelHeight = this.sizing.panelHeight;
+    this.rollButtonHeight = this.sizing.rollButtonHeight;
 
-    const panelX = config.centerX - this.panelWidth / 2;
-    const panelY = config.centerY - this.panelHeight / 2;
+    const panelX = layout.centerX - this.panelWidth / 2;
+    const panelY = layout.centerY - this.panelHeight / 2;
 
     // Panel container
     this.container = this.scene.add.container(panelX, panelY);
 
-    this.build(numCols, ultraCompact, config.initialRerolls ?? 3, config.onRoll);
+    this.build(numCols, config.initialRerolls ?? 3, config.onRoll);
   }
 
-  private build(numCols: number, ultraCompact: boolean, initialRerolls: number, onRoll: () => void): void {
-    // Panel background
-    const panelBg = this.scene.add.rectangle(
-      this.panelWidth / 2, this.panelHeight / 2,
-      this.panelWidth, this.panelHeight,
-      PALETTE.purple[900], 0.88
-    );
-    panelBg.setStrokeStyle(SIZES.PANEL_BORDER_WIDTH, PALETTE.purple[500], 0.5);
-    this.container.add(panelBg);
-
-    // Corner accents
-    this.addCornerAccents();
+  private build(numCols: number, initialRerolls: number, onRoll: () => void): void {
+    // Panel frame (glow, background, corners)
+    const frame = createPanelFrame(this.scene, {
+      x: 0,
+      y: 0,
+      width: this.panelWidth,
+      height: this.panelHeight,
+      glowAlpha: 0.06,
+      bgAlpha: 0.88,
+      borderAlpha: 0.5,
+      borderWidth: SIZES.PANEL_BORDER_WIDTH,
+      cornerAlpha: 0.4,
+    });
+    addPanelFrameToContainer(this.container, frame);
 
     const rowY = this.panelHeight / 2;
-    const dividerPadding = ultraCompact ? 10 : (this.isMobile ? 16 : 24);
+    const dividerPadding = this.sizing.dividerPadding;
 
     // Calculate column centers
     // With blessing: [Blessing] | [Rerolls] | [Roll]
@@ -98,33 +135,11 @@ export class DiceControls {
     this.createRollButton(rollColX, rowY, onRoll);
   }
 
-  private addCornerAccents(): void {
-    const cornerSize = SIZES.PANEL_CORNER_SIZE;
-    const cornerInset = SIZES.PANEL_CORNER_INSET;
-    const corners = [
-      { x: cornerInset, y: cornerInset, ax: 1, ay: 1 },
-      { x: this.panelWidth - cornerInset, y: cornerInset, ax: -1, ay: 1 },
-      { x: this.panelWidth - cornerInset, y: this.panelHeight - cornerInset, ax: -1, ay: -1 },
-      { x: cornerInset, y: this.panelHeight - cornerInset, ax: 1, ay: -1 },
-    ];
-
-    corners.forEach(corner => {
-      const accent = this.scene.add.graphics();
-      accent.lineStyle(2, PALETTE.purple[400], 0.4);
-      accent.beginPath();
-      accent.moveTo(corner.x, corner.y + cornerSize * corner.ay);
-      accent.lineTo(corner.x, corner.y);
-      accent.lineTo(corner.x + cornerSize * corner.ax, corner.y);
-      accent.strokePath();
-      this.container.add(accent);
-    });
-  }
-
   private createRerollsDisplay(colX: number, rowY: number, initialRerolls: number): void {
-    if (this.isMobile) {
+    if (this.sizing.useCompactLayout) {
       // Compact horizontal layout: "REROLLS: 2"
       // Offset meeting point right to visually center the combined text
-      const meetPoint = colX + 34;
+      const meetPoint = colX + this.sizing.compactMeetOffset;
       const rerollsLabel = createText(this.scene, meetPoint, rowY, 'REROLLS: ', {
         fontSize: FONTS.SIZE_SMALL,
         fontFamily: FONTS.FAMILY,
@@ -144,7 +159,8 @@ export class DiceControls {
       this.container.add(this.rerollText);
     } else {
       // Desktop: stacked vertical layout - both centered
-      const rerollsLabel = createText(this.scene, colX, rowY - 12, 'REROLLS', {
+      const gap = this.sizing.labelValueGap;
+      const rerollsLabel = createText(this.scene, colX, rowY - gap, 'REROLLS', {
         fontSize: FONTS.SIZE_SMALL,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_PRIMARY,
@@ -153,7 +169,7 @@ export class DiceControls {
       rerollsLabel.setOrigin(0.5, 0.5);
       this.container.add(rerollsLabel);
 
-      this.rerollText = createText(this.scene, colX, rowY + 12, `${initialRerolls}`, {
+      this.rerollText = createText(this.scene, colX, rowY + gap, `${initialRerolls}`, {
         fontSize: FONTS.SIZE_HEADING,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_SUCCESS,
@@ -165,12 +181,13 @@ export class DiceControls {
   }
 
   private createRollButton(colX: number, rowY: number, onRoll: () => void): void {
-    const btnWidth = this.isMobile ? 100 : 110;
+    const btnWidth = this.sizing.rollButtonWidth;
 
     // Glow behind button
     this.rollButtonGlow = this.scene.add.rectangle(
       colX, rowY,
-      btnWidth + 10, this.rollButtonHeight + 8,
+      btnWidth + this.sizing.glowPaddingX * 2,
+      this.rollButtonHeight + this.sizing.glowPaddingY * 2,
       PALETTE.green[500], 0.12
     );
     this.container.add(this.rollButtonGlow);
@@ -187,7 +204,7 @@ export class DiceControls {
 
     // Button text
     const rollText = createText(this.scene, colX, rowY, 'ROLL', {
-      fontSize: this.isMobile ? FONTS.SIZE_LABEL : FONTS.SIZE_BODY,
+      fontSize: this.sizing.rollFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SUCCESS,
       fontStyle: 'bold',

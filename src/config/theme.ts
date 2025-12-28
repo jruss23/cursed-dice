@@ -324,6 +324,89 @@ export const COLORS = {
   VICTORY_BTN_GLOW: PALETTE.victory.goldenrod,
   VICTORY_BTN_TEXT: '#FFF8DC', // Cornsilk
   VICTORY_TITLE: '#DAA520', // Goldenrod hex for text
+
+  // Difficulty colors (text/CSS hex strings)
+  DIFFICULTY_CHILL: '#44aa44',   // green.500
+  DIFFICULTY_NORMAL: '#4488ff', // blue.500
+  DIFFICULTY_INTENSE: '#ff4444', // bright red
+
+  // Score effect colors (CSS hex strings for text glow)
+  SCORE_EFFECT_GREEN: '#22aa44',
+  SCORE_EFFECT_GOLD: '#ffaa00',
+  SCORE_EFFECT_PURPLE: '#aa66ff',
+  SCORE_EFFECT_GRAY: '#666666',
+  SCORE_EFFECT_WHITE: '#ffffff',
+} as const;
+
+// =============================================================================
+// ALPHA VALUES (Opacity constants for consistency)
+// =============================================================================
+
+export const ALPHA = {
+  // Subtle effects (glows, hints)
+  GLOW_SUBTLE: 0.06,
+  GLOW_SOFT: 0.08,
+  GLOW_LIGHT: 0.12,
+  GLOW_MEDIUM: 0.15,
+  GLOW_STRONG: 0.25,
+  GLOW_HOVER: 0.3,
+  GLOW_INTENSE: 0.35,
+
+  // Overlays and shadows
+  SHADOW_LIGHT: 0.3,
+  SHADOW_MEDIUM: 0.4,
+  SHADOW_HEAVY: 0.5,
+  OVERLAY_LIGHT: 0.5,
+  OVERLAY_MEDIUM: 0.7,
+  OVERLAY_HEAVY: 0.85,
+
+  // Panel backgrounds
+  PANEL_TRANSPARENT: 0.88,
+  PANEL_SOLID: 0.92,
+  PANEL_OPAQUE: 0.95,
+  PANEL_NEAR_SOLID: 0.98,
+
+  // Borders and strokes
+  BORDER_SUBTLE: 0.35,
+  BORDER_LIGHT: 0.5,
+  BORDER_MEDIUM: 0.6,
+  BORDER_STRONG: 0.7,
+  BORDER_SOLID: 0.8,
+
+  // Interactive states
+  DISABLED: 0.5,
+  DISABLED_STRONG: 0.15,
+  HOVER: 0.25,
+  ACTIVE: 0.3,
+
+  // Text overlays (glow behind text)
+  TEXT_GLOW: 0.4,
+  TEXT_GLOW_STRONG: 0.5,
+} as const;
+
+// =============================================================================
+// SCALE VALUES (Transform scale constants)
+// =============================================================================
+
+export const SCALE = {
+  // Button interactions
+  CLICK: 0.97,
+  HOVER: 1.03,
+  HOVER_SUBTLE: 1.02,
+
+  // Animations
+  ENTRY: 0.9,
+  ENTRY_SUBTLE: 0.95,
+  EXIT: 0.95,
+
+  // Emphasis
+  PULSE_MIN: 0.98,
+  PULSE_MAX: 1.02,
+  BOUNCE: 1.1,
+  BOUNCE_SMALL: 1.05,
+
+  // Glow scaling
+  GLOW_PULSE: 1.2,
 } as const;
 
 // =============================================================================
@@ -334,17 +417,18 @@ export const FONTS = {
   FAMILY: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial',
 
   // Font sizes (largest to smallest)
+  SIZE_SCORE_HUGE: '72px',   // Score effect 50+ points
+  SIZE_SCORE_LARGE: '56px',  // Score effect 30+ points
   SIZE_TIMER: '56px',
   SIZE_MENU_TITLE: '52px',
-  SIZE_TITLE: '48px',
+  SIZE_TITLE: '48px',        // Score effect 15+ points
   SIZE_BLESSING: '42px',
-  SIZE_BLESSING_SM: '36px',
+  SIZE_DISPLAY: '36px',      // Score effect 0 points
   SIZE_MODE_TITLE: '32px',
   SIZE_HEADING: '28px',
   SIZE_LARGE: '24px',
   SIZE_SUBHEADING: '20px',
   SIZE_BODY: '18px',
-  SIZE_BODY_SM: '17px',
   SIZE_BUTTON: '16px',
   SIZE_LABEL: '15px',
   SIZE_SMALL: '14px',

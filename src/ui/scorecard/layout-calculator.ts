@@ -1,41 +1,12 @@
 /**
  * Scorecard Layout Calculator
- * Pure functions for calculating layout - no Phaser dependency
+ * Pure functions for calculating two-column mobile layout
  * All values are computed based on viewport and scorecard state
  */
 
 import type { Category } from '@/systems/scorecard';
-import type { LayoutConfig, RowLayout, ScorecardLayoutMode } from './layout-config';
-
-// =============================================================================
-// CONSTANTS (copied from config to avoid Phaser dependency)
-// =============================================================================
-
-const RESPONSIVE: {
-  SCORECARD_WIDTH_TWO_COL: number;
-  ROW_HEIGHT_MOBILE: number;
-  COMPACT_TITLE_HEIGHT: number;
-  COMPACT_HEADER_HEIGHT: number;
-  COMPACT_TOTAL_HEIGHT: number;
-  COMPACT_CONTENT_PADDING: number;
-  COMPACT_DIVIDER_HEIGHT: number;
-  COMPACT_BOTTOM_PADDING: number;
-  COMPACT_TITLE_GAP: number;
-} = {
-  SCORECARD_WIDTH_TWO_COL: 340,
-  ROW_HEIGHT_MOBILE: 36,
-  COMPACT_TITLE_HEIGHT: 20,
-  COMPACT_HEADER_HEIGHT: 18,
-  COMPACT_TOTAL_HEIGHT: 28,
-  COMPACT_CONTENT_PADDING: 4,
-  COMPACT_DIVIDER_HEIGHT: 3,
-  COMPACT_BOTTOM_PADDING: 4,
-  COMPACT_TITLE_GAP: 0,
-};
-
-const SIZES: { SCORECARD_WIDTH: number } = {
-  SCORECARD_WIDTH: 324,
-};
+import type { LayoutConfig, RowLayout } from './layout-config';
+import { LAYOUT, FONTS } from '@/config';
 
 // =============================================================================
 // LAYOUT INPUT
@@ -57,42 +28,34 @@ export interface LayoutInput {
 // =============================================================================
 
 /**
- * Determine layout mode based on viewport width
- */
-export function determineLayoutMode(viewportWidth: number): ScorecardLayoutMode {
-  return viewportWidth < 900 ? 'two-column' : 'single-column';
-}
-
-/**
- * Calculate complete layout configuration
+ * Calculate complete layout configuration (two-column only)
  */
 export function calculateLayout(input: LayoutInput): LayoutConfig {
-  const mode = determineLayoutMode(input.viewportWidth);
-  const needsCompactLayout = mode === 'two-column' && input.hasSpecialSection;
-
-  if (mode === 'two-column') {
-    return calculateTwoColumnLayout(input, needsCompactLayout);
-  }
-  return calculateSingleColumnLayout(input);
+  const needsCompactLayout = input.hasSpecialSection;
+  return calculateTwoColumnLayout(input, needsCompactLayout);
 }
 
 /**
  * Calculate two-column (mobile/portrait) layout
+ * Uses LAYOUT.scorecard as source of truth
  */
 function calculateTwoColumnLayout(input: LayoutInput, needsCompact: boolean): LayoutConfig {
-  const width = RESPONSIVE.SCORECARD_WIDTH_TWO_COL;
-  const contentPadding = needsCompact ? RESPONSIVE.COMPACT_CONTENT_PADDING : 6;
-  const titleHeight = needsCompact ? RESPONSIVE.COMPACT_TITLE_HEIGHT : 28;
-  const titleGap = needsCompact ? RESPONSIVE.COMPACT_TITLE_GAP : 2;
-  const headerHeight = needsCompact ? RESPONSIVE.COMPACT_HEADER_HEIGHT : 24;
-  const totalRowHeight = needsCompact ? RESPONSIVE.COMPACT_TOTAL_HEIGHT : RESPONSIVE.ROW_HEIGHT_MOBILE;
-  const dividerHeight = needsCompact ? RESPONSIVE.COMPACT_DIVIDER_HEIGHT : 6;
-  const bottomPadding = needsCompact ? RESPONSIVE.COMPACT_BOTTOM_PADDING : 8;
-  const columnGap = 6;
-  const columnWidth = (width - contentPadding * 2 - columnGap) / 2;
+  const L = LAYOUT.scorecard;
+  const width = L.WIDTH;
+
+  // Select sizing based on compact mode
+  const contentPadding = needsCompact ? L.CONTENT_PADDING_COMPACT : L.CONTENT_PADDING;
+  const titleHeight = needsCompact ? L.TITLE_HEIGHT_COMPACT : L.TITLE_HEIGHT;
+  const titleGap = needsCompact ? L.TITLE_GAP_COMPACT : L.TITLE_GAP;
+  const headerHeight = needsCompact ? L.HEADER_HEIGHT_COMPACT : L.HEADER_HEIGHT;
+  const totalRowHeight = needsCompact ? L.TOTAL_ROW_HEIGHT_COMPACT : L.TOTAL_ROW_HEIGHT;
+  const dividerHeight = needsCompact ? L.DIVIDER_HEIGHT_COMPACT : L.DIVIDER_HEIGHT;
+  // Use internal padding for inside the panel (smaller than external BOTTOM_PADDING)
+  const bottomPadding = needsCompact ? L.INTERNAL_BOTTOM_PADDING_COMPACT : L.INTERNAL_BOTTOM_PADDING;
+  const columnWidth = (width - contentPadding * 2 - L.COLUMN_GAP) / 2;
 
   // Calculate row height dynamically if maxHeight is provided
-  let rowHeight = RESPONSIVE.ROW_HEIGHT_MOBILE;
+  let rowHeight: number = L.ROW_HEIGHT;
   if (input.maxHeight) {
     const fixedHeight = contentPadding + titleHeight + titleGap + headerHeight + totalRowHeight + bottomPadding;
     let extraHeight = 0;
@@ -105,7 +68,7 @@ function calculateTwoColumnLayout(input: LayoutInput, needsCompact: boolean): La
 
     const availableForRows = input.maxHeight - fixedHeight - extraHeight;
     const idealRowHeight = Math.floor(availableForRows / numRows);
-    rowHeight = Math.max(28, Math.min(RESPONSIVE.ROW_HEIGHT_MOBILE, idealRowHeight));
+    rowHeight = Math.max(L.ROW_HEIGHT_MIN, Math.min(L.ROW_HEIGHT, idealRowHeight));
   }
 
   // Calculate height
@@ -120,7 +83,7 @@ function calculateTwoColumnLayout(input: LayoutInput, needsCompact: boolean): La
   }
 
   const leftColumnX = contentPadding;
-  const rightColumnX = contentPadding + columnWidth + columnGap;
+  const rightColumnX = contentPadding + columnWidth + L.COLUMN_GAP;
 
   // Build rows
   const rows: RowLayout[] = [];
@@ -171,7 +134,7 @@ function calculateTwoColumnLayout(input: LayoutInput, needsCompact: boolean): La
   // Special section (2x2 grid)
   if (input.hasSpecialSection) {
     const fullWidth = width - contentPadding * 2;
-    const gridColWidth = (fullWidth - columnGap) / 2;
+    const gridColWidth = (fullWidth - L.COLUMN_GAP) / 2;
 
     bottomY += dividerHeight / 2;
     // Divider row is implicit
@@ -186,7 +149,7 @@ function calculateTwoColumnLayout(input: LayoutInput, needsCompact: boolean): La
 
     // 2x2 grid
     const gridLeftX = contentPadding;
-    const gridRightX = contentPadding + gridColWidth + columnGap;
+    const gridRightX = contentPadding + gridColWidth + L.COLUMN_GAP;
 
     if (input.specialCategories[0]) {
       rows.push({
@@ -235,11 +198,11 @@ function calculateTwoColumnLayout(input: LayoutInput, needsCompact: boolean): La
     totalRowHeight,
     dividerHeight,
     bottomPadding,
-    fontSize: '15px',
-    smallFontSize: '13px',
-    scoreFontSize: '16px',
-    titleFontSize: needsCompact ? '12px' : '14px',
-    columnGap,
+    fontSize: FONTS.SIZE_LABEL,
+    smallFontSize: FONTS.SIZE_SMALL,
+    scoreFontSize: FONTS.SIZE_BUTTON,
+    titleFontSize: needsCompact ? FONTS.SIZE_TINY : FONTS.SIZE_SMALL,
+    columnGap: L.COLUMN_GAP,
     columnWidth,
     leftColumnX,
     rightColumnX,
@@ -254,161 +217,13 @@ function calculateTwoColumnLayout(input: LayoutInput, needsCompact: boolean): La
     hasSpecialSection: input.hasSpecialSection,
     needsCompactLayout: needsCompact,
     rowStyle: {
-      namePaddingLeft: 8,
-      labelPaddingLeft: 6,
+      namePaddingLeft: L.NAME_PADDING_LEFT,
+      labelPaddingLeft: L.LABEL_PADDING_LEFT,
       scoreOriginX: 1,
       useShortNames: true,
       showTotalDivider: false,
-      potentialOffsetFromRight: 45,
-      scoreOffsetFromRight: 12,
+      potentialOffsetFromRight: L.POTENTIAL_OFFSET_FROM_RIGHT,
+      scoreOffsetFromRight: L.SCORE_OFFSET_FROM_RIGHT,
     },
   };
 }
-
-/**
- * Calculate single-column (desktop) layout
- */
-function calculateSingleColumnLayout(input: LayoutInput): LayoutConfig {
-  const isCompact = input.isCompact;
-  const width = isCompact ? 300 : SIZES.SCORECARD_WIDTH;
-  const contentPadding = 6;
-  const titleHeight = isCompact ? 24 : 28;
-  const titleGap = 2;
-  const headerHeight = isCompact ? 18 : 20;
-  const rowHeight = isCompact ? 22 : 24;
-  const totalRowHeight = isCompact ? 22 : 24;
-  const dividerHeight = 6;
-  const bottomPadding = 8;
-
-  // Calculate height
-  let height = contentPadding + titleHeight + titleGap;
-  height += headerHeight;
-  height += 6 * rowHeight; // Upper categories
-  height += rowHeight; // Bonus
-  height += dividerHeight;
-  height += headerHeight;
-  height += 7 * rowHeight; // Lower categories
-  height += 1; // Divider line
-  height += totalRowHeight;
-  height += bottomPadding;
-
-  if (input.hasSpecialSection) {
-    height += dividerHeight + headerHeight + 4 * rowHeight;
-  }
-
-  const contentX = contentPadding;
-  const contentWidth = width - contentPadding * 2;
-
-  // Build rows
-  const rows: RowLayout[] = [];
-  let y = contentPadding + titleHeight + titleGap;
-
-  // Numbers header (formerly "upper")
-  rows.push({
-    x: contentX, y, width: contentWidth, height: headerHeight,
-    section: 'header', label: 'NUMBERS',
-  });
-  y += headerHeight;
-
-  // Upper categories
-  input.upperCategories.forEach((cat, i) => {
-    rows.push({
-      x: contentX, y, width: contentWidth, height: rowHeight,
-      categoryId: cat.id, section: 'upper', isEven: i % 2 === 0,
-    });
-    y += rowHeight;
-  });
-
-  // Bonus row
-  rows.push({
-    x: contentX, y, width: contentWidth, height: rowHeight,
-    section: 'bonus',
-  });
-  y += rowHeight;
-
-  // Divider
-  y += dividerHeight;
-
-  // Combos header (formerly "lower")
-  rows.push({
-    x: contentX, y, width: contentWidth, height: headerHeight,
-    section: 'header', label: 'COMBOS',
-  });
-  y += headerHeight;
-
-  // Lower categories
-  input.lowerCategories.forEach((cat, i) => {
-    rows.push({
-      x: contentX, y, width: contentWidth, height: rowHeight,
-      categoryId: cat.id, section: 'lower', isEven: i % 2 === 0,
-    });
-    y += rowHeight;
-  });
-
-  // Special section
-  if (input.hasSpecialSection) {
-    y += dividerHeight;
-
-    rows.push({
-      x: contentX, y, width: contentWidth, height: headerHeight,
-      section: 'header', label: 'EXPANSION',
-    });
-    y += headerHeight;
-
-    input.specialCategories.forEach((cat, i) => {
-      rows.push({
-        x: contentX, y, width: contentWidth, height: rowHeight,
-        categoryId: cat.id, section: 'special', isEven: i % 2 === 0,
-      });
-      y += rowHeight;
-    });
-  }
-
-  // Total row (after 1px divider line)
-  y += 1;
-  rows.push({
-    x: contentX, y, width: contentWidth, height: totalRowHeight,
-    section: 'total',
-  });
-
-  return {
-    mode: 'single-column',
-    width,
-    height,
-    contentPadding,
-    titleHeight,
-    titleGap,
-    headerHeight,
-    rowHeight,
-    totalRowHeight,
-    dividerHeight,
-    bottomPadding,
-    fontSize: isCompact ? '11px' : '12px',
-    smallFontSize: isCompact ? '9px' : '10px',
-    scoreFontSize: isCompact ? '12px' : '14px',
-    titleFontSize: isCompact ? '14px' : '16px',
-    columnGap: 0,
-    columnWidth: contentWidth,
-    leftColumnX: contentX,
-    rightColumnX: contentX,
-    titleY: contentPadding + titleHeight / 2,
-    upperHeaderY: contentPadding + titleHeight + titleGap,
-    lowerHeaderY: 0, // Calculated dynamically in single-column
-    totalY: y - totalRowHeight,
-    contentX,
-    contentWidth,
-    rows,
-    hasSpecialSection: input.hasSpecialSection,
-    needsCompactLayout: false,
-    rowStyle: {
-      namePaddingLeft: 14,
-      labelPaddingLeft: 14,
-      scoreOriginX: 0.5,
-      useShortNames: false,
-      showTotalDivider: true,
-      potentialOffsetFromRight: 85,
-      scoreOffsetFromRight: 32,
-    },
-  };
-}
-

@@ -21,10 +21,13 @@ import {
   COLORS,
   DEV,
   RESPONSIVE,
-  GAMEPLAY_LAYOUT,
+  LAYOUT,
+  ALPHA,
+  TIMING,
+  getGameplayLayout,
   getScaledSizes,
-  getPortraitLayout,
   type ViewportMetrics,
+  type GameplayLayout,
   type ScaledSizes,
 } from '@/config';
 import { createScorecard, type Scorecard } from '@/systems/scorecard';
@@ -383,6 +386,7 @@ export class GameplayScene extends BaseScene {
 
   /**
    * Landscape layout: Header+Dice on left, Scorecard on right (2 columns)
+   * Note: Uses a modified layout for landscape positioning
    */
   private buildLandscapeLayout(
     width: number,
@@ -391,10 +395,13 @@ export class GameplayScene extends BaseScene {
     metrics: ViewportMetrics,
     scaledSizes: ScaledSizes
   ): void {
+    // Get base layout values (we'll override positions for landscape)
+    const baseLayout = getGameplayLayout(this);
+
     // Width for scorecard - panel determines its own layout
     const scorecardWidth = width < 900 ? RESPONSIVE.SCORECARD_WIDTH_TWO_COL : scaledSizes.scorecardWidth;
-    const scorecardX = width - scorecardWidth - 15;
-    const leftMargin = DEV.IS_DEVELOPMENT ? GAMEPLAY_LAYOUT.LEFT_MARGIN_DEBUG : GAMEPLAY_LAYOUT.LEFT_MARGIN_NORMAL;
+    const scorecardX = width - scorecardWidth - LAYOUT.gameplay.SCORECARD_RIGHT_MARGIN;
+    const leftMargin = DEV.IS_DEVELOPMENT ? LAYOUT.gameplay.LEFT_MARGIN_DEBUG : LAYOUT.gameplay.LEFT_MARGIN_NORMAL;
     const playAreaCenterX = leftMargin + (scorecardX - leftMargin) / 2;
 
     // Debug panel (only in debug mode)
@@ -420,16 +427,25 @@ export class GameplayScene extends BaseScene {
       metrics,
     });
 
-    // Dice area with scaled sizes
+    // Create landscape-specific layout (override positions)
+    const landscapeLayout: GameplayLayout = {
+      ...baseLayout,
+      viewport: { ...baseLayout.viewport, centerX: playAreaCenterX },
+      dice: { ...baseLayout.dice, centerX: playAreaCenterX, centerY: height * 0.48 },
+      tip: { ...baseLayout.tip, y: height * 0.48 - baseLayout.dice.size / 2 - 4 },
+      controls: { ...baseLayout.controls, centerX: playAreaCenterX, centerY: height * 0.48 + baseLayout.dice.size / 2 + 50 },
+    };
+
+    // Dice area with landscape layout
     this.diceCenterX = playAreaCenterX;
-    this.createDicePanel(playAreaCenterX, height * 0.48, scaledSizes);
+    this.createDicePanel(landscapeLayout);
 
     // Select prompt - positioned above scorecard panel
-    this.selectPrompt = createSelectPrompt(this, scorecardX + scorecardWidth / 2, GAMEPLAY_LAYOUT.PROMPT_PADDING);
+    this.selectPrompt = createSelectPrompt(this, scorecardX + scorecardWidth / 2, LAYOUT.gameplay.PROMPT_PADDING);
     this.selectPrompt.setOrigin(0.5, 0);
 
     // Scorecard panel - below the prompt
-    const scorecardY = GAMEPLAY_LAYOUT.PROMPT_PADDING + GAMEPLAY_LAYOUT.PROMPT_HEIGHT + GAMEPLAY_LAYOUT.PROMPT_PADDING;
+    const scorecardY = LAYOUT.gameplay.PROMPT_PADDING + LAYOUT.gameplay.PROMPT_HEIGHT + LAYOUT.gameplay.PROMPT_PADDING;
     this.scorecardPanel = new ScorecardPanel(this, this.scorecard, this.gameEvents, {
       x: scorecardX,
       y: scorecardY,
@@ -442,15 +458,17 @@ export class GameplayScene extends BaseScene {
 
   /**
    * Portrait layout: Header+Dice stacked on top, Scorecard below
+   * Uses GameplayLayout as single source of truth for all positioning.
    */
   private buildPortraitLayout(
-    width: number,
+    _width: number,
     height: number,
     totalScore: number,
     metrics: ViewportMetrics,
-    scaledSizes: ScaledSizes
+    _scaledSizes: unknown // No longer used - layout has all values
   ): void {
-    const centerX = width / 2;
+    // Get complete layout (single source of truth)
+    const layout = getGameplayLayout(this);
 
     // Debug panel (only in debug mode)
     if (this.debugController) {
@@ -462,14 +480,10 @@ export class GameplayScene extends BaseScene {
       });
     }
 
-    // Get viewport-relative layout using Phaser's scale API
-    // Reference: https://rexrainbow.github.io/phaser3-rex-notes/docs/site/scalemanager/
-    const layout = getPortraitLayout(this);
-
     // Header panel (compact for portrait)
     this.headerPanel = createHeaderPanel({
       scene: this,
-      centerX,
+      centerX: layout.viewport.centerX,
       currentMode: this.currentMode,
       modeName: this.modeConfig.name,
       totalScore,
@@ -477,28 +491,27 @@ export class GameplayScene extends BaseScene {
       passThreshold: PASS_THRESHOLD,
       compact: true,
       metrics,
-      compactHeight: layout.headerHeight,
+      compactHeight: layout.header.height,
     });
 
-    // Dice area with scaled sizes - use layout-calculated Y position
-    this.diceCenterX = centerX;
-    this.createDicePanel(centerX, layout.diceY, scaledSizes, layout.isUltraCompact);
+    // Dice area - using layout values
+    this.diceCenterX = layout.dice.centerX;
+    this.createDicePanel(layout);
 
-    // Scorecard (centered below dice) - use two-column width on small screens
-    const scorecardWidth = width < 900 ? RESPONSIVE.SCORECARD_WIDTH_TWO_COL : scaledSizes.scorecardWidth;
-    const scorecardX = (width - scorecardWidth) / 2;
+    // Scorecard (using layout values)
     this.scorecardPanel = new ScorecardPanel(this, this.scorecard, this.gameEvents, {
-      x: scorecardX,
-      y: layout.scorecardY,
+      x: layout.scorecard.x,
+      y: layout.scorecard.y,
       compact: true,
-      maxHeight: layout.scorecardHeight,
+      maxHeight: layout.scorecard.height,
       passThreshold: PASS_THRESHOLD,
     });
 
     // Select prompt - only show on tablet/desktop, not needed on mobile (self-evident)
     if (!metrics.isMobile) {
-      const promptY = layout.scorecardY - 22;
-      this.selectPrompt = createSelectPrompt(this, centerX, promptY, 'Tap a category to score');
+      const GAP_PROMPT_ABOVE_SCORECARD = 22;
+      const promptY = layout.scorecard.y - GAP_PROMPT_ABOVE_SCORECARD;
+      this.selectPrompt = createSelectPrompt(this, layout.viewport.centerX, promptY, 'Tap a category to score');
       this.selectPrompt.setOrigin(0.5, 0.5);
     }
 
@@ -530,16 +543,8 @@ export class GameplayScene extends BaseScene {
    * Create the dice area with DiceManager
    * DiceManager handles: dice sprites, helper text, rerolls display, roll button
    */
-  private createDicePanel(
-    centerX: number,
-    centerY?: number,
-    scaledSizes?: ScaledSizes,
-    isUltraCompact?: boolean
-  ): void {
-    const diceY = centerY ?? SIZES.LAYOUT_DICE_Y;
-
+  private createDicePanel(layout: GameplayLayout): void {
     // Create DiceManager and render its UI
-    // DiceManager.createUI creates: dice, helper text, rerolls text, roll button
     this.diceManager = new DiceManager(this, this.gameEvents);
     Services.register('diceManager', this.diceManager);
 
@@ -551,7 +556,8 @@ export class GameplayScene extends BaseScene {
       this.diceManager.enableBlessingSlot();
     }
 
-    this.diceManager.createUI(centerX, diceY, scaledSizes, isUltraCompact);
+    // Pass the complete layout - DiceManager extracts what it needs
+    this.diceManager.createUI(layout);
 
     // Set up blessing integration (handles sixth, mercy, sanctuary)
     if (hasBlessingButton) {
@@ -560,10 +566,10 @@ export class GameplayScene extends BaseScene {
         events: this.gameEvents,
         blessingManager: this.blessingManager,
         diceManager: this.diceManager,
-        gameWidth: this.scale.gameSize.width,
-        diceY,
-        diceSize: scaledSizes?.dice ?? SIZES.DICE_SIZE,
-        diceSpacing: scaledSizes?.diceSpacing ?? SIZES.DICE_SPACING,
+        gameWidth: layout.viewport.width,
+        diceY: layout.dice.centerY,
+        diceSize: layout.dice.size,
+        diceSpacing: layout.dice.spacing,
       });
     }
   }
@@ -584,7 +590,7 @@ export class GameplayScene extends BaseScene {
     this.diceManager.roll(true);
 
     // Apply mode mechanics after initial roll (e.g., curse die for Mode 2)
-    const afterRollCall = this.time.delayedCall(SIZES.ROLL_DURATION_MS + GAMEPLAY_LAYOUT.POST_ROLL_DELAY, () => {
+    const afterRollCall = this.time.delayedCall(SIZES.ROLL_DURATION_MS + LAYOUT.gameplay.POST_ROLL_DELAY, () => {
       if (this.stateMachine.is('game-over') || this.stateMachine.is('mode-transition')) return;
       this.modeMechanics.onAfterInitialRoll(this.diceManager);
       // Transition to selecting state after roll completes
@@ -635,7 +641,7 @@ export class GameplayScene extends BaseScene {
         // Critical - red pulsing, screen shake
         timerText.setColor(COLORS.TIMER_CRITICAL);
         timerGlow?.setColor(COLORS.TEXT_DANGER);
-        timerGlow?.setAlpha(0.4);
+        timerGlow?.setAlpha(ALPHA.SHADOW_MEDIUM);
 
         // Pulse effect - only if no tween is running (prevents scale drift)
         if (!this.timerPulseTween || !this.timerPulseTween.isPlaying()) {
@@ -646,19 +652,19 @@ export class GameplayScene extends BaseScene {
             targets: [timerText, timerGlow],
             scaleX: 1.08,
             scaleY: 1.08,
-            duration: 150,
+            duration: TIMING.FAST,
             yoyo: true,
             ease: 'Quad.easeOut',
           });
         }
 
         // Screen shake
-        this.cameras.main.shake(200, GAMEPLAY_LAYOUT.SHAKE_INTENSITY);
+        this.cameras.main.shake(TIMING.NORMAL, LAYOUT.gameplay.SHAKE_INTENSITY);
       } else if (this.timeRemaining <= 30000) {
         // Danger - orange/red
         timerText.setColor(COLORS.TIMER_DANGER);
         timerGlow?.setColor(COLORS.TEXT_DANGER);
-        timerGlow?.setAlpha(0.3);
+        timerGlow?.setAlpha(ALPHA.GLOW_HOVER);
 
         // Subtle pulse - only every 2 seconds and if no tween running
         if (this.timeRemaining % 2000 === 0 && (!this.timerPulseTween || !this.timerPulseTween.isPlaying())) {
@@ -668,7 +674,7 @@ export class GameplayScene extends BaseScene {
             targets: [timerText, timerGlow],
             scaleX: 1.04,
             scaleY: 1.04,
-            duration: 200,
+            duration: TIMING.NORMAL,
             yoyo: true,
             ease: 'Quad.easeOut',
           });
@@ -677,12 +683,12 @@ export class GameplayScene extends BaseScene {
         // Warning - gold/yellow
         timerText.setColor(COLORS.TIMER_WARNING);
         timerGlow?.setColor(COLORS.TEXT_WARNING);
-        timerGlow?.setAlpha(0.25);
+        timerGlow?.setAlpha(ALPHA.GLOW_STRONG);
       } else {
         // Normal - green
         timerText.setColor(COLORS.TIMER_SAFE);
         timerGlow?.setColor(COLORS.TEXT_SUCCESS);
-        timerGlow?.setAlpha(0.25);
+        timerGlow?.setAlpha(ALPHA.GLOW_STRONG);
       }
     }
 
@@ -784,7 +790,7 @@ export class GameplayScene extends BaseScene {
     this.diceManager.roll(true);
 
     // Apply mode-specific effects after scoring
-    const afterScoreCall = this.time.delayedCall(SIZES.ROLL_DURATION_MS + GAMEPLAY_LAYOUT.POST_ROLL_DELAY, () => {
+    const afterScoreCall = this.time.delayedCall(SIZES.ROLL_DURATION_MS + LAYOUT.gameplay.POST_ROLL_DELAY, () => {
       if (this.stateMachine.is('game-over') || this.stateMachine.is('mode-transition')) return;
       const availableCategories = this.scorecard.getAvailableCategories();
       this.modeMechanics.onAfterScore(this.diceManager, availableCategories);
@@ -796,7 +802,7 @@ export class GameplayScene extends BaseScene {
     showScoreEffect({
       scene: this,
       centerX: this.diceCenterX,
-      centerY: GAMEPLAY_LAYOUT.SCORE_EFFECT_Y,
+      centerY: LAYOUT.gameplay.SCORE_EFFECT_Y,
       points,
       onParticles: (x, y, count, color) => {
         this.particlePool?.emit(x, y, count, color);
@@ -828,7 +834,7 @@ export class GameplayScene extends BaseScene {
       if (this.stateMachine.is('game-over') || this.stateMachine.is('mode-transition')) return;
 
       // Small delay for visual feedback, then apply curse
-      const afterMercyCall = this.time.delayedCall(GAMEPLAY_LAYOUT.POST_ROLL_DELAY, () => {
+      const afterMercyCall = this.time.delayedCall(LAYOUT.gameplay.POST_ROLL_DELAY, () => {
         this.modeMechanics.onAfterInitialRoll(this.diceManager);
       });
       this.pendingDelayedCalls.push(afterMercyCall);
@@ -846,7 +852,7 @@ export class GameplayScene extends BaseScene {
     this.stateMachine.transition('game-over');
 
     if (this.musicManager) {
-      this.musicManager.fadeOut(500);
+      this.musicManager.fadeOut(TIMING.SLOW + TIMING.QUICK);
     }
 
     this.gameEvents.emit('game:end', {

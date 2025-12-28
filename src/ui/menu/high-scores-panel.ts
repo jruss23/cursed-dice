@@ -5,6 +5,7 @@
 
 import Phaser from 'phaser';
 import { type Difficulty, DIFFICULTIES, FONTS, SIZES, PALETTE, COLORS } from '@/config';
+import { type ViewportSizing } from '@/systems/responsive';
 import { getSave } from '@/systems/services';
 import { createText } from '@/ui/ui-utils';
 
@@ -12,6 +13,7 @@ export interface HighScoresPanelConfig {
   x: number;
   y: number;
   depth?: number;
+  sizing?: ViewportSizing;
 }
 
 export class HighScoresPanel {
@@ -27,7 +29,7 @@ export class HighScoresPanel {
   }
 
   private build(config: HighScoresPanelConfig): void {
-    const { x, y, depth = 100 } = config;
+    const { x, y, depth = 100, sizing } = config;
 
     const saveManager = getSave();
     const highScores = saveManager.getHighScores();
@@ -37,8 +39,11 @@ export class HighScoresPanel {
       highScores.byDifficulty.normal > 0 ||
       highScores.byDifficulty.intense > 0;
 
-    const panelWidth = 170;
-    const panelHeight = hasData ? 155 : 70;
+    // Use viewport-relative sizing
+    const panelWidth = sizing?.highScoresPanelWidth ?? 170;
+    const panelHeight = hasData ? (sizing?.highScoresPanelHeight ?? 155) : 70;
+    const fontSize = sizing?.tinyFontSize ?? FONTS.SIZE_TINY;
+    const headerFontSize = sizing?.smallFontSize ?? FONTS.SIZE_SMALL;
     const centerX = x + panelWidth / 2;
     const centerY = y + panelHeight / 2;
 
@@ -76,7 +81,7 @@ export class HighScoresPanel {
 
     // Header
     const header = createText(this.scene, centerX, y + 18, 'HIGH SCORES', {
-      fontSize: FONTS.SIZE_SMALL,
+      fontSize: headerFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_ACCENT,
       fontStyle: 'bold',
@@ -88,7 +93,7 @@ export class HighScoresPanel {
     // Show "No scores yet" if empty
     if (!hasData) {
       const emptyText = createText(this.scene, centerX, y + 45, 'No scores yet', {
-        fontSize: FONTS.SIZE_TINY,
+        fontSize,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_MUTED,
       });
@@ -103,7 +108,7 @@ export class HighScoresPanel {
     // Best Run section (if any completed runs)
     if (highScores.bestRunTotal > 0) {
       const fullRunHeader = createText(this.scene, x + 10, currentY, '4-Seal Run', {
-        fontSize: FONTS.SIZE_TINY,
+        fontSize,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_ACCENT,
         fontStyle: 'bold',
@@ -115,7 +120,7 @@ export class HighScoresPanel {
       currentY += 16;
 
       const bestRunLabel = createText(this.scene, x + 14, currentY, 'Best Total:', {
-        fontSize: FONTS.SIZE_TINY,
+        fontSize,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_SECONDARY,
         fontStyle: 'bold',
@@ -125,7 +130,7 @@ export class HighScoresPanel {
       this.container.add(bestRunLabel);
 
       const bestRunValue = createText(this.scene, x + panelWidth - 10, currentY, highScores.bestRunTotal.toString(), {
-        fontSize: FONTS.SIZE_TINY,
+        fontSize,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_WARNING,
         fontStyle: 'bold',
@@ -137,7 +142,7 @@ export class HighScoresPanel {
       currentY += 15;
 
       const runsLabel = createText(this.scene, x + 14, currentY, 'Completed:', {
-        fontSize: FONTS.SIZE_TINY,
+        fontSize,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_SECONDARY,
         fontStyle: 'bold',
@@ -147,7 +152,7 @@ export class HighScoresPanel {
       this.container.add(runsLabel);
 
       const runsValue = createText(this.scene, x + panelWidth - 10, currentY, `${highScores.runsCompleted}x`, {
-        fontSize: FONTS.SIZE_TINY,
+        fontSize,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_SECONDARY,
         fontStyle: 'bold',
@@ -166,7 +171,7 @@ export class HighScoresPanel {
 
     if (hasDiffScores) {
       const sealHeader = createText(this.scene, x + 10, currentY, 'Best Single Seal', {
-        fontSize: FONTS.SIZE_TINY,
+        fontSize,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_ACCENT,
         fontStyle: 'bold',
@@ -187,7 +192,7 @@ export class HighScoresPanel {
         const score = highScores.byDifficulty[diff.key];
         if (score > 0) {
           const diffLabel = createText(this.scene, x + 14, currentY, diff.label + ':', {
-            fontSize: FONTS.SIZE_TINY,
+            fontSize,
             fontFamily: FONTS.FAMILY,
             color: diff.color,
             fontStyle: 'bold',
@@ -197,7 +202,7 @@ export class HighScoresPanel {
           this.container.add(diffLabel);
 
           const diffValue = createText(this.scene, x + panelWidth - 10, currentY, score.toString(), {
-            fontSize: FONTS.SIZE_TINY,
+            fontSize,
             fontFamily: FONTS.FAMILY,
             color: COLORS.TEXT_PRIMARY,
             fontStyle: 'bold',

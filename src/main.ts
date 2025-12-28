@@ -59,18 +59,19 @@ log.log(`Device pixel ratio: ${window.devicePixelRatio}`);
 
 /**
  * Phaser Game Configuration
- * Uses Scale.FIT for proper sizing across devices
- * Text sharpness handled via setResolution() in createText helper
+ * Uses Scale.EXPAND for true mobile-first scaling
+ * - Canvas fills parent container exactly (no letterboxing)
+ * - Game dimensions match actual viewport
+ * - All UI uses viewport-relative sizing (percentages)
+ * - Text sharpness handled via setResolution() in createText helper
  */
 const phaserConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.WEBGL,
   parent: 'game-container',
   backgroundColor: COLORS.BG_DARK,
   scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
-    width: window.innerWidth,
-    height: window.innerHeight,
+    mode: Phaser.Scale.RESIZE,
+    autoCenter: Phaser.Scale.NO_CENTER,
   },
   render: {
     antialias: true,
@@ -96,18 +97,14 @@ const phaserConfig: Phaser.Types.Core.GameConfig = {
 const game = new Phaser.Game(phaserConfig);
 
 /**
- * Handle window resize - update game size to match viewport
+ * Handle orientation change on mobile (iOS Safari needs a delay)
+ * EXPAND mode handles resize automatically, but orientation needs a nudge
  */
-const handleResize = () => {
-  game.scale.resize(window.innerWidth, window.innerHeight);
-  log.debug(`Resized to ${window.innerWidth}x${window.innerHeight}`);
-};
-
-window.addEventListener('resize', handleResize);
-
-// Handle orientation change on mobile (iOS Safari needs a delay)
 window.addEventListener('orientationchange', () => {
-  setTimeout(handleResize, 100);
+  setTimeout(() => {
+    game.scale.refresh();
+    log.debug('Orientation changed, scale refreshed');
+  }, 100);
 });
 
 // Show game container after Phaser finishes initializing (hides resize flicker)

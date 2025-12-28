@@ -13,7 +13,7 @@
  */
 
 import Phaser from 'phaser';
-import { PALETTE, FONTS, COLORS, TIMING } from '@/config';
+import { PALETTE, FONTS, COLORS, TIMING, ALPHA } from '@/config';
 import { createText } from '@/ui/ui-utils';
 
 // =============================================================================
@@ -128,11 +128,11 @@ export class BaseButton {
     this.container = scene.add.container(config.x, config.y);
 
     // Glow
-    this.glow = scene.add.rectangle(0, 0, width + 8, height + 8, this.colors.glow, 0.1);
+    this.glow = scene.add.rectangle(0, 0, width + 8, height + 8, this.colors.glow, ALPHA.GLOW_LIGHT);
     this.container.add(this.glow);
 
     // Background
-    this.background = scene.add.rectangle(0, 0, width, height, this.colors.bg, 0.95);
+    this.background = scene.add.rectangle(0, 0, width, height, this.colors.bg, ALPHA.PANEL_OPAQUE);
     this.background.setStrokeStyle(2, this.colors.border);
     this.background.setInteractive({ useHandCursor: true });
     this.container.add(this.background);
@@ -167,15 +167,15 @@ export class BaseButton {
 
     this.background.setFillStyle(this.colors.bgHover, 1);
     this.background.setStrokeStyle(2, this.colors.borderHover);
-    this.glow.setAlpha(0.25);
+    this.glow.setAlpha(ALPHA.GLOW_STRONG);
   }
 
   private onPointerOut(): void {
     if (this._disabled) return;
 
-    this.background.setFillStyle(this.colors.bg, 0.95);
+    this.background.setFillStyle(this.colors.bg, ALPHA.PANEL_OPAQUE);
     this.background.setStrokeStyle(2, this.colors.border);
-    this.glow.setAlpha(0.1);
+    this.glow.setAlpha(ALPHA.GLOW_LIGHT);
   }
 
   private onPointerDown(): void {
@@ -188,7 +188,7 @@ export class BaseButton {
   // ===========================================================================
 
   private applyDisabledStyle(): void {
-    this.background.setFillStyle(this.colors.bgDisabled, 0.7);
+    this.background.setFillStyle(this.colors.bgDisabled, ALPHA.OVERLAY_MEDIUM);
     this.background.setStrokeStyle(2, PALETTE.neutral[600]);
     this.glow.setAlpha(0);
     this.text.setColor(this.colors.textDisabled);
@@ -196,9 +196,9 @@ export class BaseButton {
   }
 
   private applyEnabledStyle(): void {
-    this.background.setFillStyle(this.colors.bg, 0.95);
+    this.background.setFillStyle(this.colors.bg, ALPHA.PANEL_OPAQUE);
     this.background.setStrokeStyle(2, this.colors.border);
-    this.glow.setAlpha(0.1);
+    this.glow.setAlpha(ALPHA.GLOW_LIGHT);
     this.text.setColor(this.colors.text);
     this.background.setInteractive({ useHandCursor: true });
   }
@@ -255,7 +255,7 @@ export class BaseButton {
   pulse(): void {
     this.scene.tweens.add({
       targets: this.glow,
-      alpha: { from: 0.1, to: 0.4 },
+      alpha: { from: ALPHA.GLOW_LIGHT, to: ALPHA.TEXT_GLOW },
       duration: TIMING.PULSE / 2,
       yoyo: true,
       ease: 'Sine.easeInOut',

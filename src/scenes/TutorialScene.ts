@@ -9,11 +9,9 @@ import {
   PALETTE,
   COLORS,
   FLASH,
-  RESPONSIVE,
   DEV,
   getViewportMetrics,
-  getScaledSizes,
-  getPortraitLayout,
+  getGameplayLayout,
 } from '@/config';
 import { createScorecard, type Scorecard } from '@/systems/scorecard';
 import type { CategoryId } from '@/data/categories';
@@ -142,29 +140,26 @@ export class TutorialScene extends Phaser.Scene {
 
   private buildUI(): void {
     const { width, height } = this.scale.gameSize;
-    const metrics = getViewportMetrics(this);
-    const scaledSizes = getScaledSizes(metrics);
-    const layout = getPortraitLayout(this);
+    const layout = getGameplayLayout(this);
 
     this.createBackground(width, height);
-    this.createHeader(width, layout.headerHeight);
+    this.createHeader(width, layout.header.height);
 
-    // Dice area
+    // Dice area (using layout values)
     this.diceManager = new DiceManager(this, this.gameEvents);
-    this.diceManager.createUI(width / 2, layout.diceY, scaledSizes, layout.isUltraCompact);
+    this.diceManager.createUI(layout);
 
-    // Scorecard
-    const scorecardWidth = width < 900 ? RESPONSIVE.SCORECARD_WIDTH_TWO_COL : scaledSizes.scorecardWidth;
-    const scorecardX = (width - scorecardWidth) / 2;
+    // Scorecard (using layout values)
     this.scorecardPanel = new ScorecardPanel(this, this.scorecard, this.gameEvents, {
-      x: scorecardX,
-      y: layout.scorecardY,
+      x: layout.scorecard.x,
+      y: layout.scorecard.y,
       compact: true,
-      maxHeight: layout.scorecardHeight,
+      maxHeight: layout.scorecard.height,
     });
 
     // Hint text with background (shown briefly for guidance)
-    this.hintContainer = this.add.container(width / 2, layout.diceY - 60);
+    const HINT_ABOVE_DICE_GAP = 60;
+    this.hintContainer = this.add.container(width / 2, layout.dice.centerY - HINT_ABOVE_DICE_GAP);
     this.hintContainer.setDepth(1100); // Above highlight graphics (depth 1000)
     this.hintContainer.setAlpha(0);
 
@@ -269,13 +264,20 @@ export class TutorialScene extends Phaser.Scene {
 
   private createBackButton(): void {
     const { height } = this.scale.gameSize;
-    const btnWidth = 80;
-    const btnHeight = 32;
-    const btnX = 6 + btnWidth / 2;
-    const btnY = height - 6 - btnHeight / 2;
+
+    // Button dimensions and positioning
+    const BTN_WIDTH = 80;
+    const BTN_HEIGHT = 32;
+    const EDGE_PADDING = 8;
+
+    const btnX = EDGE_PADDING + BTN_WIDTH / 2;
+    const btnY = height - EDGE_PADDING - BTN_HEIGHT / 2;
 
     this.backButton = this.add.container(btnX, btnY);
     this.backButton.setDepth(600);
+
+    const btnWidth = BTN_WIDTH;
+    const btnHeight = BTN_HEIGHT;
 
     const bg = this.add.rectangle(0, 0, btnWidth, btnHeight, PALETTE.purple[800], 0.95);
     bg.setStrokeStyle(2, PALETTE.purple[400], 0.8);

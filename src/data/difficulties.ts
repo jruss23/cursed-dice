@@ -3,7 +3,7 @@
  * Game timing and difficulty settings
  */
 
-import { PALETTE } from '@/config/theme';
+import { PALETTE, COLORS } from '@/config/theme';
 
 export type Difficulty = 'chill' | 'normal' | 'intense';
 
@@ -25,7 +25,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
     subtitle: 'A gentle haunting awaits',
     timeMs: 4 * 60 * 1000,
     timeDisplay: '4 min',
-    color: '#44aa44',
+    color: COLORS.DIFFICULTY_CHILL,
     hoverColor: PALETTE.green[400],
     bgColor: PALETTE.green[600],
   },
@@ -35,7 +35,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
     subtitle: 'The curse tightens its grip',
     timeMs: 3 * 60 * 1000,
     timeDisplay: '3 min',
-    color: '#4488ff',
+    color: COLORS.DIFFICULTY_NORMAL,
     hoverColor: PALETTE.blue[400],
     bgColor: PALETTE.blue[600],
   },
@@ -45,7 +45,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
     subtitle: 'No mercy, no escape',
     timeMs: 2 * 60 * 1000,
     timeDisplay: '2 min',
-    color: '#ff4444',
+    color: COLORS.DIFFICULTY_INTENSE,
     hoverColor: PALETTE.red[400],
     bgColor: PALETTE.red[600],
   },

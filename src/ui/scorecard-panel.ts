@@ -84,7 +84,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
   private container: Phaser.GameObjects.Container;
   private categoryRows: Map<CategoryId, CategoryRow> = new Map();
   private isCompact: boolean = false; // Compact mode for portrait/mobile
-  private layout: ScorecardLayout = 'single-column'; // Layout mode
+  private layout: ScorecardLayout = 'two-column'; // Layout mode
   private gauntletPulseTweens: Map<CategoryId, Phaser.Tweens.Tween> = new Map(); // Pulsing effects by category
   private maxHeight: number | undefined; // Maximum height constraint from viewport
   private passThreshold: number = 250; // Score threshold to display next to total
@@ -155,7 +155,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     this.layoutConfig = this.computeLayoutConfig();
 
     // Set layout mode from layoutConfig
-    this.layout = this.layoutConfig.mode === 'two-column' ? 'two-column' : 'single-column';
+    this.layout = 'two-column';
 
     // Initialize bound event handlers
     this.onDiceRolled = ({ values }) => {
@@ -201,7 +201,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
   private rebuild(): void {
     // Recompute layout (includes special section now)
     this.layoutConfig = this.computeLayoutConfig();
-    this.layout = this.layoutConfig.mode === 'two-column' ? 'two-column' : 'single-column';
+    this.layout = 'two-column';
     this.config.width = this.layoutConfig.width;
     this.config.height = this.layoutConfig.height;
 
@@ -1023,10 +1023,10 @@ export class ScorecardPanel implements TutorialControllableScorecard {
    */
   getCategoriesCounterBounds(): Bounds {
     const lc = this.layoutConfig;
-    const counterWidth = 50;
+    const counterWidth = 56;
     const counterHeight = lc.titleHeight;
     return {
-      x: this.config.x + lc.width - counterWidth - 4,
+      x: this.config.x + lc.width - counterWidth - 6,
       y: this.config.y + lc.contentPadding,
       width: counterWidth,
       height: counterHeight,

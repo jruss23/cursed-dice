@@ -5,6 +5,7 @@
 
 import Phaser from 'phaser';
 import { FONTS, PALETTE } from '@/config';
+import { type ViewportSizing } from '@/systems/responsive';
 import { createText, hexToColorString } from '@/ui/ui-utils';
 
 export class FlickeringTitle {
@@ -15,15 +16,18 @@ export class FlickeringTitle {
   private tweens: Phaser.Tweens.Tween[] = [];
   private timerEvent: Phaser.Time.TimerEvent | null = null;
 
-  constructor(scene: Phaser.Scene, centerX: number, y: number = 85) {
+  constructor(scene: Phaser.Scene, centerX: number, y: number, sizing: ViewportSizing) {
     this.scene = scene;
+
+    // Use viewport-relative font size
+    const fontSize = sizing.titleFontSize;
 
     // Create multiple glow layers for depth using PALETTE colors
     const glowColors = [PALETTE.purple[900], PALETTE.purple[700], PALETTE.purple[600]];
 
     glowColors.forEach((color, i) => {
       const glow = createText(this.scene, centerX, y, 'CURSED DICE', {
-        fontSize: FONTS.SIZE_MENU_TITLE,
+        fontSize,
         fontFamily: FONTS.FAMILY,
         color: hexToColorString(color),
         fontStyle: 'bold',
@@ -49,7 +53,7 @@ export class FlickeringTitle {
 
     // Main title glow
     this.titleGlow = createText(this.scene, centerX, y, 'CURSED DICE', {
-      fontSize: FONTS.SIZE_MENU_TITLE,
+      fontSize,
       fontFamily: FONTS.FAMILY,
       color: hexToColorString(PALETTE.purple[400]),
       fontStyle: 'bold',
@@ -60,7 +64,7 @@ export class FlickeringTitle {
 
     // Main title
     this.titleText = createText(this.scene, centerX, y, 'CURSED DICE', {
-      fontSize: FONTS.SIZE_MENU_TITLE,
+      fontSize,
       fontFamily: FONTS.FAMILY,
       color: hexToColorString(PALETTE.purple[200]),
       fontStyle: 'bold',

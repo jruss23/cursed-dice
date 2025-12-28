@@ -6,11 +6,11 @@
 // Development flags
 export { DEV } from './dev';
 
-// Theme (colors, fonts, flash effects)
-export { PALETTE, COLORS, FONTS, FLASH } from './theme';
+// Theme (colors, fonts, flash effects, alpha, scale)
+export { PALETTE, COLORS, FONTS, FLASH, ALPHA, SCALE } from './theme';
 
 // Sizes and timing
-export { CANVAS, SIZES, TIMING, ANIM } from './sizes';
+export { CANVAS, SIZES, TIMING, ANIM, LAYOUT, END_SCREEN } from './sizes';
 
 // Game rules
 export { GAME_RULES, SCORING } from './game-rules';
@@ -24,9 +24,11 @@ export {
   getScorecardLayout,
   getScaledFontSizes,
   getPortraitLayout,
+  getGameplayLayout,
   scaleValue,
   type ViewportMetrics,
   type ScaledSizes,
   type ScorecardLayout,
   type PortraitLayout,
+  type GameplayLayout,
 } from '@/systems/responsive';

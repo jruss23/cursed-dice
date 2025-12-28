@@ -5,77 +5,40 @@
  */
 
 import Phaser from 'phaser';
-import { FONTS, PALETTE, COLORS } from '@/config';
+import { FONTS, PALETTE, COLORS, ALPHA } from '@/config';
 import { createText } from '@/ui/ui-utils';
 import { GameEventEmitter } from '@/systems/game-events';
 import { createLogger } from '@/systems/logger';
+import { BlessingButtonBase, BlessingButtonBaseConfig } from './blessing-button-base';
 
 const log = createLogger('SixthBlessingButton');
 
-export interface SixthBlessingButtonConfig {
-  x: number;
-  y: number;
-  height: number; // Should match roll button height
+export interface SixthBlessingButtonConfig extends BlessingButtonBaseConfig {
   onActivate: () => boolean; // Returns true if activation succeeded
   getCharges: () => number;
   isActive: () => boolean;
 }
 
-export class SixthBlessingButton {
-  private scene: Phaser.Scene;
-  private events: GameEventEmitter;
-  private container: Phaser.GameObjects.Container;
-  private config: SixthBlessingButtonConfig;
-
-  private buttonBg: Phaser.GameObjects.Rectangle;
-  private buttonGlow: Phaser.GameObjects.Rectangle;
-  private labelText: Phaser.GameObjects.Text;
-  private chargesText: Phaser.GameObjects.Text;
-  private activeIndicator: Phaser.GameObjects.Text;
+export class SixthBlessingButton extends BlessingButtonBase<SixthBlessingButtonConfig> {
+  private chargesText!: Phaser.GameObjects.Text;
+  private activeIndicator!: Phaser.GameObjects.Text;
 
   constructor(
     scene: Phaser.Scene,
     events: GameEventEmitter,
     config: SixthBlessingButtonConfig
   ) {
-    this.scene = scene;
-    this.events = events;
-    this.config = config;
-    this.container = scene.add.container(config.x, config.y);
-
-    this.buttonBg = null!;
-    this.buttonGlow = null!;
-    this.labelText = null!;
-    this.chargesText = null!;
-    this.activeIndicator = null!;
-
-    this.create();
-    this.setupEventListeners();
+    super(scene, events, config);
   }
 
-  private create(): void {
-    const width = 95; // Wide enough for "+1🎲 (3/3)" with padding
-    const height = this.config.height; // Match roll button height
-
-    // Glow
-    this.buttonGlow = this.scene.add.rectangle(0, 0, width + 6, height + 6, PALETTE.gold[500], 0.12);
-    this.container.add(this.buttonGlow);
-
-    // Background
-    this.buttonBg = this.scene.add.rectangle(0, 0, width, height, PALETTE.gold[800], 0.95);
-    this.buttonBg.setStrokeStyle(2, PALETTE.gold[500], 0.7);
-    this.buttonBg.setInteractive({ useHandCursor: true });
-    this.container.add(this.buttonBg);
+  protected create(): void {
+    this.createButtonBase(PALETTE.gold[500], PALETTE.gold[800], PALETTE.gold[500]);
 
     // Label: +1 emoji (left side)
-    this.labelText = createText(this.scene, -18, 0, '+1🎲', {
-      fontSize: FONTS.SIZE_SMALL,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_WARNING,
-      fontStyle: 'bold',
-    });
-    this.labelText.setOrigin(0.5, 0.5);
-    this.container.add(this.labelText);
+    this.labelText.setX(-18);
+    this.labelText.setText('+1🎲');
+    this.labelText.setColor(COLORS.TEXT_WARNING);
+    this.labelText.setOrigin(0.5, ALPHA.BORDER_LIGHT);
 
     // Charges indicator: (3/3) - right side, inline
     this.chargesText = createText(this.scene, 24, 0, '', {
@@ -84,7 +47,7 @@ export class SixthBlessingButton {
       color: COLORS.TEXT_PRIMARY,
       fontStyle: 'bold',
     });
-    this.chargesText.setOrigin(0.5, 0.5);
+    this.chargesText.setOrigin(0.5, ALPHA.BORDER_LIGHT);
     this.container.add(this.chargesText);
 
     // Active indicator (shows when blessing is in use)
@@ -94,7 +57,7 @@ export class SixthBlessingButton {
       color: COLORS.TEXT_SUCCESS,
       fontStyle: 'bold',
     });
-    this.activeIndicator.setOrigin(0.5, 0.5);
+    this.activeIndicator.setOrigin(0.5, ALPHA.BORDER_LIGHT);
     this.activeIndicator.setVisible(false);
     this.container.add(this.activeIndicator);
 
@@ -102,13 +65,13 @@ export class SixthBlessingButton {
     this.buttonBg.on('pointerover', () => {
       if (!this.config.isActive() && this.config.getCharges() > 0) {
         this.buttonBg.setFillStyle(PALETTE.gold[700], 1);
-        this.buttonGlow.setAlpha(0.3);
+        this.buttonGlow.setAlpha(ALPHA.GLOW_HOVER);
       }
     });
 
     this.buttonBg.on('pointerout', () => {
-      this.buttonBg.setFillStyle(PALETTE.gold[800], 0.9);
-      this.buttonGlow.setAlpha(0.15);
+      this.buttonBg.setFillStyle(PALETTE.gold[800], ALPHA.PANEL_SOLID);
+      this.buttonGlow.setAlpha(ALPHA.GLOW_MEDIUM);
     });
 
     this.buttonBg.on('pointerdown', () => {
@@ -137,14 +100,13 @@ export class SixthBlessingButton {
     this.updateDisplay();
   }
 
-  private setupEventListeners(): void {
-    // Update when blessing state changes (using context parameter for safe cleanup)
+  protected setupEventListeners(): void {
     this.events.on('blessing:sixth:deactivated', this.updateDisplay, this);
     this.events.on('blessing:sixth:activated', this.updateDisplay, this);
     this.events.on('blessing:sixth:reset', this.updateDisplay, this);
   }
 
-  private updateDisplay = (): void => {
+  protected updateDisplay = (): void => {
     const charges = this.config.getCharges();
     const isActive = this.config.isActive();
 
@@ -155,10 +117,10 @@ export class SixthBlessingButton {
       this.labelText.setVisible(false);
       this.chargesText.setVisible(false);
       this.activeIndicator.setVisible(true);
-      this.buttonBg.setFillStyle(PALETTE.green[800], 0.15); // Nearly transparent
-      this.buttonBg.setStrokeStyle(1, PALETTE.green[500], 0.4); // Subtle border
-      this.buttonGlow.setAlpha(0); // No glow
-      this.buttonBg.disableInteractive(); // Can't click while active
+      this.buttonBg.setFillStyle(PALETTE.green[800], ALPHA.DISABLED_STRONG);
+      this.buttonBg.setStrokeStyle(1, PALETTE.green[500], ALPHA.BORDER_SUBTLE);
+      this.buttonGlow.setAlpha(0);
+      this.buttonBg.disableInteractive();
     } else {
       // Show normal state
       this.labelText.setVisible(true);
@@ -167,41 +129,27 @@ export class SixthBlessingButton {
       this.scene.tweens.killTweensOf(this.buttonGlow);
 
       if (charges > 0) {
-        this.buttonBg.setFillStyle(PALETTE.gold[800], 0.9);
-        this.buttonBg.setStrokeStyle(2, PALETTE.gold[500], 0.8);
-        this.buttonGlow.setFillStyle(PALETTE.gold[500], 0.15);
+        this.buttonBg.setFillStyle(PALETTE.gold[800], ALPHA.PANEL_SOLID);
+        this.buttonBg.setStrokeStyle(2, PALETTE.gold[500], ALPHA.BORDER_SOLID);
+        this.buttonGlow.setFillStyle(PALETTE.gold[500], ALPHA.DISABLED_STRONG);
         this.buttonBg.setInteractive({ useHandCursor: true });
         this.labelText.setAlpha(1);
         this.chargesText.setAlpha(1);
       } else {
         // No charges - dim the button
-        this.buttonBg.setFillStyle(PALETTE.purple[800], 0.7);
-        this.buttonBg.setStrokeStyle(2, PALETTE.purple[600], 0.5);
+        this.buttonBg.setFillStyle(PALETTE.purple[800], ALPHA.OVERLAY_MEDIUM);
+        this.buttonBg.setStrokeStyle(2, PALETTE.purple[600], ALPHA.BORDER_LIGHT);
         this.buttonGlow.setAlpha(0);
         this.buttonBg.disableInteractive();
-        this.labelText.setAlpha(0.5);
-        this.chargesText.setAlpha(0.5);
+        this.labelText.setAlpha(ALPHA.DISABLED);
+        this.chargesText.setAlpha(ALPHA.DISABLED);
       }
     }
   };
 
-  show(): void {
-    this.container.setVisible(true);
-    this.updateDisplay();
-  }
-
-  hide(): void {
-    this.container.setVisible(false);
-  }
-
-  setPosition(x: number, y: number): void {
-    this.container.setPosition(x, y);
-  }
-
-  destroy(): void {
+  protected cleanupEvents(): void {
     this.events.off('blessing:sixth:deactivated', this.updateDisplay, this);
     this.events.off('blessing:sixth:activated', this.updateDisplay, this);
     this.events.off('blessing:sixth:reset', this.updateDisplay, this);
-    this.container.destroy();
   }
 }

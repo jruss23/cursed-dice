@@ -13,11 +13,14 @@ import {
   COLORS,
   PALETTE,
   FLASH,
+  ALPHA,
+  TIMING,
 } from '@/config';
 import { version } from '../../package.json';
 import { resetGameProgression, debugSetMode, type GameMode } from '@/systems/game-progression';
 import { resetBlessingManager, debugSetBlessing } from '@/systems/blessings';
 import { isMusicEnabled } from '@/systems/music-manager';
+import { getMenuSizing, type ViewportSizing } from '@/systems/responsive';
 import { DifficultyButton, FlickeringTitle, HighScoresPanel, MenuSettingsPanel, SpookyBackground } from '@/ui/menu';
 import { createText } from '@/ui/ui-utils';
 import { BaseScene } from './BaseScene';
@@ -122,24 +125,22 @@ export class MenuScene extends BaseScene {
     }
 
     const { width, height } = this.cameras.main;
-    const metrics = this.getMetrics();
-    const isMobile = metrics.isMobile;
 
-    // Font scaling for mobile - keep readable
-    const subtitleSize = isMobile ? FONTS.SIZE_BUTTON : FONTS.SIZE_BODY;
-    const headerSize = isMobile ? FONTS.SIZE_BODY : FONTS.SIZE_SUBHEADING;
+    // ==========================================================================
+    // VIEWPORT-RELATIVE SIZING (EXPAND Mode)
+    // All positions and sizes calculated from actual viewport dimensions
+    // ==========================================================================
+    const sizing = getMenuSizing(this);
 
     // All background effects (fog, skulls, dice, eyes, candles, wisps)
     new SpookyBackground(this);
 
-    // Flickering title - position adjusted for mobile
-    const titleY = isMobile ? 65 : undefined; // FlickeringTitle uses default 85 on desktop
-    new FlickeringTitle(this, width / 2, titleY);
+    // Flickering title with viewport-relative sizing
+    new FlickeringTitle(this, width / 2, sizing.titleY, sizing);
 
     // Subtitle with creepy effect
-    const subtitleY = isMobile ? 125 : 145;
-    const subtitle = createText(this,width / 2, subtitleY, 'Beat the clock. Break the curse.', {
-      fontSize: subtitleSize,
+    const subtitle = createText(this, width / 2, sizing.subtitleY, 'Beat the clock. Break the curse.', {
+      fontSize: sizing.subtitleFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.MENU_SUBTITLE,
       fontStyle: 'bold',
@@ -149,31 +150,29 @@ export class MenuScene extends BaseScene {
     // Subtle flicker on subtitle
     this.tweens.add({
       targets: subtitle,
-      alpha: 0.7,
-      duration: 100,
+      alpha: ALPHA.OVERLAY_MEDIUM,
+      duration: TIMING.QUICK,
       yoyo: true,
       repeat: -1,
-      repeatDelay: Phaser.Math.Between(3000, 6000),
+      repeatDelay: Phaser.Math.Between(TIMING.PULSE_LONG, TIMING.PULSE_LONG * 2),
     });
 
-    // "Learn to Play" button - above the difficulty section
-    const learnBtnY = isMobile ? 168 : 200;
-    this.createLearnToPlayButton(width, learnBtnY, isMobile);
+    // "Learn to Play" button with viewport-relative sizing
+    this.createLearnToPlayButton(width, sizing);
 
     // Difficulty selection header with spooky styling
-    const selectY = isMobile ? 215 : 255;
-    const selectGlow = createText(this,width / 2, selectY, 'CHOOSE YOUR FATE', {
-      fontSize: headerSize,
+    const selectGlow = createText(this, width / 2, sizing.headerY, 'CHOOSE YOUR FATE', {
+      fontSize: sizing.headerFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.MENU_HEADER_GLOW,
       fontStyle: 'bold',
     });
     selectGlow.setOrigin(0.5, 0.5);
-    selectGlow.setAlpha(0.5);
+    selectGlow.setAlpha(ALPHA.DISABLED);
     selectGlow.setBlendMode(Phaser.BlendModes.ADD);
 
-    const selectText = createText(this,width / 2, selectY, 'CHOOSE YOUR FATE', {
-      fontSize: headerSize,
+    const selectText = createText(this, width / 2, sizing.headerY, 'CHOOSE YOUR FATE', {
+      fontSize: sizing.headerFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.MENU_HEADER,
       fontStyle: 'bold',
@@ -183,127 +182,75 @@ export class MenuScene extends BaseScene {
     // Pulse the header
     this.tweens.add({
       targets: [selectText, selectGlow],
-      alpha: { from: 1, to: 0.7 },
-      duration: 2000,
+      alpha: { from: 1, to: ALPHA.OVERLAY_MEDIUM },
+      duration: TIMING.PULSE,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
     });
 
-    // Create spooky difficulty buttons
-    const buttonStartY = isMobile ? 265 : 310;
-    const buttonSpacing = isMobile ? 68 : 100;
-
+    // Create spooky difficulty buttons with viewport-relative sizing
     this.difficultyButtons = [];
     DIFFICULTY_LIST.forEach((diffKey, index) => {
       const config = DIFFICULTIES[diffKey];
       const button = new DifficultyButton(
         this,
         width / 2,
-        buttonStartY + index * buttonSpacing,
+        sizing.buttonStartY + index * sizing.buttonSpacing,
         config,
         index,
         { onClick: (cfg) => this.startGame(cfg.key) },
-        { metrics }
+        { sizing }
       );
       this.difficultyButtons.push(button);
     });
 
-    // High Scores Panel - centered on mobile, left-aligned on desktop
-    if (isMobile) {
-      const lastButtonY = buttonStartY + buttonSpacing * 2;
-      new HighScoresPanel(this, { x: (width - 170) / 2, y: lastButtonY + 65 });
-    } else {
-      new HighScoresPanel(this, { x: 20, y: height - 210 });
-    }
+    // High Scores Panel - centered, using viewport-relative sizing
+    new HighScoresPanel(this, {
+      x: (width - sizing.highScoresPanelWidth) / 2,
+      y: sizing.highScoresY,
+      sizing,
+    });
 
-    // Settings cog button - bottom right corner
+    // Settings cog button - bottom right corner with viewport-relative padding
     this.settingsPanel = new MenuSettingsPanel(this, {
-      x: width - 32,
-      y: height - 32,
+      x: width - sizing.padding - 16,
+      y: height - sizing.padding - 16,
       onMusicToggle: (enabled) => this.onMusicToggle(enabled),
+      sizing,
     });
-
-    // Mode info - positioned just below last button
-    const lastButtonY = buttonStartY + buttonSpacing * 2;
-    const modeInfoY = isMobile
-      ? lastButtonY + 50  // Below last button, above high scores
-      : lastButtonY + 60; // Right under buttons on desktop
-    const modeInfoSize = isMobile ? FONTS.SIZE_LABEL : FONTS.SIZE_BODY;
-    const modeInfoText = isMobile ? 'Score 250+ per seal' : '4 Seals guard the curse. Break them all.';
-
-    const modeInfoGlow = createText(this,
-      width / 2,
-      modeInfoY,
-      modeInfoText,
-      {
-        fontSize: modeInfoSize,
-        fontFamily: FONTS.FAMILY,
-        color: COLORS.MENU_INFO_GLOW,
-        fontStyle: 'bold',
-      }
-    );
-    modeInfoGlow.setOrigin(0.5, 0.5);
-    modeInfoGlow.setAlpha(0.4);
-    modeInfoGlow.setBlendMode(Phaser.BlendModes.ADD);
-
-    const modeInfo = createText(this,
-      width / 2,
-      modeInfoY,
-      modeInfoText,
-      {
-        fontSize: modeInfoSize,
-        fontFamily: FONTS.FAMILY,
-        color: COLORS.MENU_INFO,
-        fontStyle: 'bold',
-      }
-    );
-    modeInfo.setOrigin(0.5, 0.5);
-
-    // Gentle pulse instead of fading out too much
-    this.tweens.add({
-      targets: [modeInfo, modeInfoGlow],
-      alpha: { from: 1, to: 0.75 },
-      duration: 2500,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-
 
     // Version - centered, below title
-    const versionY = isMobile ? 95 : 115;
-    const credit = createText(this, width / 2, versionY, `v${version}`, {
-      fontSize: FONTS.SIZE_TINY,
+    const credit = createText(this, width / 2, sizing.versionY, `v${version}`, {
+      fontSize: sizing.versionFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.MENU_VERSION,
     });
     credit.setOrigin(0.5, 0.5);
 
-    // Pulsing vignette effect (disabled on mobile)
-    this.createPulsingVignette(width, height, isMobile);
+    // Skip vignette on mobile (too heavy)
   }
 
-  private createLearnToPlayButton(width: number, y: number, isMobile: boolean): void {
-    const btnWidth = isMobile ? 160 : 180;
-    const btnHeight = isMobile ? 36 : 40;
+  private createLearnToPlayButton(width: number, sizing: ViewportSizing): void {
+    const btnWidth = sizing.smallButtonWidth;
+    const btnHeight = sizing.smallButtonHeight;
 
-    const container = this.add.container(width / 2, y);
+    const container = this.add.container(width / 2, sizing.learnBtnY);
     container.setDepth(50);
 
     // Outer glow for emphasis
-    const glow = this.add.rectangle(0, 0, btnWidth + 8, btnHeight + 8, PALETTE.menu.playGlow, 0.15);
+    const glow = this.add.rectangle(0, 0, btnWidth + 8, btnHeight + 8, PALETTE.menu.playGlow, ALPHA.GLOW_MEDIUM);
     container.add(glow);
 
     // Background with green accent (stands out from purple theme)
-    const bg = this.add.rectangle(0, 0, btnWidth, btnHeight, PALETTE.menu.playBg, 0.9);
-    bg.setStrokeStyle(2, PALETTE.menu.playBorder, 0.8);
+    const bg = this.add.rectangle(0, 0, btnWidth, btnHeight, PALETTE.menu.playBg, ALPHA.PANEL_SOLID);
+    bg.setStrokeStyle(2, PALETTE.menu.playBorder, ALPHA.BORDER_SOLID);
     bg.setInteractive({ useHandCursor: true });
     container.add(bg);
 
-    // Text (centered)
+    // Text (centered) with viewport-relative font size
     const text = createText(this, 0, 0, 'LEARN TO PLAY', {
-      fontSize: isMobile ? FONTS.SIZE_SMALL : FONTS.SIZE_BODY,
+      fontSize: sizing.smallFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SUCCESS,
       fontStyle: 'bold',
@@ -314,10 +261,10 @@ export class MenuScene extends BaseScene {
     // Subtle pulse animation to draw attention
     this.tweens.add({
       targets: glow,
-      alpha: { from: 0.15, to: 0.3 },
+      alpha: { from: ALPHA.GLOW_MEDIUM, to: ALPHA.GLOW_HOVER },
       scaleX: { from: 1, to: 1.05 },
       scaleY: { from: 1, to: 1.05 },
-      duration: 1500,
+      duration: TIMING.EXTENDED,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
@@ -325,17 +272,17 @@ export class MenuScene extends BaseScene {
 
     // Hover effects
     bg.on('pointerover', () => {
-      bg.setFillStyle(PALETTE.menu.playBgHover, 0.95);
+      bg.setFillStyle(PALETTE.menu.playBgHover, ALPHA.PANEL_OPAQUE);
       bg.setStrokeStyle(2, PALETTE.menu.playBorderHover, 1);
     });
 
     bg.on('pointerout', () => {
-      bg.setFillStyle(PALETTE.menu.playBg, 0.9);
-      bg.setStrokeStyle(2, PALETTE.menu.playBorder, 0.8);
+      bg.setFillStyle(PALETTE.menu.playBg, ALPHA.PANEL_SOLID);
+      bg.setStrokeStyle(2, PALETTE.menu.playBorder, ALPHA.BORDER_SOLID);
     });
 
     bg.on('pointerdown', () => {
-      this.cameras.main.flash(150, FLASH.GREEN.r, FLASH.GREEN.g, FLASH.GREEN.b);
+      this.cameras.main.flash(TIMING.FAST, FLASH.GREEN.r, FLASH.GREEN.g, FLASH.GREEN.b);
       this.log.log('Starting tutorial');
       this.startTutorial();
     });
@@ -356,46 +303,6 @@ export class MenuScene extends BaseScene {
 
     // Transition to tutorial (using BaseScene helper)
     this.transitionTo('TutorialScene');
-  }
-
-  private createPulsingVignette(width: number, height: number, isMobile: boolean): void {
-    // Skip heavy vignette on mobile - too dark and covers content
-    if (isMobile) {
-      return;
-    }
-
-    const vignette = this.add.graphics();
-    vignette.fillStyle(PALETTE.black, 1);
-
-    // Create vignette around edges - scale with viewport
-    const thickness = Math.min(100, height * 0.12);
-
-    // Top
-    vignette.fillGradientStyle(PALETTE.black, PALETTE.black, PALETTE.black, PALETTE.black, 0.8, 0.8, 0, 0);
-    vignette.fillRect(0, 0, width, thickness);
-
-    // Bottom
-    vignette.fillGradientStyle(PALETTE.black, PALETTE.black, PALETTE.black, PALETTE.black, 0, 0, 0.8, 0.8);
-    vignette.fillRect(0, height - thickness, width, thickness);
-
-    // Corners with radial darkness - scale with viewport
-    const cornerRadius = Math.min(250, Math.min(width, height) * 0.3);
-    const cornerGraphics = this.add.graphics();
-    cornerGraphics.fillStyle(PALETTE.black, 0.5);
-    cornerGraphics.fillCircle(0, 0, cornerRadius);
-    cornerGraphics.fillCircle(width, 0, cornerRadius);
-    cornerGraphics.fillCircle(0, height, cornerRadius);
-    cornerGraphics.fillCircle(width, height, cornerRadius);
-
-    // Pulse the vignette
-    this.tweens.add({
-      targets: [vignette, cornerGraphics],
-      alpha: 0.7,
-      duration: 4000,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
   }
 
   /**
@@ -426,8 +333,8 @@ export class MenuScene extends BaseScene {
     }
 
     // Spooky transition effect
-    this.cameras.main.flash(200, 100, 0, 100);
-    this.cameras.main.fadeOut(SIZES.FADE_DURATION_MS + 200, 0, 0, 0);
+    this.cameras.main.flash(TIMING.NORMAL, 100, 0, 100);
+    this.cameras.main.fadeOut(SIZES.FADE_DURATION_MS + TIMING.NORMAL, 0, 0, 0);
 
     this.cameras.main.once('camerafadeoutcomplete', () => {
       this.scene.start('GameplayScene', { difficulty });

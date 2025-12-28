@@ -38,6 +38,39 @@ export function createText(
 // PANEL FRAME
 // =============================================================================
 
+/**
+ * Panel style presets - spread these into createPanelFrame config
+ * Usage: createPanelFrame(scene, { x, y, width, height, ...PANEL_PRESETS.modal })
+ */
+export const PANEL_PRESETS = {
+  /** Default game panel (header, dice controls) - slightly transparent */
+  default: {},
+
+  /** Modal overlay (pause menu, settings) - nearly opaque with explicit purple theme */
+  modal: {
+    glowColor: PALETTE.purple[500],
+    bgColor: PALETTE.purple[900],
+    borderColor: PALETTE.purple[500],
+    cornerColor: PALETTE.purple[400],
+    bgAlpha: 0.98,
+  },
+
+  /** Subtle panel - reduced opacity for less prominence */
+  subtle: {
+    glowAlpha: 0.06,
+    bgAlpha: 0.88,
+    borderAlpha: 0.5,
+  },
+
+  /** Overlay panel - full-screen overlays with high opacity */
+  overlay: {
+    glowAlpha: 0.06,
+    bgAlpha: 0.98,
+    borderAlpha: 0.8,
+    cornerAlpha: 0.6,
+  },
+} as const;
+
 export interface PanelFrameConfig {
   x: number;
   y: number;

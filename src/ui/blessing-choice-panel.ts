@@ -1,13 +1,79 @@
 /**
  * Blessing Choice Panel
- * Displays 3 blessing options for player to choose after Mode 1
+ * Displays 4 blessing options for player to choose after Mode 1
+ * Mobile-only layout (game is always 430px width via CSS lock)
  */
 
 import Phaser from 'phaser';
-import { FONTS, PALETTE, COLORS, SIZES, FLASH, getViewportMetrics } from '@/config';
+import { FONTS, PALETTE, COLORS, SIZES, FLASH, LAYOUT } from '@/config';
 import { createText } from '@/ui/ui-utils';
 import { BLESSING_CONFIGS, type BlessingId } from '@/systems/blessings/types';
 import { getImplementedBlessings } from '@/data/blessings';
+
+interface BlessingPanelLayout {
+  panelWidth: number;
+  panelHeight: number;
+  titleY: number;
+  subtitleY: number;
+  chooseLabelY: number;
+  cardsAreaY: number;
+  buttonY: number;
+  cardWidth: number;
+  cardHeight: number;
+  cardSpacing: number;
+}
+
+/**
+ * Calculate blessing panel layout
+ * Uses LAYOUT.blessingPanel as source of truth
+ */
+function getBlessingPanelLayout(
+  screenWidth: number,
+  screenHeight: number
+): BlessingPanelLayout {
+  const L = LAYOUT.blessingPanel;
+
+  // Panel dimensions (fills screen with margin)
+  const panelWidth = screenWidth - L.PANEL_MARGIN;
+  const panelHeight = screenHeight - L.PANEL_MARGIN;
+
+  // Panel is centered on screen
+  const panelTop = (screenHeight - panelHeight) / 2;
+  const panelBottom = panelTop + panelHeight;
+
+  // Title at top of panel with padding
+  const titleY = panelTop + L.TITLE_PADDING;
+
+  // Subtitle below title
+  const subtitleY = titleY + L.GAP_TITLE_TO_SUBTITLE;
+
+  // "Choose Your Blessing" label
+  const chooseLabelY = subtitleY + L.GAP_SUBTITLE_TO_CHOOSE;
+
+  // Cards area starts after choose label
+  const cardsAreaY = chooseLabelY + L.GAP_CHOOSE_TO_CARDS;
+
+  // Continue button near bottom of panel
+  const buttonY = panelBottom - L.GAP_BUTTON_FROM_BOTTOM - L.CONTINUE_BUTTON_HEIGHT / 2;
+
+  // Card dimensions
+  const cardWidth = panelWidth - L.CARD_WIDTH_MARGIN;
+  const cardHeight = L.CARD_HEIGHT;
+  const cardSpacing = L.CARD_SPACING;
+
+  return {
+    panelWidth,
+    panelHeight,
+    titleY,
+    subtitleY,
+    chooseLabelY,
+    cardsAreaY,
+    buttonY,
+    cardWidth,
+    cardHeight,
+    cardSpacing,
+  };
+}
 
 export interface BlessingChoiceCallbacks {
   onSelect: (blessingId: BlessingId) => void;
@@ -28,6 +94,7 @@ export class BlessingChoicePanel {
   private continueButton: Phaser.GameObjects.Rectangle | null = null;
   private continueButtonText: Phaser.GameObjects.Text | null = null;
   private continueButtonGlow: Phaser.GameObjects.Rectangle | null = null;
+  private layout: BlessingPanelLayout;
 
   constructor(scene: Phaser.Scene, callbacks: BlessingChoiceCallbacks) {
     this.scene = scene;
@@ -35,13 +102,16 @@ export class BlessingChoicePanel {
     this.container = this.scene.add.container(0, 0);
     this.container.setDepth(200);
 
+    // Calculate layout
+    const { width, height } = this.scene.cameras.main;
+    this.layout = getBlessingPanelLayout(width, height);
+
     this.create();
   }
 
   private create(): void {
     const { width, height } = this.scene.cameras.main;
-    const metrics = getViewportMetrics(this.scene);
-    const isMobile = metrics.isMobile;
+    const L = this.layout;
 
     // Dark overlay
     const overlay = this.scene.add.rectangle(
@@ -52,23 +122,18 @@ export class BlessingChoicePanel {
     overlay.setInteractive(); // Block clicks behind
     this.container.add(overlay);
 
-    // Main panel - full screen on mobile, constrained on desktop
-    const panelWidth = isMobile ? width - 20 : Math.min(920, width - 40);
-    const panelHeight = isMobile ? height - 20 : Math.min(580, height - 40);
-
+    // Main panel background
     const panelBg = this.scene.add.rectangle(
       width / 2, height / 2,
-      panelWidth, panelHeight,
+      L.panelWidth, L.panelHeight,
       PALETTE.purple[900], 0.98
     );
     panelBg.setStrokeStyle(SIZES.PANEL_BORDER_WIDTH, PALETTE.purple[500], 0.8);
     this.container.add(panelBg);
 
-    // Title area - more compact on mobile
-    const titleY = height / 2 - panelHeight / 2 + (isMobile ? 22 : 30);
-
-    const title = createText(this.scene, width / 2, titleY, 'The Curse Weakens...', {
-      fontSize: isMobile ? FONTS.SIZE_LARGE : FONTS.SIZE_HEADING,
+    // Title
+    const title = createText(this.scene, width / 2, L.titleY, 'The Curse Weakens...', {
+      fontSize: FONTS.SIZE_LARGE,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_WARNING,
       fontStyle: 'bold',
@@ -77,20 +142,17 @@ export class BlessingChoicePanel {
     this.container.add(title);
 
     // Narrative subtitle
-    const subtitleText = isMobile
-      ? 'The first seal is broken. Darker trials await.'
-      : 'The first seal is broken. Darker trials await—but you\'ve earned a blessing to guide you.';
-    const subtitle = createText(this.scene, width / 2, titleY + (isMobile ? 22 : 28), subtitleText, {
-      fontSize: FONTS.SIZE_SMALL,
-      fontFamily: FONTS.FAMILY,
-      color: COLORS.TEXT_PRIMARY,
-    });
+    const subtitle = createText(this.scene, width / 2, L.subtitleY,
+      'The first seal is broken. Darker trials await.', {
+        fontSize: FONTS.SIZE_SMALL,
+        fontFamily: FONTS.FAMILY,
+        color: COLORS.TEXT_PRIMARY,
+      });
     subtitle.setOrigin(0.5, 0.5);
     this.container.add(subtitle);
 
     // "Choose Your Blessing" label above cards
-    const chooseLabelY = titleY + (isMobile ? 50 : 60);
-    const chooseLabel = createText(this.scene, width / 2, chooseLabelY, 'Choose Your Blessing', {
+    const chooseLabel = createText(this.scene, width / 2, L.chooseLabelY, 'Choose Your Blessing', {
       fontSize: FONTS.SIZE_BODY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_ACCENT,
@@ -99,42 +161,17 @@ export class BlessingChoicePanel {
     chooseLabel.setOrigin(0.5, 0.5);
     this.container.add(chooseLabel);
 
-    // Cards area - vertical on mobile, horizontal on desktop
+    // Cards - 4 compact rows
     const blessingIds: BlessingId[] = ['abundance', 'mercy', 'sanctuary', 'sixth'];
-    const cardsAreaY = chooseLabelY + (isMobile ? 18 : 22);
-
-    if (isMobile) {
-      // Mobile: 4 compact rows - taller to fit description text
-      const cardWidth = panelWidth - 20;
-      const cardHeight = 88;
-      const cardSpacing = 3;
-      const cardsStartY = cardsAreaY;
-
-      blessingIds.forEach((id, index) => {
-        const cardX = (width - cardWidth) / 2;
-        const cardY = cardsStartY + index * (cardHeight + cardSpacing);
-        const isImplemented = IMPLEMENTED_BLESSINGS.has(id);
-        this.createBlessingCardMobile(cardX, cardY, cardWidth, cardHeight, id, isImplemented);
-      });
-    } else {
-      // Desktop: 1 row, 4 columns
-      const cardAreaY = cardsAreaY;
-      const cardWidth = 210;
-      const cardHeight = 320;
-      const cardSpacing = 15;
-      const totalCardsWidth = cardWidth * 4 + cardSpacing * 3;
-      const cardsStartX = (width - totalCardsWidth) / 2;
-
-      blessingIds.forEach((id, index) => {
-        const cardX = cardsStartX + index * (cardWidth + cardSpacing);
-        const isImplemented = IMPLEMENTED_BLESSINGS.has(id);
-        this.createBlessingCard(cardX, cardAreaY, cardWidth, cardHeight, id, isImplemented);
-      });
-    }
+    blessingIds.forEach((id, index) => {
+      const cardX = (width - L.cardWidth) / 2;
+      const cardY = L.cardsAreaY + index * (L.cardHeight + L.cardSpacing);
+      const isImplemented = IMPLEMENTED_BLESSINGS.has(id);
+      this.createBlessingCard(cardX, cardY, L.cardWidth, L.cardHeight, id, isImplemented);
+    });
 
     // Continue button (disabled until blessing selected)
-    const buttonY = height / 2 + panelHeight / 2 - 45;
-    this.createContinueButton(width / 2, buttonY);
+    this.createContinueButton(width / 2, L.buttonY);
 
     // Entrance animation
     this.container.setAlpha(0);
@@ -146,166 +183,8 @@ export class BlessingChoicePanel {
     });
   }
 
+  /** Compact card layout for blessing selection */
   private createBlessingCard(
-    x: number,
-    y: number,
-    cardWidth: number,
-    cardHeight: number,
-    blessingId: BlessingId,
-    isImplemented: boolean
-  ): void {
-    const config = BLESSING_CONFIGS[blessingId];
-    const card = this.scene.add.container(x, y);
-    this.container.add(card);
-
-    // Card background - dimmer if not implemented
-    const cardBg = this.scene.add.rectangle(
-      cardWidth / 2, cardHeight / 2,
-      cardWidth, cardHeight,
-      isImplemented ? PALETTE.purple[800] : PALETTE.neutral[800],
-      isImplemented ? 0.95 : 0.7
-    );
-    cardBg.setStrokeStyle(2, isImplemented ? PALETTE.purple[500] : PALETTE.neutral[600], 0.6);
-    card.add(cardBg);
-
-    // Card glow (hidden by default, only for implemented)
-    const cardGlow = this.scene.add.rectangle(
-      cardWidth / 2, cardHeight / 2,
-      cardWidth + 8, cardHeight + 8,
-      PALETTE.green[500], 0
-    );
-    card.add(cardGlow);
-    card.sendToBack(cardGlow);
-
-    let yPos = 28;
-
-    // Icon (large, centered) - dimmer if not implemented
-    const icon = createText(this.scene,cardWidth / 2, yPos, config.icon, {
-      fontSize: FONTS.SIZE_BLESSING,
-      fontFamily: FONTS.FAMILY,
-    });
-    icon.setOrigin(0.5, 0.5);
-    if (!isImplemented) icon.setAlpha(0.5);
-    card.add(icon);
-    yPos += 40;
-
-    // Name
-    const name = createText(this.scene,cardWidth / 2, yPos, config.name, {
-      fontSize: FONTS.SIZE_BODY,
-      fontFamily: FONTS.FAMILY,
-      color: isImplemented ? COLORS.TEXT_PRIMARY : COLORS.TEXT_MUTED,
-      fontStyle: 'bold',
-    });
-    name.setOrigin(0.5, 0.5);
-    card.add(name);
-    yPos += 20;
-
-    // Subtitle
-    const subtitle = createText(this.scene,cardWidth / 2, yPos, config.subtitle, {
-      fontSize: FONTS.SIZE_SMALL,
-      fontFamily: FONTS.FAMILY,
-      color: isImplemented ? COLORS.TEXT_ACCENT : COLORS.TEXT_DISABLED,
-    });
-    subtitle.setOrigin(0.5, 0.5);
-    card.add(subtitle);
-    yPos += 25;
-
-    // Divider
-    const divider = this.scene.add.rectangle(
-      cardWidth / 2, yPos,
-      cardWidth - 40, 1,
-      isImplemented ? PALETTE.purple[500] : PALETTE.neutral[600],
-      0.4
-    );
-    card.add(divider);
-    yPos += 18;
-
-    // Description
-    const desc = createText(this.scene,cardWidth / 2, yPos, config.description, {
-      fontSize: FONTS.SIZE_SMALL,
-      fontFamily: FONTS.FAMILY,
-      color: isImplemented ? COLORS.TEXT_SECONDARY : COLORS.TEXT_DISABLED,
-      wordWrap: { width: cardWidth - 30 },
-      align: 'center',
-    });
-    desc.setOrigin(0.5, 0);
-    card.add(desc);
-    yPos += 50;
-
-    // Benefits list
-    config.benefits.forEach((benefit) => {
-      const bulletText = createText(this.scene,20, yPos, `+ ${benefit}`, {
-        fontSize: FONTS.SIZE_SMALL,
-        fontFamily: FONTS.FAMILY,
-        color: isImplemented ? COLORS.TEXT_SUCCESS : COLORS.TEXT_DISABLED,
-        wordWrap: { width: cardWidth - 40 },
-      });
-      bulletText.setOrigin(0, 0);
-      card.add(bulletText);
-      yPos += bulletText.height + 6;
-    });
-
-    // "Coming Soon" badge for unimplemented cards
-    const bottomY = cardHeight - 30;
-
-    if (isImplemented) {
-      // Make interactive only if implemented
-      cardBg.setInteractive({ useHandCursor: true });
-
-      // Hover effects
-      cardBg.on('pointerover', () => {
-        if (this.selectedCard !== card) {
-          cardBg.setFillStyle(PALETTE.purple[700], 1);
-          cardBg.setStrokeStyle(2, PALETTE.purple[400], 0.8);
-          this.scene.tweens.add({
-            targets: card,
-            y: y - 5,
-            duration: SIZES.ANIM_QUICK,
-            ease: 'Quad.easeOut',
-          });
-        }
-      });
-
-      cardBg.on('pointerout', () => {
-        if (this.selectedCard !== card) {
-          cardBg.setFillStyle(PALETTE.purple[800], 0.95);
-          cardBg.setStrokeStyle(2, PALETTE.purple[500], 0.6);
-          this.scene.tweens.add({
-            targets: card,
-            y: y,
-            duration: SIZES.ANIM_QUICK,
-            ease: 'Quad.easeOut',
-          });
-        }
-      });
-
-      // Click to select
-      cardBg.on('pointerdown', () => {
-        this.selectBlessing(card, cardBg, cardGlow, blessingId, y);
-      });
-    } else {
-      // "Coming Soon" badge
-      const comingSoonBg = this.scene.add.rectangle(
-        cardWidth / 2, bottomY,
-        100, 24,
-        PALETTE.neutral[700], 0.8
-      );
-      comingSoonBg.setStrokeStyle(1, PALETTE.neutral[500], 0.5);
-      card.add(comingSoonBg);
-
-      const comingSoon = createText(this.scene,cardWidth / 2, bottomY, 'COMING SOON', {
-        fontSize: FONTS.SIZE_NANO,
-        fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_MUTED,
-        fontStyle: 'bold',
-      });
-      comingSoon.setOrigin(0.5, 0.5);
-      card.add(comingSoon);
-    }
-  }
-
-  /** Mobile-optimized compact card layout */
-  private createBlessingCardMobile(
     x: number,
     y: number,
     cardWidth: number,
@@ -528,8 +407,8 @@ export class BlessingChoicePanel {
   }
 
   private createContinueButton(x: number, y: number): void {
-    const btnWidth = 200;
-    const btnHeight = 50;
+    const btnWidth = LAYOUT.blessingPanel.CONTINUE_BUTTON_WIDTH;
+    const btnHeight = LAYOUT.blessingPanel.CONTINUE_BUTTON_HEIGHT;
 
     // Button glow (hidden until enabled)
     this.continueButtonGlow = this.scene.add.rectangle(x, y, btnWidth + 10, btnHeight + 10, PALETTE.green[500], 0);
@@ -541,7 +420,7 @@ export class BlessingChoicePanel {
     this.container.add(this.continueButton);
 
     // Button text
-    this.continueButtonText = createText(this.scene,x, y, 'CONTINUE', {
+    this.continueButtonText = createText(this.scene, x, y, 'CONTINUE', {
       fontSize: FONTS.SIZE_BODY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_DISABLED,

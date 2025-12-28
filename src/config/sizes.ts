@@ -17,11 +17,11 @@ export const CANVAS = {
 // =============================================================================
 
 export const SIZES = {
-  // Dice
-  DICE_SIZE: 70,
-  DICE_PIP_RADIUS: 6,
-  DICE_PIP_OFFSET: 18,
-  DICE_SPACING: 85,
+  // Dice (sized for 6 dice to fit at 430px viewport)
+  DICE_SIZE: 50,
+  DICE_PIP_RADIUS: 4,
+  DICE_PIP_OFFSET: 13,
+  DICE_SPACING: 64,
   DICE_BORDER_WIDTH: 3,
 
   // Buttons
@@ -103,13 +103,17 @@ export const TIMING = {
   FAST: 100,
   QUICK: 150,
   NORMAL: 200,
+  MEDIUM: 250,
   ENTRANCE: 300,
   SLOW: 400,
   MEDIUM_SLOW: 600,
+  LONG: 1000,
+  EXTENDED: 1500,
 
   // Ambient animations
   PULSE: 2000,
   PULSE_SLOW: 2500,
+  PULSE_LONG: 3000,
   AMBIENT: 5000,
 
   // Game flow
@@ -158,18 +162,15 @@ export const DEPTH = {
 // =============================================================================
 
 export const CELEBRATION = {
-  // Confetti
-  CONFETTI_COUNT_MOBILE: 120,
-  CONFETTI_COUNT_DESKTOP: 200,
+  // Confetti (mobile-only, game is locked to 430px width)
+  CONFETTI_COUNT: 120,
   CONFETTI_SIZE_MIN: 4,
   CONFETTI_SIZE_MAX: 10,
   CONFETTI_FALL_VARIANCE: 1000,
 
-  // Fireworks
-  FIREWORK_COUNT_MOBILE: 12,
-  FIREWORK_COUNT_DESKTOP: 20,
-  FIREWORK_SPARK_COUNT_MOBILE: 12,
-  FIREWORK_SPARK_COUNT_DESKTOP: 20,
+  // Fireworks (mobile-only)
+  FIREWORK_COUNT: 12,
+  FIREWORK_SPARK_COUNT: 12,
   FIREWORK_SPARK_SIZE_MIN: 3,
   FIREWORK_SPARK_SIZE_MAX: 7,
   FIREWORK_STAGGER: 250,
@@ -181,26 +182,217 @@ export const CELEBRATION = {
 } as const;
 
 // =============================================================================
-// GAMEPLAY LAYOUT
+// LAYOUT CONFIG (single source of truth for all layout values)
 // =============================================================================
 
-export const GAMEPLAY_LAYOUT = {
-  // Score effect position
-  SCORE_EFFECT_Y: 290,
+export const LAYOUT = {
+  // Breakpoints
+  ULTRA_COMPACT_THRESHOLD: 580, // usableHeight below this triggers compact mode
 
-  // Prompt positioning
-  PROMPT_PADDING: 12,
-  PROMPT_HEIGHT: 14,
+  // =========================================================================
+  // GAMEPLAY SCENE
+  // =========================================================================
+  gameplay: {
+    SCORE_EFFECT_Y: 290,
+    PROMPT_PADDING: 12,
+    PROMPT_HEIGHT: 14,
+    LEFT_MARGIN_DEBUG: 160,
+    LEFT_MARGIN_NORMAL: 30,
+    SCORECARD_RIGHT_MARGIN: 15,
+    SHAKE_INTENSITY: 0.003,
+    POST_ROLL_DELAY: 100,
+  },
 
-  // Left margin based on debug mode
-  LEFT_MARGIN_DEBUG: 160,
-  LEFT_MARGIN_NORMAL: 30,
+  // =========================================================================
+  // HEADER
+  // =========================================================================
+  header: {
+    HEIGHT: 48,
+    HEIGHT_COMPACT: 40,
+    MARGIN: 20,
+    TOP_PADDING: 5,
+    // Gap between header bottom and dice zone (tip text)
+    GAP: 8,
+    GAP_COMPACT: 5,
+  },
 
-  // Screen shake intensity
-  SHAKE_INTENSITY: 0.003,
+  // =========================================================================
+  // DICE
+  // =========================================================================
+  dice: {
+    REFERENCE_SIZE: 70,
+    PIP_RADIUS_RATIO: 0.086,
+    PIP_OFFSET_RATIO: 0.257,
+  },
 
-  // Delay after roll before applying mode mechanics
-  POST_ROLL_DELAY: 100,
+  // =========================================================================
+  // TIP TEXT (above dice)
+  // =========================================================================
+  tip: {
+    HEIGHT: 14,
+    // Gap between tip text and dice - space for new content
+    GAP: 18,
+  },
+
+  // =========================================================================
+  // LOCK/CURSED ICONS (below dice)
+  // =========================================================================
+  icons: {
+    GAP_BASE: 14,
+    HEIGHT_BASE: 16,
+  },
+
+  // =========================================================================
+  // CONTROLS PANEL
+  // =========================================================================
+  controls: {
+    HEIGHT: 60,
+    HEIGHT_COMPACT: 50,
+    GAP: 8,
+    GAP_COMPACT: 4,
+    COL_WIDTH: 130,
+    COL_WIDTH_MOBILE: 120,
+    BUTTON_HEIGHT: 44,
+    BUTTON_HEIGHT_MOBILE: 32,
+    BUTTON_HEIGHT_COMPACT: 28,
+    BUTTON_WIDTH: 110,
+    BUTTON_WIDTH_MOBILE: 100,
+    DIVIDER_PADDING: 24,
+    DIVIDER_PADDING_MOBILE: 16,
+    DIVIDER_PADDING_COMPACT: 10,
+    GLOW_PADDING_X: 10,
+    GLOW_PADDING_X_COMPACT: 8,
+    GLOW_PADDING_Y: 8,
+    GLOW_PADDING_Y_COMPACT: 6,
+    LABEL_VALUE_GAP: 12,
+    LABEL_VALUE_GAP_MOBILE: 10,
+    COMPACT_MEET_OFFSET: 34,
+    COMPACT_MEET_OFFSET_COMPACT: 30,
+  },
+
+  // =========================================================================
+  // SCORECARD (positioning from gameplay layout)
+  // =========================================================================
+  scorecard: {
+    GAP: 12,
+    GAP_COMPACT: 8,
+    MIN_HEIGHT: 200,
+    // External: space between scorecard bottom and screen edge
+    BOTTOM_PADDING: 45,
+    BOTTOM_PADDING_COMPACT: 35,
+    // Internal: padding inside panel below the total row
+    INTERNAL_BOTTOM_PADDING: 10,
+    INTERNAL_BOTTOM_PADDING_COMPACT: 6,
+    // Panel dimensions
+    WIDTH: 340,
+    // Row heights
+    ROW_HEIGHT: 36,
+    ROW_HEIGHT_MIN: 28,
+    TOTAL_ROW_HEIGHT: 36,
+    TOTAL_ROW_HEIGHT_COMPACT: 28,
+    // Spacing
+    CONTENT_PADDING: 6,
+    CONTENT_PADDING_COMPACT: 4,
+    TITLE_HEIGHT: 28,
+    TITLE_HEIGHT_COMPACT: 20,
+    TITLE_GAP: 2,
+    TITLE_GAP_COMPACT: 0,
+    HEADER_HEIGHT: 24,
+    HEADER_HEIGHT_COMPACT: 18,
+    DIVIDER_HEIGHT: 6,
+    DIVIDER_HEIGHT_COMPACT: 3,
+    COLUMN_GAP: 6,
+    // Row styling
+    NAME_PADDING_LEFT: 8,
+    LABEL_PADDING_LEFT: 6,
+    POTENTIAL_OFFSET_FROM_RIGHT: 45,
+    SCORE_OFFSET_FROM_RIGHT: 12,
+  },
+
+  // =========================================================================
+  // HEADER PANEL
+  // =========================================================================
+  headerPanel: {
+    // Panel widths
+    WIDTH_COMPACT: 340,
+    WIDTH_NORMAL: 420,
+    MARGIN: 20,
+    SAFE_AREA_OFFSET: 10,
+    // Heights (mobile-only, game is locked to 430px width)
+    HEIGHT_COMPACT: 70,
+    HEIGHT_NORMAL: 85,
+    // Side columns
+    SIDE_INSET_MIN: 40,
+    SIDE_INSET_RATIO: 0.12,
+    SECTION_WIDTH: 70,
+    SECTION_PADDING: 2,
+    // Font sizes (mobile-only)
+    FONT_LABEL: 13,
+    FONT_VALUE: 18,
+    FONT_TIMER: 20,
+    // Vertical positioning (mobile-only)
+    SIDE_CENTER_Y_RATIO: 0.5,
+    LABEL_OFFSET: -10,
+    VALUE_OFFSET: 8,
+  },
+
+  // =========================================================================
+  // PAUSE MENU
+  // =========================================================================
+  pauseMenu: {
+    PANEL_WIDTH: 280,
+    PANEL_PADDING: 24,
+    TITLE_HEIGHT: 28,
+    AUDIO_LABEL_HEIGHT: 16,
+    TOGGLE_BUTTON_HEIGHT: 38,
+    TOGGLE_BUTTON_WIDTH: 115,
+    ACTION_BUTTON_HEIGHT: 44,
+    ACTION_BUTTON_WIDTH: 160,
+    GAP_TITLE_TO_AUDIO: 16,
+    GAP_AUDIO_TO_TOGGLES: 10,
+    GAP_TOGGLES_TO_RESUME: 20,
+    GAP_RESUME_TO_QUIT: 12,
+  },
+
+  // =========================================================================
+  // SETTINGS PANEL (menu scene)
+  // =========================================================================
+  settingsPanel: {
+    PANEL_WIDTH: 260,
+    PANEL_PADDING: 20,
+    TITLE_HEIGHT: 28,
+    AUDIO_LABEL_HEIGHT: 16,
+    TOGGLE_BUTTON_HEIGHT: 38,
+    TOGGLE_BUTTON_WIDTH: 110,
+    CLOSE_BUTTON_HEIGHT: 38,
+    CLOSE_BUTTON_WIDTH: 110,
+    GAP_TITLE_TO_AUDIO: 14,
+    GAP_AUDIO_TO_TOGGLES: 10,
+    GAP_TOGGLES_TO_CLOSE: 18,
+  },
+
+  // =========================================================================
+  // BLESSING CHOICE PANEL
+  // Game is always mobile-sized (430px width locked via CSS)
+  // =========================================================================
+  blessingPanel: {
+    // Panel sizing
+    PANEL_MARGIN: 20,
+    // Title padding from panel top
+    TITLE_PADDING: 22,
+    // Button
+    CONTINUE_BUTTON_HEIGHT: 50,
+    CONTINUE_BUTTON_WIDTH: 200,
+    GAP_BUTTON_FROM_BOTTOM: 25,
+    // Gaps
+    GAP_TITLE_TO_SUBTITLE: 22,
+    GAP_SUBTITLE_TO_CHOOSE: 28,
+    GAP_CHOOSE_TO_CARDS: 18,
+    // Card dimensions
+    CARD_WIDTH_MARGIN: 20,
+    CARD_HEIGHT: 88,
+    CARD_SPACING: 3,
+  },
 } as const;
 
 // =============================================================================
@@ -208,32 +400,35 @@ export const GAMEPLAY_LAYOUT = {
 // =============================================================================
 
 export const END_SCREEN = {
-  // Panel dimensions
-  PANEL_WIDTH_MOBILE: 340,
-  PANEL_WIDTH_DESKTOP: 400,
-  PANEL_HEIGHT_MOBILE: 300,
-  PANEL_HEIGHT_DESKTOP: 340,
+  // Panel dimensions (mobile-only, game is locked to 430px width)
+  PANEL_WIDTH: 340,
   PANEL_MARGIN: 30,
+  PANEL_PADDING: 20,
 
-  // Content Y positions
-  TITLE_Y: 45,
-  SUBTITLE_OFFSET: 30,
-  DIVIDER_1_Y: 100,
-  SCORE_Y: 150,
-  SCORE_LABEL_OFFSET: -25,
-  SCORE_VALUE_OFFSET: 5,
-  SCORE_ROUND_OFFSET: 30,
-  DIVIDER_2_Y: 220,
+  // Element heights
+  TITLE_HEIGHT: 24,
+  SUBTITLE_HEIGHT: 18,
+  DIVIDER_HEIGHT: 1,
+  SCORE_LABEL_HEIGHT: 14,
+  SCORE_VALUE_HEIGHT: 28,
+  SCORE_ROUND_HEIGHT: 14,
+  BUTTON_HEIGHT: 36,
+  PREVIEW_BOX_HEIGHT: 58,
 
-  // Button positioning
-  BUTTON_Y_MOBILE: 250,
-  BUTTON_Y_DESKTOP: 280,
-  BUTTON_OFFSET_MOBILE: 70,
-  BUTTON_OFFSET_DESKTOP: 90,
-  BUTTON_WIDTH_MOBILE: 120,
-  BUTTON_WIDTH_DESKTOP: 150,
-  BUTTON_HEIGHT_MOBILE: 36,
-  BUTTON_HEIGHT_DESKTOP: 44,
+  // Gaps between elements
+  GAP_TITLE_TO_SUBTITLE: 8,
+  GAP_SUBTITLE_TO_PREVIEW: 16,
+  GAP_PREVIEW_TO_DIVIDER: 16,
+  GAP_SUBTITLE_TO_DIVIDER: 20,
+  GAP_DIVIDER_TO_SCORES: 16,
+  GAP_SCORE_LABEL_TO_VALUE: 6,
+  GAP_SCORE_VALUE_TO_ROUND: 8,
+  GAP_SCORES_TO_DIVIDER: 16,
+  GAP_DIVIDER_TO_BUTTON: 16,
+
+  // Button sizing
+  BUTTON_OFFSET: 70,
+  BUTTON_WIDTH: 120,
 
   // Firework effects
   FIREWORK_EXPLOSION_MARGIN: 50,
