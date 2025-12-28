@@ -18,105 +18,91 @@
     h1 {
       text-align: center;
       color: #c4b5fd;
-      margin-bottom: 30px;
+      margin-bottom: 10px;
       text-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
+    }
+    .subtitle {
+      text-align: center;
+      color: #888;
+      margin-bottom: 30px;
+      font-size: 0.9rem;
     }
     .container {
       max-width: 900px;
       margin: 0 auto;
       display: grid;
-      gap: 24px;
+      gap: 20px;
     }
     .section {
       background: rgba(30, 20, 50, 0.9);
       border: 2px solid #7c3aed;
       border-radius: 12px;
-      padding: 24px;
+      padding: 20px;
       box-shadow: 0 0 30px rgba(124, 58, 237, 0.2);
     }
+    .section.primary {
+      border-color: #22c55e;
+      box-shadow: 0 0 30px rgba(34, 197, 94, 0.2);
+    }
+    .section.warning {
+      border-color: #f59e0b;
+      box-shadow: 0 0 30px rgba(245, 158, 11, 0.2);
+    }
+    .section.info {
+      border-color: #3b82f6;
+      box-shadow: 0 0 30px rgba(59, 130, 246, 0.2);
+    }
     .section h2 {
-      margin: 0 0 8px 0;
-      color: #a78bfa;
-      font-size: 1.4rem;
-      border-bottom: 1px solid #4c1d95;
-      padding-bottom: 8px;
-    }
-    .section p {
-      color: #a0a0c0;
       margin: 0 0 16px 0;
-      font-size: 0.9rem;
-    }
-    .button-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      color: #a78bfa;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
       gap: 10px;
     }
-    button {
-      padding: 12px 16px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-    }
-    button:hover {
-      transform: translateY(-2px);
-    }
-    button:active {
-      transform: translateY(0);
-    }
-    button small {
-      display: block;
-      font-weight: 400;
+    .section.primary h2 { color: #4ade80; }
+    .section.warning h2 { color: #fbbf24; }
+    .section.info h2 { color: #60a5fa; }
+    .badge {
       font-size: 0.7rem;
-      opacity: 0.8;
-      margin-top: 4px;
-      text-transform: none;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: rgba(124, 58, 237, 0.3);
+      color: #c4b5fd;
     }
-    .btn-music {
-      background: linear-gradient(135deg, #7c3aed, #6d28d9);
-      color: white;
-      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+    .badge-green { background: rgba(34, 197, 94, 0.3); color: #4ade80; }
+    .badge-amber { background: rgba(245, 158, 11, 0.3); color: #fbbf24; }
+    .badge-blue { background: rgba(59, 130, 246, 0.3); color: #60a5fa; }
+
+    .notes {
+      font-size: 0.85rem;
+      color: #9ca3af;
+      line-height: 1.6;
+      margin-bottom: 16px;
     }
-    .btn-music:hover {
-      background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-      box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4);
+    .notes strong { color: #c4b5fd; }
+    .notes code {
+      background: rgba(0,0,0,0.3);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Monaco', monospace;
+      font-size: 0.8rem;
+      color: #fbbf24;
     }
-    .btn-source {
-      background: linear-gradient(135deg, #0891b2, #0e7490);
-      color: white;
-      box-shadow: 0 4px 12px rgba(8, 145, 178, 0.3);
-    }
-    .btn-source:hover {
-      background: linear-gradient(135deg, #06b6d4, #0891b2);
-      box-shadow: 0 6px 16px rgba(8, 145, 178, 0.4);
-    }
-    .btn-stop {
-      background: linear-gradient(135deg, #dc2626, #b91c1c);
-      color: white;
-      box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
-    }
-    .btn-stop:hover {
-      background: linear-gradient(135deg, #ef4444, #dc2626);
-    }
-    .controls-row {
-      display: flex;
-      gap: 12px;
-      margin-top: 16px;
-      align-items: center;
-    }
+
     .volume-control {
-      flex: 1;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 16px;
+      margin-bottom: 12px;
+      padding: 12px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
     }
     .volume-control label {
+      min-width: 120px;
+      font-weight: 600;
       font-size: 0.9rem;
-      color: #a0a0c0;
     }
     .volume-control input[type="range"] {
       flex: 1;
@@ -128,376 +114,382 @@
     }
     .volume-control input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none;
-      width: 18px;
-      height: 18px;
+      width: 18px; height: 18px;
       background: #a78bfa;
       border-radius: 50%;
       cursor: pointer;
     }
-    .status {
-      text-align: center;
-      padding: 12px;
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 6px;
-      font-size: 0.85rem;
-      color: #888;
-      margin-top: 12px;
-    }
-    .status.playing {
+    .volume-control .value {
+      min-width: 80px;
+      text-align: right;
+      font-family: 'Monaco', monospace;
+      font-size: 0.9rem;
       color: #4ade80;
     }
-    .note {
-      background: rgba(124, 58, 237, 0.15);
-      border-left: 3px solid #7c3aed;
+
+    .bitrate-selector {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .bitrate-btn {
+      padding: 10px 16px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: 2px solid #4b5563;
+      border-radius: 6px;
+      cursor: pointer;
+      background: rgba(30, 20, 50, 0.8);
+      color: #9ca3af;
+      transition: all 0.15s ease;
+    }
+    .bitrate-btn:hover { border-color: #7c3aed; color: #c4b5fd; }
+    .bitrate-btn.active {
+      border-color: #7c3aed;
+      background: linear-gradient(135deg, #7c3aed, #6d28d9);
+      color: white;
+    }
+    .bitrate-btn small {
+      display: block;
+      font-weight: 400;
+      font-size: 0.7rem;
+      opacity: 0.7;
+      margin-top: 2px;
+    }
+
+    .track-btn {
       padding: 12px 16px;
       font-size: 0.85rem;
-      color: #c4b5fd;
-    }
-    .code-block {
-      background: rgba(0, 0, 0, 0.4);
-      border: 1px solid #4c1d95;
+      font-weight: 600;
+      border: none;
       border-radius: 6px;
-      padding: 12px;
-      font-family: 'Monaco', 'Consolas', monospace;
-      font-size: 0.8rem;
-      color: #a78bfa;
-      overflow-x: auto;
-      margin-top: 12px;
-    }
-    .time-display {
-      font-family: 'Monaco', 'Consolas', monospace;
-      font-size: 1.2rem;
-      color: #4ade80;
+      cursor: pointer;
+      transition: all 0.15s ease;
       text-align: center;
-      padding: 8px;
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 4px;
-      margin-top: 12px;
+    }
+    .track-btn:hover { transform: translateY(-1px); }
+    .track-btn:active { transform: translateY(0); }
+    .track-btn small {
+      display: block;
+      font-weight: 400;
+      font-size: 0.7rem;
+      opacity: 0.7;
+      margin-top: 2px;
+    }
+    .track-btn.playing { box-shadow: 0 0 15px currentColor; }
+
+    .btn-keep { background: linear-gradient(135deg, #7c3aed, #6d28d9); color: white; }
+    .btn-battling { background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; }
+    .btn-final { background: linear-gradient(135deg, #22c55e, #16a34a); color: white; }
+    .btn-menu { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+    .btn-stop { background: linear-gradient(135deg, #6b7280, #4b5563); color: white; }
+    .btn-skip { background: linear-gradient(135deg, #4b5563, #374151); color: white; padding: 8px 12px; font-size: 0.75rem; }
+    .btn-original { background: linear-gradient(135deg, #374151, #1f2937); color: #9ca3af; border: 1px solid #4b5563; }
+
+    .mode-section { margin-bottom: 20px; }
+    .mode-section:last-child { margin-bottom: 0; }
+    .mode-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .mode-title { font-weight: 600; color: #c4b5fd; font-size: 1rem; }
+    .mode-duration { font-size: 0.8rem; color: #888; }
+    .mode-tracks { display: flex; gap: 10px; flex-wrap: wrap; }
+    .mode-tracks .track-btn { flex: 1; min-width: 120px; }
+
+    .divider { height: 1px; background: #4c1d95; margin: 16px 0; }
+
+    .player-bar {
+      background: rgba(0,0,0,0.4);
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      bottom: 20px;
+    }
+    .player-info { flex: 1; min-width: 0; }
+    .player-track {
+      font-weight: 600;
+      color: #4ade80;
+      font-size: 0.9rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .player-time { font-family: 'Monaco', monospace; color: #888; font-size: 0.85rem; }
+    .player-controls { display: flex; gap: 8px; align-items: center; }
+    .player-controls button { padding: 8px 16px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }
+    .volume-slider {
+      width: 80px; height: 4px;
+      -webkit-appearance: none;
+      background: #4c1d95;
+      border-radius: 2px;
+      outline: none;
+    }
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      background: #a78bfa;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .size-info {
+      font-size: 0.75rem;
+      color: #666;
+      margin-top: 8px;
     }
   </style>
 </head>
 <body>
-  <h1>🎵 Cursed Dice Music Test</h1>
+  <h1>Music Test</h1>
+  <p class="subtitle">Keep + Battling | Pitch -1 octave | Volume Balancing</p>
 
   <div class="container">
-    <!-- Original Source Files -->
-    <div class="section">
-      <h2>🎼 Original Sources</h2>
-      <p>Raw source files from test-sources/ before manipulation.</p>
-      <div class="button-grid">
-        <button class="btn-source" onclick="playTestSource('Keep')">Keep</button>
-        <button class="btn-source" onclick="playTestSource('Beware')">Beware</button>
-        <button class="btn-source" onclick="playTestSource('Battling')">Battling</button>
-        <button class="btn-source" onclick="playTestSource('Dungeon')">Dungeon</button>
-        <button class="btn-stop" onclick="stopMusic()">Stop</button>
-      </div>
-      <div class="time-display" id="time-display">0:00 / 0:00</div>
-      <div class="status" id="source-status">Click a track to test</div>
-    </div>
-
-    <!-- Manipulated Tracks by Mode -->
-    <div class="section">
-      <h2>🎚 Manipulated Tracks (test-sources/)</h2>
-      <p>Processed versions ready for stitching. Compare levels between tracks.</p>
-
-      <h3 style="color: #8b5cf6; margin: 16px 0 8px 0; font-size: 1rem;">Intense Mode</h3>
-      <div class="button-grid">
-        <button class="btn-source" onclick="playTestSource('intense_keep')">Keep</button>
-        <button class="btn-source" onclick="playTestSource('intense_beware')">Beware</button>
-        <button class="btn-source" onclick="playTestSource('intense_battling')">Battling</button>
+    <!-- Volume Balancing -->
+    <div class="section info">
+      <h2>Volume Balancing <span class="badge badge-blue">Adjust & Compare</span></h2>
+      <div class="notes">
+        <strong>Current baked-in levels:</strong><br>
+        Gameplay (chill/normal/intense): <code>0.60</code> (40% quieter)<br>
+        Menu: <code>1.25</code> (25% louder)<br><br>
+        <strong>Instructions:</strong> Adjust the sliders below while switching between gameplay and menu tracks to find the balance point. Note the multiplier values when they sound equal.
       </div>
 
-      <h3 style="color: #8b5cf6; margin: 16px 0 8px 0; font-size: 1rem;">Normal Mode</h3>
-      <div class="button-grid">
-        <button class="btn-source" onclick="playTestSource('normal_keep')">Keep</button>
-        <button class="btn-source" onclick="playTestSource('normal_beware')">Beware</button>
-        <button class="btn-source" onclick="playTestSource('normal_battling')">Battling</button>
-      </div>
-
-      <h3 style="color: #8b5cf6; margin: 16px 0 8px 0; font-size: 1rem;">Chill Mode</h3>
-      <div class="button-grid">
-        <button class="btn-source" onclick="playTestSource('chill_keep')">Keep</button>
-        <button class="btn-source" onclick="playTestSource('chill_beware')">Beware</button>
-        <button class="btn-source" onclick="playTestSource('chill_battling')">Battling</button>
-      </div>
-
-      <h3 style="color: #8b5cf6; margin: 16px 0 8px 0; font-size: 1rem;">Menu</h3>
-      <div class="button-grid">
-        <button class="btn-source" onclick="playTestSource('menu_original')">Original</button>
-        <button class="btn-source" onclick="playTestSource('menu_processed')">Processed</button>
-        <button class="btn-stop" onclick="stopMusic()">Stop</button>
-      </div>
-
-      <!-- Track Volume Adjustment -->
-      <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #4c1d95;">
-        <h3 style="color: #8b5cf6; margin: 0 0 12px 0; font-size: 1rem;">🎚 Volume Adjustment Test</h3>
-        <p style="color: #a0a0c0; font-size: 0.85rem; margin: 0 0 12px 0;">
-          Apply volume multiplier to currently playing track.
-        </p>
-        <div class="volume-control">
-          <label>Track Volume:</label>
-          <input type="range" id="beware-volume" min="50" max="150" value="100" onchange="setTrackVolume(this.value)">
-          <span id="beware-volume-display">100%</span>
-        </div>
-        <div class="code-block" style="margin-top: 12px;">
-          FFmpeg: <span id="ffmpeg-volume-cmd">-filter:a "volume=1.00"</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- NEW Stitched Tracks (beware at 50%) -->
-    <div class="section" style="border-color: #22c55e; box-shadow: 0 0 30px rgba(34, 197, 94, 0.2);">
-      <h2 style="color: #4ade80;">✅ New Stitched Tracks (Beware @ 50%)</h2>
-      <p>Newly stitched versions with beware at 50% volume. Compare these to verify the fix.</p>
-      <div class="button-grid">
-        <button class="btn-source" style="background: linear-gradient(135deg, #22c55e, #16a34a);" onclick="playNewStitch('chill_new')">
-          Chill NEW
-          <small>beware @ 50%</small>
-        </button>
-        <button class="btn-source" style="background: linear-gradient(135deg, #22c55e, #16a34a);" onclick="playNewStitch('normal_new')">
-          Normal NEW
-          <small>beware @ 50%</small>
-        </button>
-        <button class="btn-source" style="background: linear-gradient(135deg, #22c55e, #16a34a);" onclick="playNewStitch('intense_new')">
-          Intense NEW
-          <small>beware @ 50%</small>
-        </button>
-        <button class="btn-stop" onclick="stopMusic()">Stop</button>
-      </div>
-      <div class="status" id="new-stitch-status">Test the newly stitched tracks</div>
-      <div class="note" style="margin-top: 12px;">
-        <strong>If these sound good:</strong> Copy <code>*_new.mp3</code> files to <code>dist/sounds/</code> (renamed to chill.mp3, normal.mp3, intense.mp3)
-      </div>
-    </div>
-
-    <!-- Combined Tracks Section -->
-    <div class="section">
-      <h2>🎵 Combined Tracks (in-game)</h2>
-      <p>Final stitched tracks currently used in the game.</p>
-      <div class="button-grid">
-        <button class="btn-music" onclick="playMusic('chill')">
-          Chill Mode
-          <small>chill.mp3</small>
-        </button>
-        <button class="btn-music" onclick="playMusic('normal')">
-          Normal Mode
-          <small>normal.mp3</small>
-        </button>
-        <button class="btn-music" onclick="playMusic('intense')">
-          Intense Mode
-          <small>intense.mp3</small>
-        </button>
-        <button class="btn-music" onclick="playMusic('menu')">
-          Menu
-          <small>menu.mp3</small>
-        </button>
-        <button class="btn-stop" onclick="stopMusic()">Stop</button>
-      </div>
-      <div class="status" id="music-status">No music playing</div>
-    </div>
-
-    <!-- Volume Control -->
-    <div class="section">
-      <h2>🔊 Volume</h2>
       <div class="volume-control">
-        <label>Volume:</label>
-        <input type="range" id="volume" min="0" max="100" value="50" onchange="setVolume(this.value)">
-        <span id="volume-display">50%</span>
+        <label style="color: #a78bfa;">Gameplay</label>
+        <input type="range" id="gameplay-vol" min="0" max="200" value="100" oninput="updateVolDisplay()">
+        <span class="value" id="gameplay-val">1.00x</span>
+      </div>
+
+      <div class="volume-control">
+        <label style="color: #3b82f6;">Menu</label>
+        <input type="range" id="menu-vol" min="0" max="200" value="100" oninput="updateVolDisplay()">
+        <span class="value" id="menu-val">1.00x</span>
+      </div>
+
+      <div class="volume-control">
+        <label style="color: #888;">Master</label>
+        <input type="range" id="master-vol" min="0" max="100" value="50" oninput="updateVolDisplay()">
+        <span class="value" id="master-val">50%</span>
+      </div>
+
+      <p class="size-info">Tip: When tracks sound balanced, the product of (baked-in level) × (slider) tells you what ffmpeg volume= to use.</p>
+    </div>
+
+    <!-- Bitrate Comparison -->
+    <div class="section warning">
+      <h2>Bitrate <span class="badge badge-amber">For Processed Tracks</span></h2>
+      <div class="bitrate-selector">
+        <button class="bitrate-btn active" onclick="setBitrate('192')" id="btn-192">192 kbps</button>
+        <button class="bitrate-btn" onclick="setBitrate('128')" id="btn-128">128 kbps</button>
+        <button class="bitrate-btn" onclick="setBitrate('96')" id="btn-96">96 kbps</button>
       </div>
     </div>
 
-    <!-- FFmpeg Commands -->
+    <!-- Processed Tracks -->
     <div class="section">
-      <h2>🛠 FFmpeg Stitch Commands</h2>
-      <p>Commands to combine source tracks. Run from <code>dev-assets/audio-sources/final/</code></p>
+      <h2>Processed Tracks <span class="badge" id="bitrate-badge">192 kbps</span></h2>
 
-      <h3 style="color: #8b5cf6; margin: 16px 0 8px 0; font-size: 1rem;">Intense Mode (fix beware volume)</h3>
-      <p style="color: #a0a0c0; font-size: 0.85rem;">Run from <code>dev-assets/audio-sources/test-sources/</code></p>
-      <div class="code-block" id="intense-cmd">
-# Step 1: Lower beware volume (adjust 0.75 as needed)<br>
-ffmpeg -i intense_beware.mp3 -filter:a "volume=0.75" intense_beware_adj.mp3<br><br>
-
-# Step 2: Stitch with crossfade<br>
-ffmpeg -i intense_keep.mp3 -i intense_beware_adj.mp3 -i intense_battling.mp3 \<br>
-&nbsp;&nbsp;-filter_complex "[0:a][1:a]acrossfade=d=2:c1=tri:c2=tri[a01]; \<br>
-&nbsp;&nbsp;&nbsp;&nbsp;[a01][2:a]acrossfade=d=2:c1=tri:c2=tri[aout]" \<br>
-&nbsp;&nbsp;-map "[aout]" intense_new.mp3
+      <div class="mode-section">
+        <div class="mode-header">
+          <span class="mode-title">CHILL</span>
+          <span class="mode-duration">Keep 3:00 + Battling 1:00 = 4:00</span>
+        </div>
+        <div class="mode-tracks">
+          <button class="track-btn btn-keep" onclick="play('chill_keep', this, 'gameplay')">Keep <small>3:00</small></button>
+          <button class="track-btn btn-battling" onclick="play('chill_battling', this, 'gameplay')">Battling <small>1:00</small></button>
+        </div>
       </div>
 
-      <h3 style="color: #8b5cf6; margin: 16px 0 8px 0; font-size: 1rem;">One-liner (volume + stitch)</h3>
-      <div class="code-block">
-ffmpeg -i intense_keep.mp3 -i intense_beware.mp3 -i intense_battling.mp3 \<br>
-&nbsp;&nbsp;-filter_complex "[1:a]volume=0.75[beware]; \<br>
-&nbsp;&nbsp;&nbsp;&nbsp;[0:a][beware]acrossfade=d=2:c1=tri:c2=tri[a01]; \<br>
-&nbsp;&nbsp;&nbsp;&nbsp;[a01][2:a]acrossfade=d=2:c1=tri:c2=tri[aout]" \<br>
-&nbsp;&nbsp;-map "[aout]" intense_new.mp3
+      <div class="mode-section">
+        <div class="mode-header">
+          <span class="mode-title">NORMAL</span>
+          <span class="mode-duration">Keep 2:00 + Battling 1:00 = 3:00</span>
+        </div>
+        <div class="mode-tracks">
+          <button class="track-btn btn-keep" onclick="play('normal_keep', this, 'gameplay')">Keep <small>2:00</small></button>
+          <button class="track-btn btn-battling" onclick="play('normal_battling', this, 'gameplay')">Battling <small>1:00</small></button>
+        </div>
       </div>
 
-      <h3 style="color: #8b5cf6; margin: 16px 0 8px 0; font-size: 1rem;">Simple concat (no crossfade)</h3>
-      <div class="code-block">
-ffmpeg -i intense_keep.mp3 -i intense_beware.mp3 -i intense_battling.mp3 \<br>
-&nbsp;&nbsp;-filter_complex "[1:a]volume=0.75[beware]; \<br>
-&nbsp;&nbsp;&nbsp;&nbsp;[0:a][beware][2:a]concat=n=3:v=0:a=1[aout]" \<br>
-&nbsp;&nbsp;-map "[aout]" intense_new.mp3
+      <div class="mode-section">
+        <div class="mode-header">
+          <span class="mode-title">INTENSE</span>
+          <span class="mode-duration">Keep 1:00 + Battling 1:00 = 2:00</span>
+        </div>
+        <div class="mode-tracks">
+          <button class="track-btn btn-keep" onclick="play('intense_keep', this, 'gameplay')">Keep <small>1:00</small></button>
+          <button class="track-btn btn-battling" onclick="play('intense_battling', this, 'gameplay')">Battling <small>1:00</small></button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="mode-section">
+        <div class="mode-header">
+          <span class="mode-title" style="color: #6b7280;">ORIGINALS</span>
+          <span class="mode-duration">Unprocessed source files</span>
+        </div>
+        <div class="mode-tracks">
+          <button class="track-btn btn-original" onclick="playOriginal('Keep', this)">Keep <small>1:56</small></button>
+          <button class="track-btn btn-original" onclick="playOriginal('Battling', this)">Battling <small>1:47</small></button>
+          <button class="track-btn btn-original" onclick="playOriginal('Beware', this)">Beware <small>2:04</small></button>
+          <button class="track-btn btn-original" onclick="playOriginal('Dungeon', this)">Dungeon <small>1:10</small></button>
+        </div>
       </div>
     </div>
 
-    <div class="note">
-      <strong>Workflow:</strong> Test source tracks above, adjust ffmpeg settings, stitch together, then test the combined result.
+    <!-- Final Stitched -->
+    <div class="section primary">
+      <h2>Final Stitched <span class="badge badge-green">In-Game @ 96kbps</span></h2>
+      <div class="mode-tracks">
+        <button class="track-btn btn-final" onclick="playFinal('chill', this, 'gameplay')">Chill <small>4:00</small></button>
+        <button class="track-btn btn-final" onclick="playFinal('normal', this, 'gameplay')">Normal <small>3:00</small></button>
+        <button class="track-btn btn-final" onclick="playFinal('intense', this, 'gameplay')">Intense <small>2:00</small></button>
+        <button class="track-btn btn-menu" onclick="playFinal('menu', this, 'menu')">Menu <small>1:14</small></button>
+      </div>
+    </div>
+
+    <!-- Player Bar -->
+    <div class="player-bar">
+      <div class="player-info">
+        <div class="player-track" id="player-track">Click a track to play</div>
+        <div class="player-time"><span id="player-current">0:00</span> / <span id="player-duration">0:00</span> <span id="track-type" style="color: #666; margin-left: 8px;"></span></div>
+      </div>
+      <div class="player-controls">
+        <button class="track-btn btn-skip" onclick="skip(-10)">-10s</button>
+        <button class="track-btn btn-skip" onclick="skip(10)">+10s</button>
+        <button class="track-btn btn-stop" onclick="stop()">Stop</button>
+      </div>
     </div>
   </div>
 
   <script>
-    let currentAudio = null;
-    let currentVolume = 0.5;
-    let timeUpdateInterval = null;
+    let audio = null, activeBtn = null, timeInterval = null;
+    let currentBitrate = '192';
+    let currentTrackType = 'gameplay'; // 'gameplay' or 'menu'
+    const basePath = 'dev-assets/audio-sources/test-sources/';
 
-    function formatTime(seconds) {
-      const mins = Math.floor(seconds / 60);
-      const secs = Math.floor(seconds % 60);
-      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    function formatTime(s) {
+      if (!s || isNaN(s)) return '0:00';
+      return Math.floor(s/60) + ':' + Math.floor(s%60).toString().padStart(2,'0');
     }
 
-    function updateTimeDisplay() {
-      if (currentAudio) {
-        const current = formatTime(currentAudio.currentTime);
-        const total = formatTime(currentAudio.duration || 0);
-        document.getElementById('time-display').textContent = `${current} / ${total}`;
+    function updateVolDisplay() {
+      const gameplay = document.getElementById('gameplay-vol').value / 100;
+      const menu = document.getElementById('menu-vol').value / 100;
+      const master = document.getElementById('master-vol').value;
+
+      document.getElementById('gameplay-val').textContent = gameplay.toFixed(2) + 'x';
+      document.getElementById('menu-val').textContent = menu.toFixed(2) + 'x';
+      document.getElementById('master-val').textContent = master + '%';
+
+      // Update playing audio volume
+      if (audio) {
+        const typeMultiplier = currentTrackType === 'menu' ? menu : gameplay;
+        audio.volume = (master / 100) * typeMultiplier;
       }
     }
 
-    let trackVolume = 1.0; // Track volume multiplier
-    let currentTrack = null;
+    function getVolume(trackType) {
+      const master = document.getElementById('master-vol').value / 100;
+      const typeSlider = trackType === 'menu' ? 'menu-vol' : 'gameplay-vol';
+      const typeMultiplier = document.getElementById(typeSlider).value / 100;
+      return master * typeMultiplier;
+    }
 
-    function setTrackVolume(value) {
-      trackVolume = value / 100;
-      document.getElementById('beware-volume-display').textContent = value + '%';
-      document.getElementById('ffmpeg-volume-cmd').textContent = `-filter:a "volume=${trackVolume.toFixed(2)}"`;
-      // Update live
-      if (currentAudio) {
-        currentAudio.volume = currentVolume * trackVolume;
+    function updateTime() {
+      if (audio) {
+        document.getElementById('player-current').textContent = formatTime(audio.currentTime);
+        document.getElementById('player-duration').textContent = formatTime(audio.duration);
       }
     }
 
-    function playTestSource(track) {
-      stopMusic();
-      currentTrack = track;
-
-      const status = document.getElementById('source-status');
-
-      currentAudio = new Audio();
-      currentAudio.volume = currentVolume * trackVolume;
-
-      currentAudio.onplay = () => {
-        status.textContent = `Playing: ${track}`;
-        status.className = 'status playing';
-        timeUpdateInterval = setInterval(updateTimeDisplay, 100);
-      };
-
-      currentAudio.onended = () => {
-        status.textContent = 'Finished';
-        status.className = 'status';
-        clearInterval(timeUpdateInterval);
-      };
-
-      currentAudio.onerror = () => {
-        status.textContent = `Error loading ${track}`;
-        status.className = 'status';
-      };
-
-      currentAudio.src = `dev-assets/audio-sources/test-sources/${track}.mp3`;
-      currentAudio.play().catch(e => {
-        status.textContent = `Error: ${e.message}`;
-      });
+    function setBitrate(bitrate) {
+      currentBitrate = bitrate;
+      document.querySelectorAll('.bitrate-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById('btn-' + bitrate).classList.add('active');
+      document.getElementById('bitrate-badge').textContent = bitrate + ' kbps';
     }
 
-    function playNewStitch(track) {
-      stopMusic();
-      currentTrack = track;
-
-      const status = document.getElementById('new-stitch-status');
-      const displayName = track.replace('_new', ' (NEW)').toUpperCase();
-
-      currentAudio = new Audio();
-      currentAudio.volume = currentVolume;
-
-      currentAudio.onplay = () => {
-        status.textContent = `Playing: ${displayName}`;
-        status.className = 'status playing';
-        timeUpdateInterval = setInterval(updateTimeDisplay, 100);
-      };
-
-      currentAudio.onended = () => {
-        status.textContent = 'Finished';
-        status.className = 'status';
-        clearInterval(timeUpdateInterval);
-      };
-
-      currentAudio.onerror = () => {
-        status.textContent = `Error loading ${track}`;
-        status.className = 'status';
-      };
-
-      currentAudio.src = `dev-assets/audio-sources/test-sources/${track}.mp3`;
-      currentAudio.play().catch(e => {
-        status.textContent = `Error: ${e.message}`;
-      });
-    }
-
-    function playMusic(mode) {
-      stopMusic();
-
-      const status = document.getElementById('music-status');
-      const modeNames = { chill: 'Chill', normal: 'Normal', intense: 'Intense', menu: 'Menu' };
-
-      currentAudio = new Audio();
-      currentAudio.volume = currentVolume;
-      currentAudio.loop = true;
-
-      currentAudio.onplay = () => {
-        status.textContent = `Playing: ${modeNames[mode]} Mode`;
-        status.className = 'status playing';
-      };
-
-      currentAudio.onerror = () => {
-        // Try alternate path
-        currentAudio.src = `assets/sounds/${mode}.mp3`;
-        currentAudio.play().catch(() => {
-          status.textContent = `Error loading ${mode}`;
-          status.className = 'status';
-        });
-      };
-
-      currentAudio.src = `dist/sounds/${mode}.mp3`;
-      currentAudio.play().catch(() => {});
-    }
-
-    function stopMusic() {
-      if (currentAudio) {
-        currentAudio.pause();
-        currentAudio.currentTime = 0;
-        currentAudio = null;
-      }
-      if (timeUpdateInterval) {
-        clearInterval(timeUpdateInterval);
-        timeUpdateInterval = null;
-      }
-      document.getElementById('source-status').textContent = 'Click a track to test';
-      document.getElementById('source-status').className = 'status';
-      document.getElementById('new-stitch-status').textContent = 'Test the newly stitched tracks';
-      document.getElementById('new-stitch-status').className = 'status';
-      document.getElementById('music-status').textContent = 'No music playing';
-      document.getElementById('music-status').className = 'status';
-      document.getElementById('time-display').textContent = '0:00 / 0:00';
-    }
-
-    function setVolume(value) {
-      currentVolume = value / 100;
-      document.getElementById('volume-display').textContent = value + '%';
-      if (currentAudio) {
-        currentAudio.volume = currentVolume;
+    function getProcessedPath(track) {
+      if (currentBitrate === '192') {
+        return basePath + 'processed/' + track + '.mp3';
+      } else {
+        return basePath + 'processed/' + currentBitrate + 'kbps/' + track + '.mp3';
       }
     }
+
+    function play(track, btn, trackType = 'gameplay') {
+      stop();
+      currentTrackType = trackType;
+      activeBtn = btn;
+      btn.classList.add('playing');
+      const path = getProcessedPath(track);
+      audio = new Audio(path);
+      audio.volume = getVolume(trackType);
+      document.getElementById('player-track').textContent = track + ' @ ' + currentBitrate + 'kbps';
+      document.getElementById('track-type').textContent = '[' + trackType + ']';
+      audio.onended = () => stop();
+      audio.onloadedmetadata = updateTime;
+      timeInterval = setInterval(updateTime, 100);
+      audio.play().catch(e => document.getElementById('player-track').textContent = 'Error: ' + e.message);
+    }
+
+    function playOriginal(track, btn) {
+      stop();
+      currentTrackType = 'gameplay';
+      activeBtn = btn;
+      btn.classList.add('playing');
+      audio = new Audio(basePath + track + '.mp3');
+      audio.volume = getVolume('gameplay');
+      document.getElementById('player-track').textContent = track + ' (original)';
+      document.getElementById('track-type').textContent = '[original]';
+      audio.onended = () => stop();
+      audio.onloadedmetadata = updateTime;
+      timeInterval = setInterval(updateTime, 100);
+      audio.play().catch(e => document.getElementById('player-track').textContent = 'Error: ' + e.message);
+    }
+
+    function playFinal(mode, btn, trackType = 'gameplay') {
+      stop();
+      currentTrackType = trackType;
+      activeBtn = btn;
+      btn.classList.add('playing');
+      audio = new Audio('dist/sounds/' + mode + '.mp3');
+      audio.volume = getVolume(trackType);
+      document.getElementById('player-track').textContent = mode + ' (final)';
+      document.getElementById('track-type').textContent = '[' + trackType + ']';
+      audio.onended = () => stop();
+      audio.onloadedmetadata = updateTime;
+      timeInterval = setInterval(updateTime, 100);
+      audio.play().catch(e => document.getElementById('player-track').textContent = 'Error: ' + e.message);
+    }
+
+    function stop() {
+      if (audio) { audio.pause(); audio = null; }
+      if (activeBtn) { activeBtn.classList.remove('playing'); activeBtn = null; }
+      if (timeInterval) { clearInterval(timeInterval); timeInterval = null; }
+      document.getElementById('player-track').textContent = 'Click a track to play';
+      document.getElementById('player-current').textContent = '0:00';
+      document.getElementById('player-duration').textContent = '0:00';
+      document.getElementById('track-type').textContent = '';
+    }
+
+    function skip(secs) {
+      if (audio) {
+        audio.currentTime = Math.max(0, Math.min(audio.duration, audio.currentTime + secs));
+      }
+    }
+
+    // Initialize display
+    updateVolDisplay();
   </script>
 </body>
 </html>

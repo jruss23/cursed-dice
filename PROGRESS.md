@@ -1,6 +1,6 @@
 # Cursed Dice - Development Progress & Architecture Review
 
-## Last Updated: December 26, 2025
+## Last Updated: December 28, 2025
 
 ---
 
@@ -541,11 +541,59 @@ Monitoring for now. If DPR 3 quality complaints arise, consider:
 - `LAYOUT.scorecard.INTERNAL_BOTTOM_PADDING_COMPACT` (6)
 - `LAYOUT.tip.GAP` increased to 18 - Space for new content above dice
 
-### Current Version: v1.1.14
+### Current Version: v1.1.16
 
 ---
 
-## Recent Session Work (Dec 26, 2025)
+## Recent Session Work (Dec 28, 2025)
+
+### Audio Processing Overhaul - COMPLETE
+- [x] **Pitch-shifted gameplay tracks** - All tracks shifted down 1 octave using `rubberband=pitch=0.5`
+- [x] **Removed Beware track** - Didn't fit the vibe, simplified to Keep + Battling only
+- [x] **New track structure**:
+  - CHILL: 3 min Keep + 1 min Battling = 4:00 total
+  - NORMAL: 2 min Keep + 1 min Battling = 3:00 total
+  - INTENSE: 1 min Keep + 1 min Battling = 2:00 total
+- [x] **Crossfade stitching** - 2-second triangular crossfade between Keep and Battling segments
+- [x] **Volume balancing** - Gameplay tracks at 0.60x, Menu at 1.25x
+- [x] **Reduced bitrate** - 96kbps (no audible difference from 192kbps on mobile)
+- [x] **Stripped embedded artwork** - Removed PNG album art that was bloating file sizes
+
+### Build Size Optimization
+- **Before**: 16M (192kbps audio)
+- **After**: 9.5M (96kbps audio, stripped artwork)
+- **Audio breakdown**:
+  - chill.mp3: 2.7M (4:00)
+  - normal.mp3: 2.1M (3:00)
+  - intense.mp3: 1.4M (2:00)
+  - menu.mp3: 865K (1:14)
+  - siren_warning.mp3: 19K
+
+### Music Test Page - COMPLETE
+- [x] **Created `music-test.html`** - Dev tool for audio comparison
+- [x] **Bitrate selector** - Compare 192/128/96 kbps versions
+- [x] **Volume balancing controls** - Separate sliders for gameplay vs menu tracks
+- [x] **Skip controls** - +10s/-10s for quick navigation
+- [x] **Track type labels** - Shows [gameplay] or [menu] for volume slider context
+
+### Audio Processing Notes
+```bash
+# Pitch shift (1 octave down, no tempo change)
+ffmpeg -i input.mp3 -af "rubberband=pitch=0.5:pitchq=quality" -b:a 96k output.mp3
+
+# Crossfade stitch
+ffmpeg -i keep.mp3 -i battling.mp3 -filter_complex "acrossfade=d=2:c1=tri:c2=tri" -b:a 96k output.mp3
+
+# Volume adjustment
+ffmpeg -i input.mp3 -af "volume=0.60" -b:a 96k output.mp3
+
+# Strip artwork
+ffmpeg -i input.mp3 -vn -c:a copy output.mp3
+```
+
+---
+
+## Recent Session Work (Dec 27, 2025)
 
 ### Audio System Improvements - COMPLETE
 - [x] **Music toggle now mutes/unmutes** - Keeps track playing at volume 0 to maintain timing sync with stitched song transitions
