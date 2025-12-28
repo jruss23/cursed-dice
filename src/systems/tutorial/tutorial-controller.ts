@@ -314,9 +314,9 @@ export class TutorialController {
       },
       {
         id: 'five-dice-celebration',
-        title: '5 Dice!',
+        title: '5 of a Kind!',
         message:
-          'All five dice match - that\'s called "5 Dice" and it\'s worth 50 points! Tap the "5 Dice" row on the scorecard to claim it.',
+          'All five dice match - that\'s called "5 of a Kind" and it\'s worth 50 points! Tap the "5 of a Kind" row on the scorecard to claim it.',
         highlightTarget: 'category',
         highlightCategory: CATEGORY_ID.FIVE_DICE,
         showNextButton: false,
