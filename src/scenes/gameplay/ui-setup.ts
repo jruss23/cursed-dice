@@ -16,6 +16,7 @@ import {
   TIMING,
   type ViewportMetrics,
 } from '@/config';
+import { toDPR } from '@/systems/responsive';
 import { HeaderPanel } from '@/ui/gameplay';
 import { DebugPanel } from '@/ui/gameplay';
 import { PauseMenu } from '@/ui/pause-menu';
@@ -155,15 +156,18 @@ export interface ControlButtonsResult {
  */
 export function createControlButtons(config: ControlButtonsConfig): ControlButtonsResult {
   const { scene, height } = config;
-  const btnWidth = 70;
-  const btnHeight = 32;
-  const btnY = height - 6;
+  // Scale button dimensions for DPR
+  const btnWidth = toDPR(70);
+  const btnHeight = toDPR(32);
+  const btnY = height - toDPR(6);
+  const btnGap = toDPR(4);
+  const margin = toDPR(6);
 
   // PAUSE button (left)
-  const pauseX = 6;
+  const pauseX = margin;
   const pauseBg = scene.add.rectangle(pauseX, btnY, btnWidth, btnHeight, PALETTE.purple[700], ALPHA.PANEL_SOLID);
   pauseBg.setOrigin(0, 1);
-  pauseBg.setStrokeStyle(2, PALETTE.purple[500], ALPHA.BORDER_SOLID);
+  pauseBg.setStrokeStyle(toDPR(2), PALETTE.purple[500], ALPHA.BORDER_SOLID);
   pauseBg.setInteractive({ useHandCursor: true });
 
   const pauseText = createText(scene, pauseX + btnWidth / 2, btnY - btnHeight / 2, 'PAUSE', {
@@ -176,19 +180,19 @@ export function createControlButtons(config: ControlButtonsConfig): ControlButto
 
   pauseBg.on('pointerover', () => {
     pauseBg.setFillStyle(PALETTE.purple[600], 1);
-    pauseBg.setStrokeStyle(2, PALETTE.purple[400], 1);
+    pauseBg.setStrokeStyle(toDPR(2), PALETTE.purple[400], 1);
   });
   pauseBg.on('pointerout', () => {
     pauseBg.setFillStyle(PALETTE.purple[700], ALPHA.PANEL_SOLID);
-    pauseBg.setStrokeStyle(2, PALETTE.purple[500], ALPHA.BORDER_SOLID);
+    pauseBg.setStrokeStyle(toDPR(2), PALETTE.purple[500], ALPHA.BORDER_SOLID);
   });
   pauseBg.on('pointerdown', () => config.onPause());
 
   // QUIT button (right of pause)
-  const quitX = pauseX + btnWidth + 4;
+  const quitX = pauseX + btnWidth + btnGap;
   const quitBg = scene.add.rectangle(quitX, btnY, btnWidth, btnHeight, PALETTE.red[800], ALPHA.PANEL_SOLID);
   quitBg.setOrigin(0, 1);
-  quitBg.setStrokeStyle(2, PALETTE.red[500], ALPHA.BORDER_SOLID);
+  quitBg.setStrokeStyle(toDPR(2), PALETTE.red[500], ALPHA.BORDER_SOLID);
   quitBg.setInteractive({ useHandCursor: true });
 
   const quitText = createText(scene, quitX + btnWidth / 2, btnY - btnHeight / 2, 'QUIT', {
@@ -201,12 +205,12 @@ export function createControlButtons(config: ControlButtonsConfig): ControlButto
 
   quitBg.on('pointerover', () => {
     quitBg.setFillStyle(PALETTE.red[700], 1);
-    quitBg.setStrokeStyle(2, PALETTE.red[400], 1);
+    quitBg.setStrokeStyle(toDPR(2), PALETTE.red[400], 1);
     quitText.setColor(COLORS.TEXT_PRIMARY);
   });
   quitBg.on('pointerout', () => {
     quitBg.setFillStyle(PALETTE.red[800], ALPHA.PANEL_SOLID);
-    quitBg.setStrokeStyle(2, PALETTE.red[500], ALPHA.BORDER_SOLID);
+    quitBg.setStrokeStyle(toDPR(2), PALETTE.red[500], ALPHA.BORDER_SOLID);
     quitText.setColor(COLORS.TEXT_DANGER);
   });
   quitBg.on('pointerdown', () => {
@@ -249,6 +253,10 @@ export function createControlButtons(config: ControlButtonsConfig): ControlButto
     inputManager.bind('debugTime', () => config.debugController!.skipTime());
     inputManager.bind('debugStage', () => config.debugController!.skipStage());
   }
+
+  // Register interactive buttons with input manager for unified enable/disable
+  inputManager.registerInteractive(pauseBg);
+  inputManager.registerInteractive(quitBg);
 
   return { pauseMenu, inputManager };
 }

@@ -19,25 +19,17 @@
       border-radius: 8px;
       margin-bottom: 20px;
       text-align: center;
+      font-size: 13px;
     }
     .info code { background: #2a2a4a; padding: 2px 6px; border-radius: 4px; color: #ffaa66; }
 
-    .row-label {
-      text-align: center;
-      padding: 10px;
-      margin: 20px 0 10px;
-      font-size: 16px;
-      font-weight: bold;
-    }
-    .row-label.old { color: #ff8888; }
-    .row-label.new { color: #88ff88; }
-
     .grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      max-width: 700px;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+      max-width: 100%;
       margin: 0 auto 30px;
+      padding: 0 10px;
     }
     .panel {
       background: #1a1a2e;
@@ -50,10 +42,11 @@
       margin-bottom: 8px;
       padding: 6px;
       border-radius: 4px;
-      font-size: 14px;
+      font-size: 12px;
     }
     .panel.old h2 { background: #4a2a2a; color: #ff8888; }
-    .panel.new h2 { background: #2a4a2a; color: #88ff88; }
+    .panel.current h2 { background: #4a4a2a; color: #ffdd88; }
+    .panel.proposed h2 { background: #2a4a2a; color: #88ff88; }
 
     .game-container {
       background: #0a0a1a;
@@ -69,27 +62,71 @@
       font-size: 12px;
       margin-top: 20px;
     }
+    .legend {
+      background: #1a1a2e;
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 20px;
+      max-width: 1700px;
+      margin-left: auto;
+      margin-right: auto;
+      font-size: 12px;
+    }
+    .legend h3 { margin-bottom: 8px; color: #aa88ff; }
+    .legend ul { margin-left: 20px; }
+    .legend li { margin: 4px 0; }
+    .legend .red { color: #ff8888; }
+    .legend .yellow { color: #ffdd88; }
+    .legend .green { color: #88ff88; }
   </style>
 </head>
 <body>
-  <h1>Text Resolution: Before vs After Fix</h1>
+  <h1>Text Resolution: 6-Way Comparison</h1>
 
   <div class="info">
-    <p>Your device DPR: <code id="native-dpr"></code> | Compare old <code>resolution: DPR</code> vs new <code>resolution: DPR × 2</code></p>
+    <p>Your device DPR: <code id="native-dpr"></code> | Comparing 6 approaches for crisp text rendering</p>
   </div>
 
   <div class="grid">
     <div class="panel old">
-      <h2>OLD: resolution = DPR</h2>
-      <div id="old-approach" class="game-container"></div>
+      <h2>A: Text res=DPR, No game res</h2>
+      <div id="approach-a" class="game-container"></div>
     </div>
-    <div class="panel new">
-      <h2>NEW: resolution = DPR × 2 ✓</h2>
-      <div id="new-approach" class="game-container"></div>
+    <div class="panel current">
+      <h2>B: Text res=DPR×2, No game res</h2>
+      <div id="approach-b" class="game-container"></div>
+    </div>
+    <div class="panel proposed">
+      <h2>C: Game res=DPR + roundPixels</h2>
+      <div id="approach-c" class="game-container"></div>
+    </div>
+    <div class="panel proposed">
+      <h2>D: Game res=DPR, NO roundPixels</h2>
+      <div id="approach-d" class="game-container"></div>
+    </div>
+    <div class="panel proposed">
+      <h2>E: Scale.NONE + zoom=1/DPR</h2>
+      <div id="approach-e" class="game-container"></div>
+    </div>
+    <div class="panel proposed">
+      <h2>F: E + createText helper ✓</h2>
+      <div id="approach-f" class="game-container"></div>
     </div>
   </div>
 
-  <p class="note">Look at curved letters (S, O, C, e) and small text. The right panel should appear sharper.</p>
+  <p class="note">Look at curved letters (S, O, C, e) and small text. Column F uses Scale.NONE + zoom + createText helper (proposed final solution).</p>
+
+  <div class="legend">
+    <h3>Approach Details:</h3>
+    <ul>
+      <li><span class="red">A (Old):</span> Game config has no resolution. Text uses <code>resolution: DPR</code>. Canvas buffer = CSS pixels.</li>
+      <li><span class="yellow">B (Current):</span> Game config has no resolution. Text uses <code>resolution: DPR×2</code>. High-res text resampled to 1x canvas.</li>
+      <li><span class="green">C:</span> Game config has <code>resolution: DPR</code> + <code>roundPixels: true</code>. Text uses <code>resolution: DPR</code>. Canvas buffer = device pixels.</li>
+      <li><span class="green">D:</span> Game config has <code>resolution: DPR</code> + <code>roundPixels: false</code>. Text uses <code>resolution: DPR</code>. Smooth anti-aliasing preserved.</li>
+      <li><span class="green">E:</span> <code>Scale.NONE</code> with <code>width/height: ×DPR</code> + <code>zoom: 1/DPR</code>. Canvas is native resolution, zoom scales display.</li>
+      <li><span class="green">F (Proposed):</span> Same as E but uses <code>createText()</code> helper with <code>resolution: DPR</code> and <code>padding: {x:4, y:4}</code>.</li>
+    </ul>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
   <script>
@@ -113,11 +150,24 @@
       { text: 'tiny 9px text sample', size: 9, y: 330 },
     ];
 
-    // OLD APPROACH: resolution = DPR only
-    class OldScene extends Phaser.Scene {
-      constructor() { super({ key: 'OldScene' }); }
+    /**
+     * createText helper - mirrors your ui-utils.ts implementation
+     * Uses resolution: DPR (matching game resolution, not multiplied)
+     */
+    function createText(scene, x, y, content, style) {
+      return scene.add.text(x, y, content, {
+        fontFamily: SYS_FONT,
+        ...style,
+        resolution: DPR,  // Match game resolution, don't multiply
+        padding: { x: 4, y: 4 },
+      });
+    }
+
+    // APPROACH A: No game resolution, text resolution = DPR
+    class SceneA extends Phaser.Scene {
+      constructor() { super({ key: 'SceneA' }); }
       create() {
-        const res = DPR;  // Old approach
+        const res = DPR;
         this.add.rectangle(WIDTH/2, HEIGHT/2, WIDTH, HEIGHT, 0x0a0a1a);
         TEXT_SAMPLES.forEach(s => {
           this.add.text(WIDTH/2, s.y, s.text, {
@@ -128,17 +178,17 @@
             padding: { x: 4, y: 4 }
           }).setOrigin(0.5, 0.5);
         });
-        this.add.text(WIDTH/2, HEIGHT - 20, `resolution: ${res.toFixed(1)}`, {
-          fontSize: '11px', color: '#ff8888', resolution: res
+        this.add.text(WIDTH/2, HEIGHT - 20, `text res: ${res.toFixed(1)}, game res: 1`, {
+          fontSize: '10px', color: '#ff8888', resolution: res
         }).setOrigin(0.5, 0.5);
       }
     }
 
-    // NEW APPROACH: resolution = DPR × 2
-    class NewScene extends Phaser.Scene {
-      constructor() { super({ key: 'NewScene' }); }
+    // APPROACH B: No game resolution, text resolution = DPR × 2 (current fix attempt)
+    class SceneB extends Phaser.Scene {
+      constructor() { super({ key: 'SceneB' }); }
       create() {
-        const res = DPR * 2;  // New approach (the fix)
+        const res = DPR * 2;
         this.add.rectangle(WIDTH/2, HEIGHT/2, WIDTH, HEIGHT, 0x0a0a1a);
         TEXT_SAMPLES.forEach(s => {
           this.add.text(WIDTH/2, s.y, s.text, {
@@ -149,13 +199,104 @@
             padding: { x: 4, y: 4 }
           }).setOrigin(0.5, 0.5);
         });
-        this.add.text(WIDTH/2, HEIGHT - 20, `resolution: ${res.toFixed(1)}`, {
-          fontSize: '11px', color: '#88ff88', resolution: res
+        this.add.text(WIDTH/2, HEIGHT - 20, `text res: ${res.toFixed(1)}, game res: 1`, {
+          fontSize: '10px', color: '#ffdd88', resolution: res
         }).setOrigin(0.5, 0.5);
       }
     }
 
-    const baseConfig = {
+    // APPROACH C: Game resolution = DPR, text resolution = DPR, roundPixels = true
+    class SceneC extends Phaser.Scene {
+      constructor() { super({ key: 'SceneC' }); }
+      create() {
+        const res = DPR;
+        this.add.rectangle(WIDTH/2, HEIGHT/2, WIDTH, HEIGHT, 0x0a0a1a);
+        TEXT_SAMPLES.forEach(s => {
+          this.add.text(WIDTH/2, s.y, s.text, {
+            fontSize: s.size + 'px',
+            fontFamily: SYS_FONT,
+            color: '#ffffff',
+            resolution: res,
+            padding: { x: 4, y: 4 }
+          }).setOrigin(0.5, 0.5);
+        });
+        const gameRes = this.game.config.resolution;
+        this.add.text(WIDTH/2, HEIGHT - 20, `text: ${res.toFixed(1)}, game: ${gameRes}, round: true`, {
+          fontSize: '9px', color: '#88ff88', resolution: res
+        }).setOrigin(0.5, 0.5);
+      }
+    }
+
+    // APPROACH D: Game resolution = DPR, text resolution = DPR, roundPixels = FALSE (smooth AA)
+    class SceneD extends Phaser.Scene {
+      constructor() { super({ key: 'SceneD' }); }
+      create() {
+        const res = DPR;
+        this.add.rectangle(WIDTH/2, HEIGHT/2, WIDTH, HEIGHT, 0x0a0a1a);
+        TEXT_SAMPLES.forEach(s => {
+          this.add.text(WIDTH/2, s.y, s.text, {
+            fontSize: s.size + 'px',
+            fontFamily: SYS_FONT,
+            color: '#ffffff',
+            resolution: res,
+            padding: { x: 4, y: 4 }
+          }).setOrigin(0.5, 0.5);
+        });
+        const gameRes = this.game.config.resolution;
+        this.add.text(WIDTH/2, HEIGHT - 20, `text: ${res.toFixed(1)}, game: ${gameRes}, round: false`, {
+          fontSize: '9px', color: '#88ff88', resolution: res
+        }).setOrigin(0.5, 0.5);
+      }
+    }
+
+    // APPROACH E: Scale.NONE with width/height * DPR and zoom = 1/DPR
+    class SceneE extends Phaser.Scene {
+      constructor() { super({ key: 'SceneE' }); }
+      create() {
+        // Note: coordinates are in the scaled space (WIDTH*DPR, HEIGHT*DPR)
+        const scaledW = WIDTH * DPR;
+        const scaledH = HEIGHT * DPR;
+        const res = DPR;  // Text resolution matches
+        this.add.rectangle(scaledW/2, scaledH/2, scaledW, scaledH, 0x0a0a1a);
+        TEXT_SAMPLES.forEach(s => {
+          // Scale positions and font sizes by DPR since canvas is larger
+          this.add.text(scaledW/2, s.y * DPR, s.text, {
+            fontSize: (s.size * DPR) + 'px',
+            fontFamily: SYS_FONT,
+            color: '#ffffff',
+            resolution: res,
+            padding: { x: 4 * DPR, y: 4 * DPR }
+          }).setOrigin(0.5, 0.5);
+        });
+        this.add.text(scaledW/2, (HEIGHT - 20) * DPR, `Scale.NONE, zoom: ${(1/DPR).toFixed(2)}`, {
+          fontSize: (9 * DPR) + 'px', color: '#88ff88', resolution: res
+        }).setOrigin(0.5, 0.5);
+      }
+    }
+
+    // APPROACH F: Scale.NONE + zoom + createText helper
+    class SceneF extends Phaser.Scene {
+      constructor() { super({ key: 'SceneF' }); }
+      create() {
+        const scaledW = WIDTH * DPR;
+        const scaledH = HEIGHT * DPR;
+        this.add.rectangle(scaledW/2, scaledH/2, scaledW, scaledH, 0x0a0a1a);
+        TEXT_SAMPLES.forEach(s => {
+          // Use createText helper - it handles resolution and padding
+          createText(this, scaledW/2, s.y * DPR, s.text, {
+            fontSize: (s.size * DPR) + 'px',
+            color: '#ffffff',
+          }).setOrigin(0.5, 0.5);
+        });
+        createText(this, scaledW/2, (HEIGHT - 20) * DPR, `createText helper, res: ${DPR}`, {
+          fontSize: (9 * DPR) + 'px',
+          color: '#88ff88',
+        }).setOrigin(0.5, 0.5);
+      }
+    }
+
+    // Base config for approaches A and B (no game resolution)
+    const baseConfigNoRes = {
       type: Phaser.WEBGL,
       backgroundColor: 0x0a0a1a,
       width: WIDTH,
@@ -168,11 +309,88 @@
         antialias: true,
         antialiasGL: true,
         pixelArt: false,
+        roundPixels: false,
       },
     };
 
-    new Phaser.Game({ ...baseConfig, parent: 'old-approach', scene: OldScene });
-    new Phaser.Game({ ...baseConfig, parent: 'new-approach', scene: NewScene });
+    // Config for approach C (WITH game resolution + roundPixels TRUE)
+    const configWithResRound = {
+      type: Phaser.WEBGL,
+      backgroundColor: 0x0a0a1a,
+      width: WIDTH,
+      height: HEIGHT,
+      resolution: DPR,  // Canvas buffer matches device pixels
+      scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+      },
+      render: {
+        antialias: true,
+        antialiasGL: true,
+        pixelArt: false,
+        roundPixels: true,  // Snap to pixel boundaries
+      },
+    };
+
+    // Config for approach D (WITH game resolution + roundPixels FALSE - smooth AA)
+    const configWithResSmooth = {
+      type: Phaser.WEBGL,
+      backgroundColor: 0x0a0a1a,
+      width: WIDTH,
+      height: HEIGHT,
+      resolution: DPR,  // Canvas buffer matches device pixels
+      scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+      },
+      render: {
+        antialias: true,
+        antialiasGL: true,
+        pixelArt: false,
+        roundPixels: false,  // Keep smooth anti-aliasing
+      },
+    };
+
+    // Config for approach E: Scale.NONE with manual DPR scaling via zoom
+    const configScaleNone = {
+      type: Phaser.WEBGL,
+      backgroundColor: 0x0a0a1a,
+      width: WIDTH * DPR,   // Canvas at device pixel size
+      height: HEIGHT * DPR,
+      scale: {
+        mode: Phaser.Scale.NONE,
+        zoom: 1 / DPR,      // Scale back down to CSS size
+      },
+      render: {
+        antialias: true,
+        antialiasGL: true,
+        pixelArt: false,
+        roundPixels: true,
+      },
+    };
+
+    // Create all six games
+    new Phaser.Game({ ...baseConfigNoRes, parent: 'approach-a', scene: SceneA });
+    new Phaser.Game({ ...baseConfigNoRes, parent: 'approach-b', scene: SceneB });
+    new Phaser.Game({ ...configWithResRound, parent: 'approach-c', scene: SceneC });
+    new Phaser.Game({ ...configWithResSmooth, parent: 'approach-d', scene: SceneD });
+    new Phaser.Game({ ...configScaleNone, parent: 'approach-e', scene: SceneE });
+    new Phaser.Game({ ...configScaleNone, parent: 'approach-f', scene: SceneF });
+
+    // Debug logging for approach C
+    setTimeout(() => {
+      const canvasC = document.querySelector('#approach-c canvas');
+      if (canvasC) {
+        console.log('Approach C Debug:', {
+          canvasWidth: canvasC.width,
+          canvasHeight: canvasC.height,
+          cssWidth: canvasC.style.width,
+          cssHeight: canvasC.style.height,
+          expectedBufferWidth: WIDTH * DPR,
+          devicePixelRatio: DPR
+        });
+      }
+    }, 500);
   </script>
 </body>
 </html>

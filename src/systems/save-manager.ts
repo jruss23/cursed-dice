@@ -22,10 +22,12 @@ export interface HighScores {
 export interface SaveData {
   version: number;
   highScores: HighScores;
+  /** Whether the user has completed the tutorial at least once */
+  tutorialCompleted: boolean;
 }
 
 const DEFAULT_SAVE: SaveData = {
-  version: 1,
+  version: 2,
   highScores: {
     byDifficulty: {
       chill: 0,
@@ -35,6 +37,7 @@ const DEFAULT_SAVE: SaveData = {
     bestRunTotal: 0,
     runsCompleted: 0,
   },
+  tutorialCompleted: false,
 };
 
 /**
@@ -158,6 +161,24 @@ export class SaveManagerClass {
 
     this.save();
     return wasNewBest;
+  }
+
+  /**
+   * Check if tutorial has been completed
+   */
+  hasTutorialCompleted(): boolean {
+    return this.data.tutorialCompleted;
+  }
+
+  /**
+   * Mark tutorial as completed
+   */
+  setTutorialCompleted(): void {
+    if (!this.data.tutorialCompleted) {
+      this.data.tutorialCompleted = true;
+      this.save();
+      log.log('Tutorial marked as completed');
+    }
   }
 
   /**

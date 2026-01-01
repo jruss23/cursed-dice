@@ -7,6 +7,7 @@
 import type { Category } from '@/systems/scorecard';
 import type { LayoutConfig, RowLayout } from './layout-config';
 import { LAYOUT, FONTS } from '@/config';
+import { toDPR } from '@/systems/responsive';
 
 // =============================================================================
 // LAYOUT INPUT
@@ -18,6 +19,8 @@ export interface LayoutInput {
   isCompact: boolean;
   hasSpecialSection: boolean;
   maxHeight?: number;
+  /** Optional width override (in device pixels) from GameplayLayout */
+  width?: number;
   upperCategories: Category[];
   lowerCategories: Category[];
   specialCategories: Category[];
@@ -38,24 +41,28 @@ export function calculateLayout(input: LayoutInput): LayoutConfig {
 /**
  * Calculate two-column (mobile/portrait) layout
  * Uses LAYOUT.scorecard as source of truth
+ * All values are scaled to device pixels via toDPR()
  */
 function calculateTwoColumnLayout(input: LayoutInput, needsCompact: boolean): LayoutConfig {
   const L = LAYOUT.scorecard;
-  const width = L.WIDTH;
+  // Use provided width (already in device pixels) or fall back to fixed width
+  const width = input.width ?? toDPR(L.WIDTH);
 
-  // Select sizing based on compact mode
-  const contentPadding = needsCompact ? L.CONTENT_PADDING_COMPACT : L.CONTENT_PADDING;
-  const titleHeight = needsCompact ? L.TITLE_HEIGHT_COMPACT : L.TITLE_HEIGHT;
-  const titleGap = needsCompact ? L.TITLE_GAP_COMPACT : L.TITLE_GAP;
-  const headerHeight = needsCompact ? L.HEADER_HEIGHT_COMPACT : L.HEADER_HEIGHT;
-  const totalRowHeight = needsCompact ? L.TOTAL_ROW_HEIGHT_COMPACT : L.TOTAL_ROW_HEIGHT;
-  const dividerHeight = needsCompact ? L.DIVIDER_HEIGHT_COMPACT : L.DIVIDER_HEIGHT;
+  // Select sizing based on compact mode (all scaled to device pixels)
+  const contentPadding = toDPR(needsCompact ? L.CONTENT_PADDING_COMPACT : L.CONTENT_PADDING);
+  const titleHeight = toDPR(needsCompact ? L.TITLE_HEIGHT_COMPACT : L.TITLE_HEIGHT);
+  const titleGap = toDPR(needsCompact ? L.TITLE_GAP_COMPACT : L.TITLE_GAP);
+  const headerHeight = toDPR(needsCompact ? L.HEADER_HEIGHT_COMPACT : L.HEADER_HEIGHT);
+  const totalRowHeight = toDPR(needsCompact ? L.TOTAL_ROW_HEIGHT_COMPACT : L.TOTAL_ROW_HEIGHT);
+  const dividerHeight = toDPR(needsCompact ? L.DIVIDER_HEIGHT_COMPACT : L.DIVIDER_HEIGHT);
   // Use internal padding for inside the panel (smaller than external BOTTOM_PADDING)
-  const bottomPadding = needsCompact ? L.INTERNAL_BOTTOM_PADDING_COMPACT : L.INTERNAL_BOTTOM_PADDING;
-  const columnWidth = (width - contentPadding * 2 - L.COLUMN_GAP) / 2;
+  const bottomPadding = toDPR(needsCompact ? L.INTERNAL_BOTTOM_PADDING_COMPACT : L.INTERNAL_BOTTOM_PADDING);
+  const columnGap = toDPR(L.COLUMN_GAP);
+  const columnWidth = (width - contentPadding * 2 - columnGap) / 2;
 
   // Calculate row height dynamically if maxHeight is provided
-  let rowHeight: number = L.ROW_HEIGHT;
+  // maxHeight comes from getGameplayLayout which is already in device pixels
+  let rowHeight: number = toDPR(L.ROW_HEIGHT);
   if (input.maxHeight) {
     const fixedHeight = contentPadding + titleHeight + titleGap + headerHeight + totalRowHeight + bottomPadding;
     let extraHeight = 0;
@@ -68,7 +75,7 @@ function calculateTwoColumnLayout(input: LayoutInput, needsCompact: boolean): La
 
     const availableForRows = input.maxHeight - fixedHeight - extraHeight;
     const idealRowHeight = Math.floor(availableForRows / numRows);
-    rowHeight = Math.max(L.ROW_HEIGHT_MIN, Math.min(L.ROW_HEIGHT, idealRowHeight));
+    rowHeight = Math.max(toDPR(L.ROW_HEIGHT_MIN), Math.min(toDPR(L.ROW_HEIGHT), idealRowHeight));
   }
 
   // Calculate height
@@ -83,7 +90,7 @@ function calculateTwoColumnLayout(input: LayoutInput, needsCompact: boolean): La
   }
 
   const leftColumnX = contentPadding;
-  const rightColumnX = contentPadding + columnWidth + L.COLUMN_GAP;
+  const rightColumnX = contentPadding + columnWidth + columnGap;
 
   // Build rows
   const rows: RowLayout[] = [];
@@ -134,7 +141,7 @@ function calculateTwoColumnLayout(input: LayoutInput, needsCompact: boolean): La
   // Special section (2x2 grid)
   if (input.hasSpecialSection) {
     const fullWidth = width - contentPadding * 2;
-    const gridColWidth = (fullWidth - L.COLUMN_GAP) / 2;
+    const gridColWidth = (fullWidth - columnGap) / 2;
 
     bottomY += dividerHeight / 2;
     // Divider row is implicit
@@ -149,7 +156,7 @@ function calculateTwoColumnLayout(input: LayoutInput, needsCompact: boolean): La
 
     // 2x2 grid
     const gridLeftX = contentPadding;
-    const gridRightX = contentPadding + gridColWidth + L.COLUMN_GAP;
+    const gridRightX = contentPadding + gridColWidth + columnGap;
 
     if (input.specialCategories[0]) {
       rows.push({
@@ -202,7 +209,7 @@ function calculateTwoColumnLayout(input: LayoutInput, needsCompact: boolean): La
     smallFontSize: FONTS.SIZE_SMALL,
     scoreFontSize: FONTS.SIZE_BUTTON,
     titleFontSize: needsCompact ? FONTS.SIZE_TINY : FONTS.SIZE_SMALL,
-    columnGap: L.COLUMN_GAP,
+    columnGap,
     columnWidth,
     leftColumnX,
     rightColumnX,
@@ -217,13 +224,13 @@ function calculateTwoColumnLayout(input: LayoutInput, needsCompact: boolean): La
     hasSpecialSection: input.hasSpecialSection,
     needsCompactLayout: needsCompact,
     rowStyle: {
-      namePaddingLeft: L.NAME_PADDING_LEFT,
-      labelPaddingLeft: L.LABEL_PADDING_LEFT,
+      namePaddingLeft: toDPR(L.NAME_PADDING_LEFT),
+      labelPaddingLeft: toDPR(L.LABEL_PADDING_LEFT),
       scoreOriginX: 1,
       useShortNames: true,
       showTotalDivider: false,
-      potentialOffsetFromRight: L.POTENTIAL_OFFSET_FROM_RIGHT,
-      scoreOffsetFromRight: L.SCORE_OFFSET_FROM_RIGHT,
+      potentialOffsetFromRight: toDPR(L.POTENTIAL_OFFSET_FROM_RIGHT),
+      scoreOffsetFromRight: toDPR(L.SCORE_OFFSET_FROM_RIGHT),
     },
   };
 }

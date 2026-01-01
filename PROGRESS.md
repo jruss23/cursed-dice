@@ -1,6 +1,6 @@
 # Cursed Dice - Development Progress & Architecture Review
 
-## Last Updated: December 28, 2025
+## Last Updated: January 1, 2026
 
 ---
 
@@ -541,7 +541,34 @@ Monitoring for now. If DPR 3 quality complaints arise, consider:
 - `LAYOUT.scorecard.INTERNAL_BOTTOM_PADDING_COMPACT` (6)
 - `LAYOUT.tip.GAP` increased to 18 - Space for new content above dice
 
-### Current Version: v1.1.16
+### Current Version: v1.1.17
+
+---
+
+## Recent Session Work (Jan 1, 2026)
+
+### DPR Scaling Fixes - COMPLETE
+- [x] **Comprehensive stroke width audit** - All `setStrokeStyle()` and `lineStyle()` calls now use `toDPR()`
+- [x] **79 total DPR fixes** across 20+ files including:
+  - Menu components (settings-panel, spooky-background, high-scores-panel, difficulty-button)
+  - Blessing panels and buttons (blessing-choice-panel, blessing-button-base, sanctuary, sixth)
+  - Scorecard panel (stroke widths, lineStyles, column borders)
+  - Tutorial overlays (tutorial-overlay, tutorial-debug-panel, tutorial-complete-overlay)
+  - Gameplay UI (ui-setup, end-screen-overlay, debug-panel, dice-controls)
+  - Dice renderer (SIZES.DICE_BORDER_WIDTH now wrapped in toDPR)
+  - Scene files (MenuScene, TutorialScene, GameplayScene)
+- [x] **SIZES constants now DPR-wrapped** - PANEL_BORDER_WIDTH, DICE_BORDER_WIDTH, GLOW_STROKE_MEDIUM
+
+### Sanctuary Blessing Bug Fix - COMPLETE
+- [x] **Fixed cursed die unlock on restore** - Sanctuary's `restoreFromSanctuary()` was unlocking ALL dice including cursed die
+- [x] **Fix**: `this.state.locked[i] = (i === this.state.cursedIndex)` - Cursed die stays locked on restore
+
+### Victory Celebration Enhancement
+- [x] **Doubled fireworks duration** - `FIREWORK_COUNT: 12 → 24` (same firing rate, twice as long)
+
+### Capacitor Mobile Builds - First Commit
+- [x] **iOS and Android build files committed** - Capacitor setup from Dec 28 now tracked in git
+- See "Capacitor Mobile Deployment (Dec 28, 2025)" section below for full setup details
 
 ---
 
@@ -656,10 +683,151 @@ Extracted all hardcoded hex colors to `PALETTE` in `config/theme.ts`:
 
 ---
 
+## Capacitor Mobile Deployment (Dec 28, 2025)
+
+### iOS Deployment - COMPLETE ✅
+
+**Setup:**
+- Capacitor 8 with `@capacitor/ios`, `@capacitor/splash-screen`, `@capacitor/status-bar`
+- `@capacitor-community/safe-area@8.0.1` for safe area support
+- App ID: `com.jruss.curseddice`
+
+**Safe Area Handling:**
+- `contentInset: 'never'` in Capacitor config (edge-to-edge web view)
+- CSS `env(safe-area-inset-*)` positions game container within safe areas
+- Native window background set to `#0a0a1a` in `AppDelegate.swift` for purple bars in unsafe areas
+
+**Key Fixes:**
+1. **Touch offset issue** - Fixed by using `contentInset: 'never'` + CSS safe area positioning
+2. **Settings cog missing on initial load** - Fixed with `this.scale.refresh()` after splash hides
+3. **Horizontal stretching on first load** - Fixed by waiting for Phaser's resize event before creating UI
+
+**MenuScene Timing Fix:**
+```typescript
+// Wait for dimensions to stabilize before creating UI
+this.scale.once('resize', () => {
+  requestAnimationFrame(() => {
+    this.scale.refresh();
+    this.createUI();
+  });
+});
+this.time.delayedCall(150, createUIOnce); // Fallback
+SplashScreen.hide();
+```
+
+**Files Modified:**
+- `capacitor.config.ts` - Core Capacitor config
+- `index.html` - CSS safe area positioning
+- `ios/App/App/AppDelegate.swift` - Native window background color
+- `src/scenes/MenuScene.ts` - Splash screen + resize timing
+- `src/config/dev.ts` - `IS_DEVELOPMENT: true` for iOS testing (revert before release)
+
+### Android Deployment - COMPLETE ✅
+
+**Setup:**
+- Capacitor 8 with `@capacitor/android`
+- App ID: `com.jruss.curseddice`
+- Uses Android Studio's bundled JDK (Java 21)
+
+**Environment Configuration:**
+- `JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`
+- `JAVA_TOOL_OPTIONS="-Djava.net.preferIPv4Stack=true"` (required for Gradle networking)
+
+**Key Fixes:**
+1. **Java version mismatch** - System Java 25 incompatible with Android Gradle plugin, switched to Android Studio's bundled JDK 21
+2. **Hostname resolution** - Added hostname to `/etc/hosts` for proper Java networking
+3. **IPv4 preference** - Set `preferIPv4Stack=true` to fix Gradle dependency downloads
+
+**Build Script:** `/Users/joe/Documents/cursed-dice/android/build-android.sh`
+```bash
+#!/bin/bash
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+export PATH="$JAVA_HOME/bin:$PATH"
+export JAVA_TOOL_OPTIONS="-Djava.net.preferIPv4Stack=true"
+cd "$(dirname "$0")"
+./gradlew "$@"
+```
+
+**Build Output:**
+- APK: `android/app/build/outputs/apk/debug/app-debug.apk` (12MB)
+- Build time: ~1m 47s
+
+**Files Modified:**
+- `android/app/src/main/res/values/colors.xml` - Dark theme colors (#0a0a1a)
+- `android/gradle.properties` - JVM args for IPv4 preference
+- `~/.gradle/gradle.properties` - Global Gradle settings
+
+---
+
+## Recent Session Work (Dec 28, 2025 - Evening)
+
+### Tutorial Choice Dialog - COMPLETE
+- [x] **Added returning user dialog** - When tutorial is completed, clicking "Learn to Play" shows choice:
+  - "PRACTICE" (green) - Skips tutorial, goes to free play
+  - "FULL TUTORIAL" (purple) - Full tutorial walkthrough
+- [x] **Uses shared UI helpers** - `createPanelFrame()`, `createButton()`, `PANEL_PRESETS.modal`
+- [x] **Click backdrop to dismiss** - Standard modal pattern
+- [x] **Button flash effects** - Green flash for Practice, purple flash for Full Tutorial
+- [x] **Save manager integration** - `hasTutorialCompleted()` / `setTutorialCompleted()` flags
+
+### Tutorial Popup Fixes - COMPLETE
+- [x] **Fixed "The Scorecard" popup** - Added `tallPopup` flag for longer messages (160→190px height)
+- [x] **Dynamic corner accents** - Corner graphics now redraw when popup resizes
+- [x] **Added to TutorialStepConfig interface** - `tallPopup?: boolean` option
+
+### PANEL Config Constants - COMPLETE
+- [x] **Added `PANEL` to theme.ts** - Centralized panel styling values:
+  - Glow size/color/alpha
+  - Background color/alpha
+  - Border width/color/alpha
+  - Corner inset/length/thickness/color/alpha
+  - Backdrop color/alpha for modals
+- [x] **Exported from config.ts** - Available via `import { PANEL } from '@/config'`
+
+### End Screen Preview Box Fix - COMPLETE
+- [x] **Increased preview box height** - `PREVIEW_BOX_HEIGHT: 58 → 70` in sizes.ts
+- [x] **Fixed "NEXT:" section padding** - Bottom text no longer touches edge of red box
+
+### Capacitor Config Fix - COMPLETE
+- [x] **Fixed duplicate plugins object** - capacitor.config.ts had two `plugins` keys (second overwrote first)
+- [x] **Merged SafeArea config** - Now properly inside single plugins object
+
+### Android Gradle Performance - IN PROGRESS
+- [x] **Added performance settings to gradle.properties**:
+  - `org.gradle.daemon=true` - Keep daemon running
+  - `org.gradle.parallel=true` - Build in parallel
+  - `org.gradle.configureondemand=true` - Only configure needed projects
+  - `org.gradle.caching=true` - Build cache
+  - `org.gradle.configuration-cache=true` - Skip config phase when unchanged (saves ~5 min!)
+  - Timeout settings for network calls
+- [x] **Fixed @capacitor/cli** - Was missing, reinstalled as devDependency
+- [ ] **Offline mode** - Enabled in Android Studio but still downloading (180s files download)
+
+### Files Modified
+- `src/config/theme.ts` - Added `PANEL` constants
+- `src/config.ts` - Export `PANEL`
+- `src/config/sizes.ts` - `PREVIEW_BOX_HEIGHT: 70`
+- `src/scenes/MenuScene.ts` - Tutorial choice dialog with shared helpers
+- `src/systems/save-manager.ts` - `tutorialCompleted` flag + methods
+- `src/systems/tutorial/interfaces.ts` - `tallPopup` option
+- `src/systems/tutorial/tutorial-controller.ts` - `tallPopup: true` on scorecard-intro
+- `src/ui/tutorial/tutorial-overlay.ts` - Dynamic corner accent repositioning
+- `capacitor.config.ts` - Fixed duplicate plugins object
+- `android/gradle.properties` - Performance optimizations
+
+---
+
 ## Next Steps
 
 ### Polish
 1. [ ] Performance profiling on mobile
 2. [x] ~~Sound effects and haptic feedback refinement~~ - Audio toggles complete
-3. [ ] Capacitor mobile deployment
-4. [ ] DPR 3 text sharpness solution (if needed)
+3. [x] ~~iOS Capacitor deployment~~ - Complete
+4. [x] ~~Android Capacitor deployment~~ - Complete
+5. [ ] DPR 3 text sharpness solution (if needed)
+6. [ ] Android build performance investigation (still slow despite caching)
+
+### Pre-Release
+1. [ ] Replace gameplay music with original/royalty-free tracks (current tracks are pitch-shifted - copyright concern)
+2. [ ] Set `IS_DEVELOPMENT: false` in `src/config/dev.ts`
+3. [ ] Generate signed release builds for both platforms

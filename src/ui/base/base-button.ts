@@ -14,6 +14,7 @@
 
 import Phaser from 'phaser';
 import { PALETTE, FONTS, COLORS, TIMING, ALPHA } from '@/config';
+import { toDPR } from '@/systems/responsive';
 import { createText } from '@/ui/ui-utils';
 
 // =============================================================================
@@ -133,7 +134,7 @@ export class BaseButton {
 
     // Background
     this.background = scene.add.rectangle(0, 0, width, height, this.colors.bg, ALPHA.PANEL_OPAQUE);
-    this.background.setStrokeStyle(2, this.colors.border);
+    this.background.setStrokeStyle(toDPR(2), this.colors.border);
     this.background.setInteractive({ useHandCursor: true });
     this.container.add(this.background);
 
@@ -166,7 +167,7 @@ export class BaseButton {
     if (this._disabled) return;
 
     this.background.setFillStyle(this.colors.bgHover, 1);
-    this.background.setStrokeStyle(2, this.colors.borderHover);
+    this.background.setStrokeStyle(toDPR(2), this.colors.borderHover);
     this.glow.setAlpha(ALPHA.GLOW_STRONG);
   }
 
@@ -174,7 +175,7 @@ export class BaseButton {
     if (this._disabled) return;
 
     this.background.setFillStyle(this.colors.bg, ALPHA.PANEL_OPAQUE);
-    this.background.setStrokeStyle(2, this.colors.border);
+    this.background.setStrokeStyle(toDPR(2), this.colors.border);
     this.glow.setAlpha(ALPHA.GLOW_LIGHT);
   }
 
@@ -189,7 +190,7 @@ export class BaseButton {
 
   private applyDisabledStyle(): void {
     this.background.setFillStyle(this.colors.bgDisabled, ALPHA.OVERLAY_MEDIUM);
-    this.background.setStrokeStyle(2, PALETTE.neutral[600]);
+    this.background.setStrokeStyle(toDPR(2), PALETTE.neutral[600]);
     this.glow.setAlpha(0);
     this.text.setColor(this.colors.textDisabled);
     this.background.disableInteractive();
@@ -197,7 +198,7 @@ export class BaseButton {
 
   private applyEnabledStyle(): void {
     this.background.setFillStyle(this.colors.bg, ALPHA.PANEL_OPAQUE);
-    this.background.setStrokeStyle(2, this.colors.border);
+    this.background.setStrokeStyle(toDPR(2), this.colors.border);
     this.glow.setAlpha(ALPHA.GLOW_LIGHT);
     this.text.setColor(this.colors.text);
     this.background.setInteractive({ useHandCursor: true });

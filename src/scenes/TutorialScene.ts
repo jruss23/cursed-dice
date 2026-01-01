@@ -13,6 +13,7 @@ import {
   getViewportMetrics,
   getGameplayLayout,
 } from '@/config';
+import { toDPR } from '@/systems/responsive';
 import { createScorecard, type Scorecard } from '@/systems/scorecard';
 import type { CategoryId } from '@/data/categories';
 import { createGameEvents, type GameEventEmitter } from '@/systems/game-events';
@@ -27,6 +28,7 @@ import { TutorialDebugPanel } from '@/ui/tutorial/tutorial-debug-panel';
 import { TutorialDebugController } from '@/systems/tutorial-debug-controller';
 import { TutorialCompleteOverlay } from '@/ui/tutorial/tutorial-complete-overlay';
 import { isMusicEnabled } from '@/systems/music-manager';
+import { getSaveManager } from '@/systems/save-manager';
 
 const log = createLogger('TutorialScene');
 
@@ -153,19 +155,20 @@ export class TutorialScene extends Phaser.Scene {
     this.scorecardPanel = new ScorecardPanel(this, this.scorecard, this.gameEvents, {
       x: layout.scorecard.x,
       y: layout.scorecard.y,
+      width: layout.scorecard.width,
       compact: true,
       maxHeight: layout.scorecard.height,
     });
 
     // Hint text with background (shown briefly for guidance)
-    const HINT_ABOVE_DICE_GAP = 60;
-    this.hintContainer = this.add.container(width / 2, layout.dice.centerY - HINT_ABOVE_DICE_GAP);
+    const hintGap = toDPR(60);
+    this.hintContainer = this.add.container(width / 2, layout.dice.centerY - hintGap);
     this.hintContainer.setDepth(1100); // Above highlight graphics (depth 1000)
     this.hintContainer.setAlpha(0);
 
-    // Dark background for readability
-    this.hintBg = this.add.rectangle(0, 0, 200, 28, PALETTE.purple[900], 0.9);
-    this.hintBg.setStrokeStyle(1, PALETTE.gold[500], 0.5);
+    // Dark background for readability (scaled for DPR)
+    this.hintBg = this.add.rectangle(0, 0, toDPR(200), toDPR(28), PALETTE.purple[900], 0.9);
+    this.hintBg.setStrokeStyle(toDPR(1), PALETTE.gold[500], 0.5);
     this.hintContainer.add(this.hintBg);
 
     // Hint text
@@ -265,22 +268,19 @@ export class TutorialScene extends Phaser.Scene {
   private createBackButton(): void {
     const { height } = this.scale.gameSize;
 
-    // Button dimensions and positioning
-    const BTN_WIDTH = 80;
-    const BTN_HEIGHT = 32;
-    const EDGE_PADDING = 8;
+    // Button dimensions and positioning (scaled for DPR)
+    const btnWidth = toDPR(80);
+    const btnHeight = toDPR(32);
+    const edgePadding = toDPR(8);
 
-    const btnX = EDGE_PADDING + BTN_WIDTH / 2;
-    const btnY = height - EDGE_PADDING - BTN_HEIGHT / 2;
+    const btnX = edgePadding + btnWidth / 2;
+    const btnY = height - edgePadding - btnHeight / 2;
 
     this.backButton = this.add.container(btnX, btnY);
     this.backButton.setDepth(600);
 
-    const btnWidth = BTN_WIDTH;
-    const btnHeight = BTN_HEIGHT;
-
     const bg = this.add.rectangle(0, 0, btnWidth, btnHeight, PALETTE.purple[800], 0.95);
-    bg.setStrokeStyle(2, PALETTE.purple[400], 0.8);
+    bg.setStrokeStyle(toDPR(2), PALETTE.purple[400], 0.8);
     bg.setInteractive({ useHandCursor: true });
     this.backButton.add(bg);
 
@@ -311,9 +311,10 @@ export class TutorialScene extends Phaser.Scene {
 
     this.hintText.setText(message);
 
-    // Resize background to fit text with padding
-    const padding = 16;
-    this.hintBg.setSize(this.hintText.width + padding * 2, this.hintText.height + 10);
+    // Resize background to fit text with padding (scaled for DPR)
+    const padding = toDPR(16);
+    const heightPadding = toDPR(10);
+    this.hintBg.setSize(this.hintText.width + padding * 2, this.hintText.height + heightPadding);
 
     this.tweens.killTweensOf(this.hintContainer);
 
@@ -337,6 +338,9 @@ export class TutorialScene extends Phaser.Scene {
   // ===========================================================================
 
   private onTutorialComplete(): void {
+    // Mark tutorial as completed in save data
+    getSaveManager().setTutorialCompleted();
+
     // Restart scene for practice mode
     log.log('Restarting scene for practice mode');
     this.scene.restart({ skipTutorial: true });

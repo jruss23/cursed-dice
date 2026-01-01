@@ -5,6 +5,7 @@
 
 import Phaser from 'phaser';
 import { PALETTE, FONTS, COLORS } from '@/config';
+import { toDPR } from '@/systems/responsive';
 
 // =============================================================================
 // TEXT CREATION
@@ -14,8 +15,10 @@ import { PALETTE, FONTS, COLORS } from '@/config';
  * Create crisp text on retina displays
  * Always use this instead of scene.add.text() directly
  *
- * Column 5 approach: resolution: DPR with padding for crisp + smooth text
- * Default fontFamily ensures consistent rendering even if caller doesn't specify
+ * Uses Scale.NONE + zoom approach:
+ * - Game canvas is at device pixel resolution (viewport × DPR)
+ * - Font sizes are scaled by DPR to maintain visual size after zoom
+ * - Text resolution matches DPR for crisp rendering
  */
 export function createText(
   scene: Phaser.Scene,
@@ -25,10 +28,22 @@ export function createText(
   style: Phaser.Types.GameObjects.Text.TextStyle
 ): Phaser.GameObjects.Text {
   const dpr = window.devicePixelRatio || 1;
+
+  // Scale fontSize by DPR for proper sizing with Scale.NONE + zoom
+  let scaledStyle = { ...style };
+  if (style.fontSize) {
+    const sizeStr = String(style.fontSize);
+    const match = sizeStr.match(/^(\d+(?:\.\d+)?)(px)?$/);
+    if (match) {
+      const size = parseFloat(match[1]);
+      scaledStyle.fontSize = `${size * dpr}px`;
+    }
+  }
+
   const text = scene.add.text(x, y, content, {
     fontFamily: FONTS.FAMILY, // Default to system font stack
-    ...style,                 // Caller can override if needed
-    resolution: dpr * 2,      // 2x multiplier for extra sharpness on retina displays
+    ...scaledStyle,           // Caller styles with scaled fontSize
+    resolution: dpr,          // Match game resolution
     padding: { x: 4, y: 4 },
   });
   return text;
@@ -156,7 +171,7 @@ export function createPanelFrame(
 
   corners.forEach(corner => {
     const g = scene.add.graphics();
-    g.lineStyle(2, cornerColor, cornerAlpha);
+    g.lineStyle(toDPR(2), cornerColor, cornerAlpha);
     g.beginPath();
     g.moveTo(corner.cx, corner.cy + cornerSize * corner.ay);
     g.lineTo(corner.cx, corner.cy);
@@ -270,12 +285,12 @@ export function createButton(
   const container = scene.add.container(x, y);
 
   // Button glow
-  const glow = scene.add.rectangle(0, 0, width + 8, height + 8, colors.glow, 0.1);
+  const glow = scene.add.rectangle(0, 0, width + toDPR(8), height + toDPR(8), colors.glow, 0.1);
   container.add(glow);
 
   // Button background
   const background = scene.add.rectangle(0, 0, width, height, colors.bg, 0.95);
-  background.setStrokeStyle(2, colors.border);
+  background.setStrokeStyle(toDPR(2), colors.border);
   background.setInteractive({ useHandCursor: true });
   container.add(background);
 
@@ -292,13 +307,13 @@ export function createButton(
   // Hover effects - store handlers for cleanup
   const onPointerOver = () => {
     background.setFillStyle(colors.bgHover, 1);
-    background.setStrokeStyle(2, colors.borderHover);
+    background.setStrokeStyle(toDPR(2), colors.borderHover);
     glow.setAlpha(0.25);
   };
 
   const onPointerOut = () => {
     background.setFillStyle(colors.bg, 0.95);
-    background.setStrokeStyle(2, colors.border);
+    background.setStrokeStyle(toDPR(2), colors.border);
     glow.setAlpha(0.1);
   };
 

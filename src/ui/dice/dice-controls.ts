@@ -7,6 +7,7 @@
 
 import Phaser from 'phaser';
 import { FONTS, SIZES, PALETTE, COLORS, type GameplayLayout } from '@/config';
+import { toDPR } from '@/systems/responsive';
 import { createText, createPanelFrame, addPanelFrameToContainer } from '@/ui/ui-utils';
 
 // =============================================================================
@@ -198,7 +199,7 @@ export class DiceControls {
       btnWidth, this.rollButtonHeight,
       PALETTE.green[700], 0.95
     );
-    this.rollButton.setStrokeStyle(2, PALETTE.green[500]);
+    this.rollButton.setStrokeStyle(toDPR(2), PALETTE.green[500]);
     this.rollButton.setInteractive({ useHandCursor: true });
     this.container.add(this.rollButton);
 
@@ -215,13 +216,13 @@ export class DiceControls {
     // Interactions
     this.rollButton.on('pointerover', () => {
       this.rollButton?.setFillStyle(PALETTE.green[600], 1);
-      this.rollButton?.setStrokeStyle(2, PALETTE.green[400]);
+      this.rollButton?.setStrokeStyle(toDPR(2), PALETTE.green[400]);
       this.rollButtonGlow?.setAlpha(0.25);
     });
 
     this.rollButton.on('pointerout', () => {
       this.rollButton?.setFillStyle(PALETTE.green[700], 0.95);
-      this.rollButton?.setStrokeStyle(2, PALETTE.green[500]);
+      this.rollButton?.setStrokeStyle(toDPR(2), PALETTE.green[500]);
       this.rollButtonGlow?.setAlpha(0.12);
     });
 
@@ -249,12 +250,12 @@ export class DiceControls {
 
     if (enabled) {
       this.rollButton.setFillStyle(PALETTE.green[700], 0.95);
-      this.rollButton.setStrokeStyle(2, PALETTE.green[500]);
+      this.rollButton.setStrokeStyle(toDPR(2), PALETTE.green[500]);
       this.rollButton.setInteractive({ useHandCursor: true });
       this.rollButtonGlow?.setAlpha(0.12);
     } else {
       this.rollButton.setFillStyle(PALETTE.neutral[700], 0.8);
-      this.rollButton.setStrokeStyle(2, PALETTE.neutral[500]);
+      this.rollButton.setStrokeStyle(toDPR(2), PALETTE.neutral[500]);
       // Use disableInteractive() instead of removeInteractive() to preserve event listeners
       this.rollButton.disableInteractive();
       this.rollButtonGlow?.setAlpha(0.05);

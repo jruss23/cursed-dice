@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Cursed Dice</string>
+    <string name="title_activity_main">Cursed Dice</string>
+    <string name="package_name">com.jruss.curseddice</string>
+    <string name="custom_url_scheme">com.jruss.curseddice</string>
+</resources>

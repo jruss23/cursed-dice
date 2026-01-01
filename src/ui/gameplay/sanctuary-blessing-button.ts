@@ -6,6 +6,7 @@
 
 import Phaser from 'phaser';
 import { FONTS, PALETTE, COLORS, ALPHA } from '@/config';
+import { toDPR } from '@/systems/responsive';
 import { createText } from '@/ui/ui-utils';
 import { GameEventEmitter } from '@/systems/game-events';
 import { createLogger } from '@/systems/logger';
@@ -33,10 +34,10 @@ export class SanctuaryBlessingButton extends BlessingButtonBase<SanctuaryBlessin
   }
 
   protected create(): void {
-    this.createButtonBase(PALETTE.gold[500], PALETTE.gold[800], PALETTE.gold[500], -4);
+    this.createButtonBase(PALETTE.gold[500], PALETTE.gold[800], PALETTE.gold[500], toDPR(-4));
 
     // Banked preview (shows small dice values when banking)
-    this.bankedPreview = createText(this.scene, 0, 10, '', {
+    this.bankedPreview = createText(this.scene, 0, toDPR(10), '', {
       fontSize: FONTS.SIZE_TINY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_SECONDARY,
@@ -89,7 +90,7 @@ export class SanctuaryBlessingButton extends BlessingButtonBase<SanctuaryBlessin
     this.events.on('blessing:sanctuary:reset', this.updateDisplay, this);
   }
 
-  protected updateDisplay = (): void => {
+  protected updateDisplay(): void {
     const canBank = this.config.canBank();
     const canRestore = this.config.canRestore();
     const bankedValues = this.config.getBankedValues();
@@ -103,24 +104,24 @@ export class SanctuaryBlessingButton extends BlessingButtonBase<SanctuaryBlessin
       // BANK mode - gold theme (storing treasure)
       this.labelText.setText('BANK');
       this.labelText.setColor(COLORS.TEXT_WARNING);
-      this.labelText.setY(0);
+      this.labelText.setY(0); // Centered
 
       this.buttonBg.setFillStyle(PALETTE.gold[800], ALPHA.PANEL_SOLID);
-      this.buttonBg.setStrokeStyle(2, PALETTE.gold[500], ALPHA.BORDER_SOLID);
+      this.buttonBg.setStrokeStyle(toDPR(2), PALETTE.gold[500], ALPHA.BORDER_SOLID);
       this.buttonGlow.setFillStyle(PALETTE.gold[500], ALPHA.GLOW_MEDIUM);
       this.buttonBg.setInteractive({ useHandCursor: true });
     } else if (canRestore && bankedValues) {
       // Ready to use - green theme, clickable
       this.labelText.setText('BANKED');
       this.labelText.setColor(COLORS.TEXT_SUCCESS);
-      this.labelText.setY(-4);
+      this.labelText.setY(toDPR(-4));
 
       // Show banked values preview
       this.bankedPreview.setText(bankedValues.join(' '));
       this.bankedPreview.setVisible(true);
 
       this.buttonBg.setFillStyle(PALETTE.green[800], ALPHA.PANEL_SOLID);
-      this.buttonBg.setStrokeStyle(2, PALETTE.green[500], ALPHA.BORDER_SOLID);
+      this.buttonBg.setStrokeStyle(toDPR(2), PALETTE.green[500], ALPHA.BORDER_SOLID);
       this.buttonGlow.setFillStyle(PALETTE.green[500], ALPHA.GLOW_MEDIUM);
       this.buttonBg.setInteractive({ useHandCursor: true });
 
@@ -136,22 +137,22 @@ export class SanctuaryBlessingButton extends BlessingButtonBase<SanctuaryBlessin
       // Waiting state - banked but need to roll/score first
       this.labelText.setText('BANKED');
       this.labelText.setColor(COLORS.TEXT_MUTED);
-      this.labelText.setY(-4);
+      this.labelText.setY(toDPR(-4));
 
       // Show banked values preview
       this.bankedPreview.setText(bankedValues.join(' '));
       this.bankedPreview.setVisible(true);
 
       this.buttonBg.setFillStyle(PALETTE.purple[800], ALPHA.BORDER_SOLID);
-      this.buttonBg.setStrokeStyle(2, PALETTE.purple[500], ALPHA.BORDER_MEDIUM);
+      this.buttonBg.setStrokeStyle(toDPR(2), PALETTE.purple[500], ALPHA.BORDER_MEDIUM);
       this.buttonGlow.setAlpha(ALPHA.GLOW_SUBTLE);
       this.buttonBg.disableInteractive();
     } else {
       // Spent - dimmed
       this.setSpentState('SPENT');
-      this.labelText.setY(0);
+      this.labelText.setY(0); // Centered
     }
-  };
+  }
 
   protected cleanupEvents(): void {
     this.events.off('blessing:sanctuary:banked', this.updateDisplay, this);

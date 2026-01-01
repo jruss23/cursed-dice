@@ -6,6 +6,7 @@
 import Phaser from 'phaser';
 import { FONTS, COLORS, SIZES, LAYOUT, type ViewportMetrics } from '@/config';
 import { createText, createPanelFrame, addPanelFrameToContainer } from '@/ui/ui-utils';
+import { toDPR } from '@/systems/responsive';
 
 export interface HeaderPanelConfig {
   currentMode: number;
@@ -45,19 +46,20 @@ export class HeaderPanel {
     const { currentMode, modeName, totalScore, timeRemaining, compact = false, metrics, compactHeight } = config;
     const L = LAYOUT.headerPanel;
 
-    // Responsive sizing based on viewport
-    const viewportWidth = metrics?.width ?? 430;
+    // Responsive sizing based on viewport (metrics are already in device pixels)
+    const viewportWidth = metrics?.width ?? toDPR(430);
     const scale = metrics?.scale ?? 1;
 
-    // Panel width: constrained by viewport
-    const baseWidth = compact ? L.WIDTH_COMPACT : L.WIDTH_NORMAL;
-    const panelWidth = Math.min(baseWidth, viewportWidth - L.MARGIN);
+    // Panel width: constrained by viewport (scale LAYOUT values to device pixels)
+    const baseWidth = toDPR(compact ? L.WIDTH_COMPACT : L.WIDTH_NORMAL);
+    const panelWidth = Math.min(baseWidth, viewportWidth - toDPR(L.MARGIN));
 
-    // Panel height: use provided compactHeight if available, otherwise use defaults
-    const panelHeight = compactHeight ?? (compact ? L.HEIGHT_COMPACT : L.HEIGHT_NORMAL);
+    // Panel height: use provided compactHeight if available (already in device pixels),
+    // otherwise use defaults scaled to device pixels
+    const panelHeight = compactHeight ?? toDPR(compact ? L.HEIGHT_COMPACT : L.HEIGHT_NORMAL);
 
     const panelX = centerX - panelWidth / 2;
-    const panelY = (metrics?.safeArea.top ?? 0) + L.SAFE_AREA_OFFSET;
+    const panelY = (metrics?.safeArea.top ?? 0) + toDPR(L.SAFE_AREA_OFFSET);
 
     // Store panel bounds for getBounds()
     this.panelX = panelX;
@@ -65,11 +67,18 @@ export class HeaderPanel {
     this.panelWidth = panelWidth;
     this.panelHeight = panelHeight;
 
-    // Font scaling
+    // Font scaling (font sizes are in CSS pixels, createText handles DPR scaling)
     const fontScale = Math.max(0.75, Math.min(1, scale));
     const labelSize = `${Math.round(L.FONT_LABEL * fontScale)}px`;
     const valueSize = `${Math.round(L.FONT_VALUE * fontScale)}px`;
     const timerSize = `${L.FONT_TIMER}px`;
+
+    // Vertical positioning (scale to device pixels)
+    const sideInset = Math.max(toDPR(L.SIDE_INSET_MIN), panelWidth * L.SIDE_INSET_RATIO);
+    this.sideInset = sideInset;
+    const sideCenterY = panelHeight * L.SIDE_CENTER_Y_RATIO;
+    const labelOffset = toDPR(L.LABEL_OFFSET);
+    const valueOffset = toDPR(L.VALUE_OFFSET);
 
     this.container.setPosition(panelX, panelY);
 
@@ -86,13 +95,6 @@ export class HeaderPanel {
     addPanelFrameToContainer(this.container, frame);
 
     // === SIDE COLUMNS: Curse # (left) | Run Total (right) ===
-    const sideInset = Math.max(L.SIDE_INSET_MIN, panelWidth * L.SIDE_INSET_RATIO);
-    this.sideInset = sideInset;
-
-    // Tighter vertical spacing - labels and values closer together
-    const sideCenterY = panelHeight * L.SIDE_CENTER_Y_RATIO;
-    const labelOffset = L.LABEL_OFFSET;
-    const valueOffset = L.VALUE_OFFSET;
 
     // Left: Seal number
     const sealLabel = createText(this.scene, sideInset, sideCenterY + labelOffset, 'SEAL', {
@@ -222,13 +224,14 @@ export class HeaderPanel {
    */
   getCurseBounds(): { x: number; y: number; width: number; height: number } {
     const L = LAYOUT.headerPanel;
-    // Tighter bounds around the seal counter
-    const tighterWidth = L.SECTION_WIDTH - 12;
+    // Tighter bounds around the seal counter (scale to device pixels)
+    const tighterWidth = toDPR(L.SECTION_WIDTH - 12);
+    const sectionPadding = toDPR(L.SECTION_PADDING);
     return {
       x: this.panelX + this.sideInset - tighterWidth / 2,
-      y: this.panelY + L.SECTION_PADDING,
+      y: this.panelY + sectionPadding,
       width: tighterWidth,
-      height: this.panelHeight - L.SECTION_PADDING * 2,
+      height: this.panelHeight - sectionPadding * 2,
     };
   }
 
@@ -237,12 +240,13 @@ export class HeaderPanel {
    */
   getTimerBounds(): { x: number; y: number; width: number; height: number } {
     const L = LAYOUT.headerPanel;
+    const sectionPadding = toDPR(L.SECTION_PADDING);
     const sectionWidth = this.panelWidth - this.sideInset * 4;
     return {
-      x: this.panelX + this.sideInset * 2 - L.SECTION_PADDING,
-      y: this.panelY + L.SECTION_PADDING,
-      width: sectionWidth + L.SECTION_PADDING * 2,
-      height: this.panelHeight - L.SECTION_PADDING * 2,
+      x: this.panelX + this.sideInset * 2 - sectionPadding,
+      y: this.panelY + sectionPadding,
+      width: sectionWidth + sectionPadding * 2,
+      height: this.panelHeight - sectionPadding * 2,
     };
   }
 
@@ -251,13 +255,14 @@ export class HeaderPanel {
    */
   getTotalBounds(): { x: number; y: number; width: number; height: number } {
     const L = LAYOUT.headerPanel;
-    // Slightly tighter on the right side
-    const tighterWidth = L.SECTION_WIDTH - 6;
+    // Slightly tighter on the right side (scale to device pixels)
+    const tighterWidth = toDPR(L.SECTION_WIDTH - 6);
+    const sectionPadding = toDPR(L.SECTION_PADDING);
     return {
       x: this.panelX + this.panelWidth - this.sideInset - tighterWidth / 2,
-      y: this.panelY + L.SECTION_PADDING,
+      y: this.panelY + sectionPadding,
       width: tighterWidth,
-      height: this.panelHeight - L.SECTION_PADDING * 2,
+      height: this.panelHeight - sectionPadding * 2,
     };
   }
 

@@ -5,6 +5,7 @@
 
 import Phaser from 'phaser';
 import { FONTS, SIZES, PALETTE } from '@/config';
+import { toDPR } from '@/systems/responsive';
 import { createText } from '@/ui/ui-utils';
 
 export class SpookyBackground {
@@ -155,7 +156,7 @@ export class SpookyBackground {
       dice.add(diceGlow);
 
       const diceBg = this.scene.add.rectangle(0, 0, size, size, PALETTE.spooky.diceBg, 0.7);
-      diceBg.setStrokeStyle(2, PALETTE.spooky.diceBorder, 0.8);
+      diceBg.setStrokeStyle(toDPR(2), PALETTE.spooky.diceBorder, 0.8);
       dice.add(diceBg);
 
       // Random pip pattern

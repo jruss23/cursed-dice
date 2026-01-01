@@ -13,8 +13,8 @@
 // Development flags
 export { DEV } from './config/dev';
 
-// Theme (colors, typography, flash effects, alpha, scale)
-export { PALETTE, COLORS, FONTS, FLASH, ALPHA, SCALE } from './config/theme';
+// Theme (colors, typography, flash effects, alpha, scale, panel styling)
+export { PALETTE, COLORS, FONTS, FLASH, ALPHA, SCALE, PANEL } from './config/theme';
 
 // Sizes and timing
 export { CANVAS, SIZES, TIMING, DEPTH, CELEBRATION, LAYOUT, END_SCREEN } from './config/sizes';

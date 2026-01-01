@@ -6,6 +6,7 @@
 
 import Phaser from 'phaser';
 import { FONTS, PALETTE, COLORS } from '@/config';
+import { toDPR } from '@/systems/responsive';
 import { createText } from '@/ui/ui-utils';
 import { createLogger } from '@/systems/logger';
 import type { Bounds, TutorialStepDisplay } from '@/systems/tutorial/interfaces';
@@ -34,11 +35,14 @@ export class TutorialOverlay {
   private messageText: Phaser.GameObjects.Text | null = null;
   private nextButton: Phaser.GameObjects.Container | null = null;
   private actionPromptText: Phaser.GameObjects.Text | null = null;
+  private popupBg: Phaser.GameObjects.Rectangle | null = null;
+  private cornerGraphics: Phaser.GameObjects.Graphics[] = [];
 
   private isVisible: boolean = false;
   private isTransitioning: boolean = false;
   private pendingStep: TutorialStep | null = null;
   private pulseTimeline: Phaser.Tweens.TweenChain | null = null;
+  private currentTallPopup: boolean = false;
 
   constructor(scene: Phaser.Scene, config: TutorialOverlayConfig) {
     this.scene = scene;
@@ -86,8 +90,8 @@ export class TutorialOverlay {
     const hh = highlight.height;
 
     // Draw solid gold border
-    this.highlightGraphics.lineStyle(3, PALETTE.gold[500], 1.0);
-    this.highlightGraphics.strokeRoundedRect(hx, hy, hw, hh, 6);
+    this.highlightGraphics.lineStyle(toDPR(3), PALETTE.gold[500], 1.0);
+    this.highlightGraphics.strokeRoundedRect(hx, hy, hw, hh, toDPR(6));
 
     // Start pulse animation (can be deferred for transitions)
     if (startPulse) {
@@ -120,19 +124,22 @@ export class TutorialOverlay {
   private createPopup(): void {
     if (!this.popupContainer) return;
 
-    const maxWidth = Math.min(this.scene.scale.gameSize.width - 40, 300);
-    const popupHeight = 160;
+    // Scale dimensions for DPR
+    const margin = toDPR(40);
+    const maxWidthCSS = 300;
+    const maxWidth = Math.min(this.scene.scale.gameSize.width - margin, toDPR(maxWidthCSS));
+    const popupHeight = toDPR(160);
 
     // Semi-transparent background (not fully opaque so game shows through slightly)
-    const bg = this.scene.add.rectangle(0, 0, maxWidth, popupHeight, PALETTE.purple[900], 0.95);
-    bg.setStrokeStyle(2, PALETTE.gold[500], 0.8);
-    this.popupContainer.add(bg);
+    this.popupBg = this.scene.add.rectangle(0, 0, maxWidth, popupHeight, PALETTE.purple[900], 0.95);
+    this.popupBg.setStrokeStyle(toDPR(2), PALETTE.gold[500], 0.8);
+    this.popupContainer.add(this.popupBg);
 
     // Corner accents in gold
     this.addCornerAccents(maxWidth, popupHeight);
 
-    // Title
-    this.titleText = createText(this.scene, 0, -50, '', {
+    // Title (scaled positions)
+    this.titleText = createText(this.scene, 0, toDPR(-50), '', {
       fontSize: FONTS.SIZE_BODY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_WARNING,
@@ -141,21 +148,22 @@ export class TutorialOverlay {
     this.titleText.setOrigin(0.5, 0.5);
     this.popupContainer.add(this.titleText);
 
-    // Message - origin at top so it grows downward
-    this.messageText = createText(this.scene, 0, -30, '', {
+    // Message - origin at top so it grows downward (scaled)
+    const wordWrapWidth = maxWidth - toDPR(30);
+    this.messageText = createText(this.scene, 0, toDPR(-30), '', {
       fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
-      wordWrap: { width: maxWidth - 30 },
+      wordWrap: { width: wordWrapWidth },
       align: 'center',
     });
     this.messageText.setOrigin(0.5, 0);
     this.popupContainer.add(this.messageText);
 
-    // Next button (will be shown/hidden per step)
-    const buttonY = 55;
-    const buttonWidth = 100;
-    const buttonHeight = 32;
+    // Next button (will be shown/hidden per step) - scaled
+    const buttonY = toDPR(55);
+    const buttonWidth = toDPR(100);
+    const buttonHeight = toDPR(32);
 
     this.nextButton = this.createButton(
       0,
@@ -185,8 +193,13 @@ export class TutorialOverlay {
   private addCornerAccents(width: number, height: number): void {
     if (!this.popupContainer) return;
 
-    const inset = 6;
-    const length = 14;
+    // Clear existing corners
+    this.cornerGraphics.forEach((g) => g.destroy());
+    this.cornerGraphics = [];
+
+    // Scale corner dimensions for DPR
+    const inset = toDPR(6);
+    const length = toDPR(14);
     const thickness = 2;
 
     const corners = [
@@ -205,6 +218,7 @@ export class TutorialOverlay {
       graphics.lineTo(x + ax * length, y);
       graphics.strokePath();
       this.popupContainer!.add(graphics);
+      this.cornerGraphics.push(graphics);
     });
   }
 
@@ -221,12 +235,14 @@ export class TutorialOverlay {
   ): Phaser.GameObjects.Container {
     const container = this.scene.add.container(x, y);
 
-    // Glow effect behind button (like roll button)
-    const glow = this.scene.add.rectangle(0, 0, width + 8, height + 6, strokeColor, 0.12);
+    // Glow effect behind button (like roll button) - scale glow padding
+    const glowPadX = toDPR(8);
+    const glowPadY = toDPR(6);
+    const glow = this.scene.add.rectangle(0, 0, width + glowPadX, height + glowPadY, strokeColor, 0.12);
     container.add(glow);
 
     const bg = this.scene.add.rectangle(0, 0, width, height, bgColor, 0.95);
-    bg.setStrokeStyle(2, strokeColor, 0.8);
+    bg.setStrokeStyle(toDPR(2), strokeColor, 0.8);
     bg.setInteractive({ useHandCursor: true });
     container.add(bg);
 
@@ -243,12 +259,12 @@ export class TutorialOverlay {
     bg.on('pointerdown', onClick);
     bg.on('pointerover', () => {
       bg.setFillStyle(PALETTE.green[600], 1);
-      bg.setStrokeStyle(2, PALETTE.green[400], 1);
+      bg.setStrokeStyle(toDPR(2), PALETTE.green[400], 1);
       glow.setAlpha(0.3);
     });
     bg.on('pointerout', () => {
       bg.setFillStyle(bgColor, 0.95);
-      bg.setStrokeStyle(2, strokeColor, 0.8);
+      bg.setStrokeStyle(toDPR(2), strokeColor, 0.8);
       glow.setAlpha(0.12);
     });
 
@@ -359,17 +375,39 @@ export class TutorialOverlay {
     // startPulse=false during transitions to avoid conflict with fade-in tween
     this.drawHighlight(step.highlight, startPulse);
 
+    // Handle tall popup sizing (scaled for DPR)
+    const isTall = step.tallPopup ?? false;
+    this.currentTallPopup = isTall;
+    const popupHeight = toDPR(isTall ? 190 : 160);
+    const popupWidth = this.popupBg?.width ?? toDPR(300);
+
+    // Resize background if needed
+    if (this.popupBg) {
+      this.popupBg.setSize(popupWidth, popupHeight);
+    }
+
+    // Redraw corner accents for new size
+    this.addCornerAccents(popupWidth, popupHeight);
+
+    // Adjust element positions for tall popup (scaled for DPR)
+    const titleY = toDPR(isTall ? -65 : -50);
+    const messageY = toDPR(isTall ? -40 : -30);
+    const buttonY = toDPR(isTall ? 70 : 55);
+
     // Update popup content
     if (this.titleText) {
       this.titleText.setText(step.title);
+      this.titleText.setY(titleY);
     }
     if (this.messageText) {
       this.messageText.setText(step.message);
+      this.messageText.setY(messageY);
     }
 
     // Show/hide next button and action prompt based on step type
     if (this.nextButton) {
       this.nextButton.setVisible(step.showNextButton);
+      this.nextButton.setY(buttonY);
 
       // Update button text for last step (text is at index 2: glow, bg, text)
       const nextText = this.nextButton.getAt(2) as Phaser.GameObjects.Text;
@@ -381,6 +419,7 @@ export class TutorialOverlay {
     // Show action prompt when user needs to do something (no NEXT button)
     if (this.actionPromptText) {
       this.actionPromptText.setVisible(!step.showNextButton);
+      this.actionPromptText.setY(buttonY);
     }
 
     // Position popup based on highlight and position preference
@@ -391,9 +430,10 @@ export class TutorialOverlay {
     if (!this.popupContainer) return;
 
     const { width, height } = this.scene.scale.gameSize;
-    const popupWidth = 300;
-    const popupHeight = 160;
-    const margin = 20;
+    // Scale popup dimensions for DPR
+    const popupWidth = toDPR(300);
+    const popupHeight = toDPR(this.currentTallPopup ? 190 : 160);
+    const margin = toDPR(20);
 
     let popupX = width / 2;
     let popupY = height / 2;
@@ -431,9 +471,10 @@ export class TutorialOverlay {
         break;
     }
 
-    // Clamp to screen bounds
-    popupX = Phaser.Math.Clamp(popupX, popupWidth / 2 + 10, width - popupWidth / 2 - 10);
-    popupY = Phaser.Math.Clamp(popupY, popupHeight / 2 + 10, height - popupHeight / 2 - 10);
+    // Clamp to screen bounds (scaled padding for DPR)
+    const clampPad = toDPR(10);
+    popupX = Phaser.Math.Clamp(popupX, popupWidth / 2 + clampPad, width - popupWidth / 2 - clampPad);
+    popupY = Phaser.Math.Clamp(popupY, popupHeight / 2 + clampPad, height - popupHeight / 2 - clampPad);
 
     this.popupContainer.setPosition(popupX, popupY);
   }
@@ -472,6 +513,8 @@ export class TutorialOverlay {
       this.scene.tweens.killTweensOf(this.highlightGraphics);
       this.highlightGraphics.destroy(); // Destroy separately since not in container
     }
+    this.cornerGraphics.forEach((g) => g.destroy());
+    this.cornerGraphics = [];
     this.container.destroy();
   }
 }

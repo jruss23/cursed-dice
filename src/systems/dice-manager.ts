@@ -199,10 +199,11 @@ export class DiceManager implements TutorialControllableDice {
   restoreFromSanctuary(values: number[], _locked: boolean[]): void {
     log.log('Restoring from Sanctuary:', values, 'rerolls unchanged:', this.state.rerollsLeft);
 
-    // Only set dice values, unlock all, don't touch rerolls
+    // Only set dice values, unlock non-cursed dice, don't touch rerolls
+    // Cursed die stays locked - it's permanently locked for the round
     for (let i = 0; i < GAME_RULES.DICE_COUNT; i++) {
       this.state.values[i] = values[i];
-      this.state.locked[i] = false;
+      this.state.locked[i] = (i === this.state.cursedIndex);
       this.updateDieDisplay(i);
     }
 
@@ -717,6 +718,9 @@ export class DiceManager implements TutorialControllableDice {
   private animateRoll(initial: boolean, finalValues: number[]): void {
     if (!this.renderer) return;
 
+    // Disable roll button during animation to prevent spam-clicking
+    this.controls?.setEnabled(false);
+
     const diceCount = this.state.sixthDieActive ? 6 : GAME_RULES.DICE_COUNT;
     const spritesToAnimate = this.sprites.slice(0, diceCount);
     const lockedState = initial ? Array(diceCount).fill(false) : this.state.locked.slice(0, diceCount);
@@ -733,11 +737,21 @@ export class DiceManager implements TutorialControllableDice {
         this.state.locked = Array(diceCount).fill(false);
       }
 
-      this.updateDisplay();
+      // Update display but keep button disabled
+      this.updateRerollText();
+      for (let i = 0; i < diceCount; i++) {
+        this.updateDieDisplay(i);
+      }
+
       this.events.emit('dice:rolled', {
         values: this.getValues(),
         isInitial: initial,
         sixthDieActive: this.state.sixthDieActive
+      });
+
+      // Re-enable roll button after 0.5s delay to prevent accidental double-clicks
+      this.scene.time.delayedCall(500, () => {
+        this.updateRollButton();
       });
     });
   }

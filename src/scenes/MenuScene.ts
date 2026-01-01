@@ -4,6 +4,7 @@
  * Extends BaseScene for common lifecycle helpers
  */
 
+import { SplashScreen } from '@capacitor/splash-screen';
 import {
   type Difficulty,
   DIFFICULTIES,
@@ -15,14 +16,22 @@ import {
   FLASH,
   ALPHA,
   TIMING,
+  PANEL,
 } from '@/config';
 import { version } from '../../package.json';
 import { resetGameProgression, debugSetMode, type GameMode } from '@/systems/game-progression';
+import { getSaveManager } from '@/systems/save-manager';
 import { resetBlessingManager, debugSetBlessing } from '@/systems/blessings';
 import { isMusicEnabled } from '@/systems/music-manager';
-import { getMenuSizing, type ViewportSizing } from '@/systems/responsive';
+import { getMenuSizing, toDPR, type ViewportSizing } from '@/systems/responsive';
 import { DifficultyButton, FlickeringTitle, HighScoresPanel, MenuSettingsPanel, SpookyBackground } from '@/ui/menu';
-import { createText } from '@/ui/ui-utils';
+import {
+  createText,
+  createPanelFrame,
+  addPanelFrameToContainer,
+  createButton,
+  PANEL_PRESETS,
+} from '@/ui/ui-utils';
 import { BaseScene } from './BaseScene';
 
 interface DebugSkipData {
@@ -36,6 +45,7 @@ export class MenuScene extends BaseScene {
   private settingsPanel: MenuSettingsPanel | null = null;
   private debugSkipData: DebugSkipData | null = null;
   private boundOnAudioUnlocked: (() => void) | null = null;
+  private tutorialChoiceDialog: Phaser.GameObjects.Container | null = null;
 
   constructor() {
     super({ key: 'MenuScene' });
@@ -77,12 +87,41 @@ export class MenuScene extends BaseScene {
     // This prevents flash during scene transitions
     this.fadeIn(800);
 
-    // Reset canvas border to purple (in case returning from victory gold)
-    const canvas = document.querySelector('canvas');
-    if (canvas) (canvas as HTMLCanvasElement).style.borderColor = COLORS.CANVAS_BORDER;
-
     // Register shutdown handler (from BaseScene)
     this.registerShutdown();
+
+    // Wait for dimensions to stabilize before creating UI
+    // On iOS, safe area insets may not be computed until splash screen actually hides
+    // We wait for either: a resize event (dimensions changed) or timeout (already stable)
+    let uiCreated = false;
+    const createUIOnce = () => {
+      if (uiCreated || !this.scene.isActive()) return;
+      uiCreated = true;
+      this.scale.off('resize', createUIOnce);
+      this.scale.refresh();
+      this.createUI();
+    };
+
+    // Listen for resize event (fires when container dimensions change)
+    this.scale.once('resize', () => {
+      // Wait one more frame after resize for layout to fully settle
+      requestAnimationFrame(createUIOnce);
+    });
+
+    // Fallback timeout if no resize occurs (dimensions already correct)
+    this.time.delayedCall(150, createUIOnce);
+
+    // Trigger the dimension change by hiding splash screen
+    SplashScreen.hide().catch(() => {
+      // Ignore errors when running in browser
+    });
+  }
+
+  /**
+   * Create all menu UI elements
+   * Separated from create() to ensure proper timing after safe areas computed
+   */
+  private createUI(): void {
 
     // Load and play menu music
     const playMenuMusic = () => {
@@ -213,9 +252,11 @@ export class MenuScene extends BaseScene {
     });
 
     // Settings cog button - bottom right corner with viewport-relative padding
+    // Button is 44px CSS, so offset by half (22px) to position center
+    const cogOffset = toDPR(22);
     this.settingsPanel = new MenuSettingsPanel(this, {
-      x: width - sizing.padding - 16,
-      y: height - sizing.padding - 16,
+      x: width - sizing.padding - cogOffset,
+      y: height - sizing.padding - cogOffset,
       onMusicToggle: (enabled) => this.onMusicToggle(enabled),
       sizing,
     });
@@ -244,7 +285,7 @@ export class MenuScene extends BaseScene {
 
     // Background with green accent (stands out from purple theme)
     const bg = this.add.rectangle(0, 0, btnWidth, btnHeight, PALETTE.menu.playBg, ALPHA.PANEL_SOLID);
-    bg.setStrokeStyle(2, PALETTE.menu.playBorder, ALPHA.BORDER_SOLID);
+    bg.setStrokeStyle(toDPR(2), PALETTE.menu.playBorder, ALPHA.BORDER_SOLID);
     bg.setInteractive({ useHandCursor: true });
     container.add(bg);
 
@@ -273,22 +314,138 @@ export class MenuScene extends BaseScene {
     // Hover effects
     bg.on('pointerover', () => {
       bg.setFillStyle(PALETTE.menu.playBgHover, ALPHA.PANEL_OPAQUE);
-      bg.setStrokeStyle(2, PALETTE.menu.playBorderHover, 1);
+      bg.setStrokeStyle(toDPR(2), PALETTE.menu.playBorderHover, 1);
     });
 
     bg.on('pointerout', () => {
       bg.setFillStyle(PALETTE.menu.playBg, ALPHA.PANEL_SOLID);
-      bg.setStrokeStyle(2, PALETTE.menu.playBorder, ALPHA.BORDER_SOLID);
+      bg.setStrokeStyle(toDPR(2), PALETTE.menu.playBorder, ALPHA.BORDER_SOLID);
     });
 
     bg.on('pointerdown', () => {
       this.cameras.main.flash(TIMING.FAST, FLASH.GREEN.r, FLASH.GREEN.g, FLASH.GREEN.b);
-      this.log.log('Starting tutorial');
-      this.startTutorial();
+
+      // Check if tutorial was completed before
+      const tutorialCompleted = getSaveManager().hasTutorialCompleted();
+      this.log.log('Tutorial completed flag:', tutorialCompleted);
+
+      if (tutorialCompleted) {
+        this.showTutorialChoiceDialog();
+      } else {
+        this.log.log('Starting tutorial (first time)');
+        this.startTutorial(false);
+      }
     });
   }
 
-  private startTutorial(): void {
+  private showTutorialChoiceDialog(): void {
+    if (this.tutorialChoiceDialog) return; // Already showing
+
+    const { width, height } = this.cameras.main;
+    // Scale all dimensions for DPR
+    const panelWidth = toDPR(280);
+    const panelHeight = toDPR(200);
+    const titleY = toDPR(-70);
+    const subtitleY = toDPR(-40);
+    const btnWidth = toDPR(200);
+    const btnHeight = toDPR(38);
+    const practiceY = toDPR(10);
+    const tutorialY = toDPR(60);
+
+    // Create dialog container
+    this.tutorialChoiceDialog = this.add.container(width / 2, height / 2);
+    this.tutorialChoiceDialog.setDepth(1000);
+
+    // Semi-transparent backdrop (click to dismiss)
+    const backdrop = this.add.rectangle(
+      0, 0, width * 2, height * 2,
+      PANEL.BACKDROP_COLOR, PANEL.BACKDROP_ALPHA
+    );
+    backdrop.setInteractive({ useHandCursor: false });
+    backdrop.on('pointerdown', () => this.closeTutorialChoiceDialog());
+    this.tutorialChoiceDialog.add(backdrop);
+
+    // Use shared panel frame helper (centered at 0,0)
+    const frame = createPanelFrame(this, {
+      x: -panelWidth / 2,
+      y: -panelHeight / 2,
+      width: panelWidth,
+      height: panelHeight,
+      ...PANEL_PRESETS.modal,
+    });
+    addPanelFrameToContainer(this.tutorialChoiceDialog, frame);
+
+    // Title
+    const title = createText(this, 0, titleY, 'Welcome Back!', {
+      fontSize: FONTS.SIZE_BODY,
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TEXT_WARNING,
+      fontStyle: 'bold',
+    });
+    title.setOrigin(0.5, 0.5);
+    this.tutorialChoiceDialog.add(title);
+
+    // Subtitle
+    const subtitle = createText(this, 0, subtitleY, 'What would you like to do?', {
+      fontSize: FONTS.SIZE_SMALL,
+      fontFamily: FONTS.FAMILY,
+      color: COLORS.TEXT_PRIMARY,
+    });
+    subtitle.setOrigin(0.5, 0.5);
+    this.tutorialChoiceDialog.add(subtitle);
+
+    // Practice button using shared button helper
+    const practiceBtn = createButton(this, {
+      x: 0,
+      y: practiceY,
+      width: btnWidth,
+      height: btnHeight,
+      label: 'PRACTICE',
+      style: 'primary',
+      onClick: () => {
+        this.cameras.main.flash(TIMING.FAST, FLASH.GREEN.r, FLASH.GREEN.g, FLASH.GREEN.b);
+        this.closeTutorialChoiceDialog();
+        this.startTutorial(true);
+      },
+    });
+    this.tutorialChoiceDialog.add(practiceBtn.container);
+
+    // Full Tutorial button
+    const tutorialBtn = createButton(this, {
+      x: 0,
+      y: tutorialY,
+      width: btnWidth,
+      height: btnHeight,
+      label: 'FULL TUTORIAL',
+      style: 'secondary',
+      onClick: () => {
+        this.cameras.main.flash(TIMING.FAST, FLASH.PURPLE.r, FLASH.PURPLE.g, FLASH.PURPLE.b);
+        this.closeTutorialChoiceDialog();
+        this.startTutorial(false);
+      },
+    });
+    this.tutorialChoiceDialog.add(tutorialBtn.container);
+
+    // Fade in
+    this.tutorialChoiceDialog.setAlpha(0);
+    this.tweens.add({
+      targets: this.tutorialChoiceDialog,
+      alpha: 1,
+      duration: 150,
+      ease: 'Power2',
+    });
+  }
+
+  private closeTutorialChoiceDialog(): void {
+    if (this.tutorialChoiceDialog) {
+      this.tutorialChoiceDialog.destroy();
+      this.tutorialChoiceDialog = null;
+    }
+  }
+
+  private startTutorial(skipTutorial: boolean): void {
+    this.log.log(`Starting tutorial (skip=${skipTutorial})`);
+
     // Fade out menu music
     if (this.menuMusic) {
       this.tweens.add({
@@ -302,7 +459,7 @@ export class MenuScene extends BaseScene {
     }
 
     // Transition to tutorial (using BaseScene helper)
-    this.transitionTo('TutorialScene');
+    this.transitionTo('TutorialScene', { skipTutorial });
   }
 
   /**
@@ -421,6 +578,9 @@ export class MenuScene extends BaseScene {
     // Cleanup settings panel
     this.settingsPanel?.destroy();
     this.settingsPanel = null;
+
+    // Cleanup tutorial choice dialog
+    this.closeTutorialChoiceDialog();
 
     // Call base cleanup
     this.cleanup();

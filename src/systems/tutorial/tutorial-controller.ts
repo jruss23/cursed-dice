@@ -185,6 +185,7 @@ export class TutorialController {
           "There are 13 scoring categories. The number categories (1s through 6s) add up dice showing that number. The rest require special dice patterns.",
         highlightTarget: 'scorecard',
         showNextButton: true,
+        tallPopup: true,
         onEnter: () => {
           this.dice.setEnabled(false);
           this.scorecard.lockInput();
@@ -565,6 +566,7 @@ export class TutorialController {
       highlight,
       popupPosition,
       showNextButton: stepConfig.showNextButton,
+      tallPopup: stepConfig.tallPopup,
     };
 
     this.onShowStep(displayStep);

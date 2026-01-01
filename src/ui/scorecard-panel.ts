@@ -8,6 +8,7 @@ import type { Scorecard } from '@/systems/scorecard';
 import { getCategoryShortName, type CategoryId } from '@/data/categories';
 import { GameEventEmitter } from '@/systems/game-events';
 import { FONTS, SIZES, PALETTE, COLORS, type ScorecardLayout } from '@/config';
+import { toDPR } from '@/systems/responsive';
 import { createText } from '@/ui/ui-utils';
 import type {
   Bounds,
@@ -116,8 +117,9 @@ export class ScorecardPanel implements TutorialControllableScorecard {
 
   /**
    * Compute layout configuration using the modular layout calculator
+   * @param configWidth Optional width override from config (device pixels)
    */
-  private computeLayoutConfig(): LayoutConfig {
+  private computeLayoutConfig(configWidth?: number): LayoutConfig {
     const { width, height } = this.scene.cameras.main;
     const input: LayoutInput = {
       viewportWidth: width,
@@ -125,6 +127,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
       isCompact: this.isCompact,
       hasSpecialSection: this.scorecard.isSpecialSectionEnabled(),
       maxHeight: this.maxHeight,
+      width: configWidth,
       upperCategories: this.scorecard.getUpperSection(),
       lowerCategories: this.scorecard.getLowerSection(),
       specialCategories: this.scorecard.getSpecialSection(),
@@ -152,7 +155,8 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     this.stateManager = createScorecardStateManager(scorecard, this.passThreshold);
 
     // Calculate layout using the modular layout calculator (single source of truth)
-    this.layoutConfig = this.computeLayoutConfig();
+    // Pass config.width if provided (already in device pixels from getGameplayLayout)
+    this.layoutConfig = this.computeLayoutConfig(config.width);
 
     // Set layout mode from layoutConfig
     this.layout = 'two-column';
@@ -200,7 +204,8 @@ export class ScorecardPanel implements TutorialControllableScorecard {
    */
   private rebuild(): void {
     // Recompute layout (includes special section now)
-    this.layoutConfig = this.computeLayoutConfig();
+    // Pass current width to preserve responsive sizing
+    this.layoutConfig = this.computeLayoutConfig(this.config.width);
     this.layout = 'two-column';
     this.config.width = this.layoutConfig.width;
     this.config.height = this.layoutConfig.height;
@@ -245,10 +250,11 @@ export class ScorecardPanel implements TutorialControllableScorecard {
   /** Helper to create a "locked" X icon using Graphics */
   private createLockIcon(x: number, y: number, color: number = PALETTE.red[400]): Phaser.GameObjects.Graphics {
     const g = this.scene.add.graphics();
-    const size = 5; // Half-size of the X (total 10px)
+    const size = toDPR(5); // Half-size of the X (total 10px CSS)
+    const strokeWidth = toDPR(2.5);
 
     // Draw X shape - two diagonal lines
-    g.lineStyle(2.5, color, 1);
+    g.lineStyle(strokeWidth, color, 1);
 
     // Top-left to bottom-right
     g.beginPath();
@@ -304,7 +310,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
       const bottomY = bottomRow.y + bottomRow.height;
 
       const leftBorder = this.scene.add.graphics();
-      leftBorder.lineStyle(2, columnColor, 0.6);
+      leftBorder.lineStyle(toDPR(2), columnColor, 0.6);
       leftBorder.strokeRoundedRect(lc.leftColumnX - 1, topY - 1, lc.columnWidth + 2, bottomY - topY + 2, 4);
       this.container.add(leftBorder);
     }
@@ -316,7 +322,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
       const bottomY = bottomRow.y + bottomRow.height;
 
       const rightBorder = this.scene.add.graphics();
-      rightBorder.lineStyle(2, columnColor, 0.6);
+      rightBorder.lineStyle(toDPR(2), columnColor, 0.6);
       rightBorder.strokeRoundedRect(lc.rightColumnX - 1, topY - 1, lc.columnWidth + 2, bottomY - topY + 2, 4);
       this.container.add(rightBorder);
     }
@@ -326,26 +332,27 @@ export class ScorecardPanel implements TutorialControllableScorecard {
   /** Build the shared panel frame (background, corners) */
   private buildPanelFrame(width: number, height: number): void {
     // Shadow behind panel
-    const shadow = this.scene.add.rectangle(width / 2 + 4, height / 2 + 4, width, height, COLORS.SHADOW, 0.5);
+    const shadowOffset = toDPR(4);
+    const shadow = this.scene.add.rectangle(width / 2 + shadowOffset, height / 2 + shadowOffset, width, height, COLORS.SHADOW, 0.5);
     this.container.add(shadow);
 
     // Main background (dark, matching menu buttons)
     const panelBg = this.scene.add.rectangle(width / 2, height / 2, width, height, COLORS.PANEL_BG_DEEP, 0.9);
-    panelBg.setStrokeStyle(SIZES.PANEL_BORDER_WIDTH, PALETTE.purple[500], 0.8);
+    panelBg.setStrokeStyle(toDPR(SIZES.PANEL_BORDER_WIDTH), PALETTE.purple[500], 0.8);
     this.container.add(panelBg);
 
     // Inner highlight bar at top
-    const highlightHeight = this.layoutConfig.mode === 'two-column' ? 10 : (this.isCompact ? 8 : 10);
+    const highlightHeight = toDPR(this.layoutConfig.mode === 'two-column' ? 10 : (this.isCompact ? 8 : 10));
     const innerHighlight = this.scene.add.rectangle(
-      width / 2, highlightHeight / 2 + 3,
-      width - 20, highlightHeight,
+      width / 2, highlightHeight / 2 + toDPR(3),
+      width - toDPR(20), highlightHeight,
       COLORS.HIGHLIGHT, 0.03
     );
     this.container.add(innerHighlight);
 
     // Corner accents (L-shaped, matching menu buttons)
-    const cornerSize = 12;
-    const cornerInset = 5;
+    const cornerSize = toDPR(12);
+    const cornerInset = toDPR(5);
     const corners = [
       { x: cornerInset, y: cornerInset, dx: 1, dy: 1 },
       { x: width - cornerInset, y: cornerInset, dx: -1, dy: 1 },
@@ -355,7 +362,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
 
     corners.forEach(corner => {
       const accent = this.scene.add.graphics();
-      accent.lineStyle(2, PALETTE.purple[400], 0.6);
+      accent.lineStyle(toDPR(2), PALETTE.purple[400], 0.6);
       accent.beginPath();
       accent.moveTo(corner.x, corner.y + cornerSize * corner.dy);
       accent.lineTo(corner.x, corner.y);
@@ -391,7 +398,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     const filledCount = this.scorecard.getFilledCount();
     this.categoriesFilledText = createText(
       this.scene,
-      lc.width - 10,
+      lc.width - toDPR(10),
       lc.titleY,
       `${filledCount}/13`,
       {
@@ -465,7 +472,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
 
     const bg = this.scene.add.rectangle(row.x, row.y, row.width, row.height, bgColor, 0.8);
     bg.setOrigin(0, 0);
-    bg.setStrokeStyle(1, borderColor, 0.7);
+    bg.setStrokeStyle(toDPR(1), borderColor, 0.7);
     this.container.add(bg);
 
     // Header text
@@ -551,10 +558,10 @@ export class ScorecardPanel implements TutorialControllableScorecard {
 
       if (this.stateManager.getGauntletMode()) {
         background.setFillStyle(PALETTE.green[700]);
-        background.setStrokeStyle(2, PALETTE.green[400]);
+        background.setStrokeStyle(toDPR(2), PALETTE.green[400]);
       } else {
         background.setFillStyle(PANEL_COLORS.rowHover);
-        background.setStrokeStyle(2, PALETTE.green[500]);
+        background.setStrokeStyle(toDPR(2), PALETTE.green[500]);
       }
       this.events.emit('ui:categoryHover', { categoryId: row.categoryId! });
     });
@@ -567,7 +574,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
         nameText.setColor(COLORS.TEXT_SECONDARY);
       } else if (this.stateManager.getGauntletMode() && this.scorecard.isAvailable(row.categoryId!)) {
         background.setFillStyle(PALETTE.green[900]);
-        background.setStrokeStyle(2, PALETTE.green[500], 0.8);
+        background.setStrokeStyle(toDPR(2), PALETTE.green[500], 0.8);
         nameText.setColor(COLORS.TEXT_SUCCESS);
       } else {
         background.setFillStyle(rowColor);
@@ -720,7 +727,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
         row.potentialText.setText('');
         row.lockIcon.setVisible(true);
         row.background.setFillStyle(LOCKED_CATEGORY_COLOR);
-        row.background.setStrokeStyle(1, LOCKED_CATEGORY_BORDER);
+        row.background.setStrokeStyle(toDPR(1), LOCKED_CATEGORY_BORDER);
         row.hitArea.disableInteractive();
         row.nameText.setColor(COLORS.TEXT_DISABLED);
       } else {
@@ -740,7 +747,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
         if (this.stateManager.getGauntletMode()) {
           row.nameText.setColor(COLORS.TEXT_SUCCESS);
           row.background.setFillStyle(PALETTE.green[900]);
-          row.background.setStrokeStyle(2, PALETTE.green[500], 0.8);
+          row.background.setStrokeStyle(toDPR(2), PALETTE.green[500], 0.8);
           // Note: Pulse tweens are created after the loop to avoid stopping/recreating
         }
       }

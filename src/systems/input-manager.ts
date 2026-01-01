@@ -1,7 +1,7 @@
 /**
  * Input Manager
- * Centralizes keyboard input handling for a scene.
- * Provides clean registration/cleanup and future keybinding support.
+ * Centralizes all input handling (keyboard + pointer/touch) for a scene.
+ * Provides single enable/disable for all input types.
  */
 
 import Phaser from 'phaser';
@@ -34,23 +34,36 @@ interface BoundAction {
 }
 
 /**
- * Input Manager - handles keyboard input for a scene
+ * Input Manager - handles all input (keyboard + pointer) for a scene
  *
  * Usage:
  *   const input = new InputManager(scene);
  *   input.bind('roll', () => this.rollDice());
  *   input.bind('pause', () => this.togglePause());
+ *   input.registerInteractive(pauseButton);
+ *   input.registerInteractive(quitButton);
+ *   // Disable all input:
+ *   input.disable();
  *   // On cleanup:
  *   input.destroy();
  */
 export class InputManager {
   private scene: Phaser.Scene;
   private bindings: Map<GameAction, BoundAction> = new Map();
+  private interactiveObjects: Phaser.GameObjects.GameObject[] = [];
   private enabled: boolean = true;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
     log.log('InputManager created for scene');
+  }
+
+  /**
+   * Register an interactive game object to be managed
+   * When input is disabled, these objects will have their interactivity disabled
+   */
+  registerInteractive(obj: Phaser.GameObjects.GameObject): void {
+    this.interactiveObjects.push(obj);
   }
 
   /**
@@ -98,18 +111,34 @@ export class InputManager {
   }
 
   /**
-   * Enable all input handling
+   * Enable all input handling (keyboard + pointer)
    */
   enable(): void {
     this.enabled = true;
+
+    // Re-enable all registered interactive objects
+    for (const obj of this.interactiveObjects) {
+      if (obj && 'setInteractive' in obj) {
+        (obj as Phaser.GameObjects.Rectangle).setInteractive({ useHandCursor: true });
+      }
+    }
+
     log.debug('Input enabled');
   }
 
   /**
-   * Disable all input handling (actions won't fire)
+   * Disable all input handling (keyboard + pointer)
    */
   disable(): void {
     this.enabled = false;
+
+    // Disable all registered interactive objects
+    for (const obj of this.interactiveObjects) {
+      if (obj && 'disableInteractive' in obj) {
+        (obj as Phaser.GameObjects.Rectangle).disableInteractive();
+      }
+    }
+
     log.debug('Input disabled');
   }
 

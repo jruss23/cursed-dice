@@ -9,6 +9,7 @@ import { createText, createPanelFrame, addPanelFrameToContainer, PANEL_PRESETS }
 import { BaseButton } from '@/ui/base/base-button';
 import { toggleSFX, isSFXEnabled } from '@/systems/sfx-manager';
 import { MusicManager } from '@/systems/music-manager';
+import { toDPR } from '@/systems/responsive';
 
 export interface PauseMenuCallbacks {
   onResume: () => void;
@@ -25,53 +26,68 @@ export interface PauseMenuConfig {
 /**
  * Calculate panel layout - all Y positions relative to panel center
  * Uses LAYOUT.pauseMenu as source of truth
+ * All values scaled to device pixels via toDPR()
  */
 function getPauseMenuLayout() {
   const L = LAYOUT.pauseMenu;
 
+  // Scale all values to device pixels
+  const titleHeight = toDPR(L.TITLE_HEIGHT);
+  const gapTitleToAudio = toDPR(L.GAP_TITLE_TO_AUDIO);
+  const audioLabelHeight = toDPR(L.AUDIO_LABEL_HEIGHT);
+  const gapAudioToToggles = toDPR(L.GAP_AUDIO_TO_TOGGLES);
+  const toggleButtonHeight = toDPR(L.TOGGLE_BUTTON_HEIGHT);
+  const gapTogglesToResume = toDPR(L.GAP_TOGGLES_TO_RESUME);
+  const actionButtonHeight = toDPR(L.ACTION_BUTTON_HEIGHT);
+  const gapResumeToQuit = toDPR(L.GAP_RESUME_TO_QUIT);
+  const panelPadding = toDPR(L.PANEL_PADDING);
+  const panelWidth = toDPR(L.PANEL_WIDTH);
+  const toggleButtonWidth = toDPR(L.TOGGLE_BUTTON_WIDTH);
+  const actionButtonWidth = toDPR(L.ACTION_BUTTON_WIDTH);
+
   // Calculate total content height
   const contentHeight =
-    L.TITLE_HEIGHT +
-    L.GAP_TITLE_TO_AUDIO +
-    L.AUDIO_LABEL_HEIGHT +
-    L.GAP_AUDIO_TO_TOGGLES +
-    L.TOGGLE_BUTTON_HEIGHT +
-    L.GAP_TOGGLES_TO_RESUME +
-    L.ACTION_BUTTON_HEIGHT +
-    L.GAP_RESUME_TO_QUIT +
-    L.ACTION_BUTTON_HEIGHT;
+    titleHeight +
+    gapTitleToAudio +
+    audioLabelHeight +
+    gapAudioToToggles +
+    toggleButtonHeight +
+    gapTogglesToResume +
+    actionButtonHeight +
+    gapResumeToQuit +
+    actionButtonHeight;
 
-  const panelHeight = contentHeight + L.PANEL_PADDING * 2;
+  const panelHeight = contentHeight + panelPadding * 2;
 
   // Calculate Y positions (relative to panel center at 0)
-  let y = -panelHeight / 2 + L.PANEL_PADDING;
+  let y = -panelHeight / 2 + panelPadding;
 
-  const titleY = y + L.TITLE_HEIGHT / 2;
-  y += L.TITLE_HEIGHT + L.GAP_TITLE_TO_AUDIO;
+  const titleY = y + titleHeight / 2;
+  y += titleHeight + gapTitleToAudio;
 
-  const audioLabelY = y + L.AUDIO_LABEL_HEIGHT / 2;
-  y += L.AUDIO_LABEL_HEIGHT + L.GAP_AUDIO_TO_TOGGLES;
+  const audioLabelY = y + audioLabelHeight / 2;
+  y += audioLabelHeight + gapAudioToToggles;
 
-  const togglesY = y + L.TOGGLE_BUTTON_HEIGHT / 2;
-  y += L.TOGGLE_BUTTON_HEIGHT + L.GAP_TOGGLES_TO_RESUME;
+  const togglesY = y + toggleButtonHeight / 2;
+  y += toggleButtonHeight + gapTogglesToResume;
 
-  const resumeY = y + L.ACTION_BUTTON_HEIGHT / 2;
-  y += L.ACTION_BUTTON_HEIGHT + L.GAP_RESUME_TO_QUIT;
+  const resumeY = y + actionButtonHeight / 2;
+  y += actionButtonHeight + gapResumeToQuit;
 
-  const quitY = y + L.ACTION_BUTTON_HEIGHT / 2;
+  const quitY = y + actionButtonHeight / 2;
 
   return {
-    panelWidth: L.PANEL_WIDTH,
+    panelWidth,
     panelHeight,
     titleY,
     audioLabelY,
     togglesY,
     resumeY,
     quitY,
-    toggleButtonWidth: L.TOGGLE_BUTTON_WIDTH,
-    toggleButtonHeight: L.TOGGLE_BUTTON_HEIGHT,
-    actionButtonWidth: L.ACTION_BUTTON_WIDTH,
-    actionButtonHeight: L.ACTION_BUTTON_HEIGHT,
+    toggleButtonWidth,
+    toggleButtonHeight,
+    actionButtonWidth,
+    actionButtonHeight,
   };
 }
 
@@ -144,8 +160,8 @@ export class PauseMenu {
     audioLabel.setOrigin(0.5, 0.5);
     this.container.add(audioLabel);
 
-    // Toggle buttons spacing
-    const toggleSpacing = L.toggleButtonWidth / 2 + 8;
+    // Toggle buttons spacing (8px gap between buttons, scaled to device pixels)
+    const toggleSpacing = L.toggleButtonWidth / 2 + toDPR(8);
 
     // Music toggle button
     const musicEnabled = this.musicManager?.isEnabled() ?? true;

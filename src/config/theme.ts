@@ -436,3 +436,34 @@ export const FONTS = {
   SIZE_MICRO: '11px',
   SIZE_NANO: '10px',
 } as const;
+
+// =============================================================================
+// PANEL STYLING (Standard dialog/popup styling)
+// =============================================================================
+
+export const PANEL = {
+  // Glow
+  GLOW_SIZE: 12, // Extra size around panel for glow
+  GLOW_COLOR: PALETTE.purple[500],
+  GLOW_ALPHA: ALPHA.GLOW_SOFT,
+
+  // Background
+  BG_COLOR: PALETTE.purple[800],
+  BG_ALPHA: ALPHA.PANEL_SOLID,
+
+  // Border
+  BORDER_WIDTH: 2,
+  BORDER_COLOR: PALETTE.purple[500],
+  BORDER_ALPHA: ALPHA.BORDER_MEDIUM,
+
+  // Corner accents
+  CORNER_INSET: 6,
+  CORNER_LENGTH: 14,
+  CORNER_THICKNESS: 2,
+  CORNER_COLOR: PALETTE.purple[400],
+  CORNER_ALPHA: ALPHA.BORDER_SOLID,
+
+  // Backdrop (for modal dialogs)
+  BACKDROP_COLOR: PALETTE.black,
+  BACKDROP_ALPHA: ALPHA.OVERLAY_MEDIUM,
+} as const;

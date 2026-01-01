@@ -502,6 +502,7 @@ export class GameplayScene extends BaseScene {
     this.scorecardPanel = new ScorecardPanel(this, this.scorecard, this.gameEvents, {
       x: layout.scorecard.x,
       y: layout.scorecard.y,
+      width: layout.scorecard.width,
       compact: true,
       maxHeight: layout.scorecard.height,
       passThreshold: PASS_THRESHOLD,
@@ -894,6 +895,9 @@ export class GameplayScene extends BaseScene {
       // Mode complete sound for passing a curse
       playModeCompleteSound();
     }
+
+    // Disable all input while overlay is shown
+    this.inputManager?.disable();
 
     this.endScreenOverlay = new EndScreenOverlay(
       this,

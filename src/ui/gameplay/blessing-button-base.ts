@@ -5,6 +5,7 @@
 
 import Phaser from 'phaser';
 import { FONTS, PALETTE, COLORS, ALPHA } from '@/config';
+import { toDPR } from '@/systems/responsive';
 import { createText } from '@/ui/ui-utils';
 import { GameEventEmitter } from '@/systems/game-events';
 
@@ -15,7 +16,7 @@ export interface BlessingButtonBaseConfig {
   height: number;
 }
 
-/** Standard button dimensions */
+/** Standard button dimensions (CSS pixels - scaled with toDPR when used) */
 export const BLESSING_BUTTON = {
   WIDTH: 95,
   GLOW_PADDING: 6,
@@ -76,9 +77,9 @@ export abstract class BlessingButtonBase<TConfig extends BlessingButtonBaseConfi
     borderColor: number = PALETTE.gold[400],
     labelY: number = 0
   ): void {
-    const width = BLESSING_BUTTON.WIDTH;
-    const height = this.config.height;
-    const glowPadding = BLESSING_BUTTON.GLOW_PADDING;
+    const width = toDPR(BLESSING_BUTTON.WIDTH);
+    const height = this.config.height; // Already in device pixels from layout
+    const glowPadding = toDPR(BLESSING_BUTTON.GLOW_PADDING);
 
     // Glow
     this.buttonGlow = this.scene.add.rectangle(
@@ -92,7 +93,7 @@ export abstract class BlessingButtonBase<TConfig extends BlessingButtonBaseConfi
 
     // Background
     this.buttonBg = this.scene.add.rectangle(0, 0, width, height, bgColor, ALPHA.PANEL_OPAQUE);
-    this.buttonBg.setStrokeStyle(2, borderColor, ALPHA.BORDER_SOLID);
+    this.buttonBg.setStrokeStyle(toDPR(2), borderColor, ALPHA.BORDER_SOLID);
     this.buttonBg.setInteractive({ useHandCursor: true });
     this.container.add(this.buttonBg);
 
@@ -114,7 +115,7 @@ export abstract class BlessingButtonBase<TConfig extends BlessingButtonBaseConfi
     this.labelText.setText(label);
     this.labelText.setColor(COLORS.TEXT_PRIMARY);
     this.buttonBg.setFillStyle(PALETTE.gold[700], ALPHA.PANEL_OPAQUE);
-    this.buttonBg.setStrokeStyle(2, PALETTE.gold[400], ALPHA.BORDER_SOLID);
+    this.buttonBg.setStrokeStyle(toDPR(2), PALETTE.gold[400], ALPHA.BORDER_SOLID);
     this.buttonGlow.setFillStyle(PALETTE.gold[400], ALPHA.GLOW_MEDIUM);
     this.buttonBg.setInteractive({ useHandCursor: true });
   }
@@ -126,7 +127,7 @@ export abstract class BlessingButtonBase<TConfig extends BlessingButtonBaseConfi
     this.labelText.setText(label);
     this.labelText.setColor(COLORS.TEXT_MUTED);
     this.buttonBg.setFillStyle(PALETTE.purple[800], ALPHA.OVERLAY_MEDIUM);
-    this.buttonBg.setStrokeStyle(2, PALETTE.purple[600], ALPHA.BORDER_LIGHT);
+    this.buttonBg.setStrokeStyle(toDPR(2), PALETTE.purple[600], ALPHA.BORDER_LIGHT);
     this.buttonGlow.setAlpha(0);
     this.buttonBg.disableInteractive();
   }

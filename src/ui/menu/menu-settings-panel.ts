@@ -6,7 +6,7 @@
 
 import Phaser from 'phaser';
 import { FONTS, PALETTE, COLORS, TIMING, LAYOUT, ALPHA } from '@/config';
-import { type ViewportSizing } from '@/systems/responsive';
+import { type ViewportSizing, toDPR } from '@/systems/responsive';
 import { createText, createPanelFrame, addPanelFrameToContainer, PANEL_PRESETS } from '@/ui/ui-utils';
 import { BaseButton } from '@/ui/base/base-button';
 import { toggleSFX, isSFXEnabled } from '@/systems/sfx-manager';
@@ -26,46 +26,60 @@ function saveMusicEnabled(enabled: boolean): void {
 /**
  * Calculate settings panel layout
  * Uses LAYOUT.settingsPanel as source of truth
+ * All values scaled to device pixels via toDPR()
  */
 function getSettingsLayout() {
   const L = LAYOUT.settingsPanel;
 
-  const contentHeight =
-    L.TITLE_HEIGHT +
-    L.GAP_TITLE_TO_AUDIO +
-    L.AUDIO_LABEL_HEIGHT +
-    L.GAP_AUDIO_TO_TOGGLES +
-    L.TOGGLE_BUTTON_HEIGHT +
-    L.GAP_TOGGLES_TO_CLOSE +
-    L.CLOSE_BUTTON_HEIGHT;
+  // Scale all values to device pixels
+  const titleHeight = toDPR(L.TITLE_HEIGHT);
+  const gapTitleToAudio = toDPR(L.GAP_TITLE_TO_AUDIO);
+  const audioLabelHeight = toDPR(L.AUDIO_LABEL_HEIGHT);
+  const gapAudioToToggles = toDPR(L.GAP_AUDIO_TO_TOGGLES);
+  const toggleButtonHeight = toDPR(L.TOGGLE_BUTTON_HEIGHT);
+  const gapTogglesToClose = toDPR(L.GAP_TOGGLES_TO_CLOSE);
+  const closeButtonHeight = toDPR(L.CLOSE_BUTTON_HEIGHT);
+  const panelPadding = toDPR(L.PANEL_PADDING);
+  const panelWidth = toDPR(L.PANEL_WIDTH);
+  const toggleButtonWidth = toDPR(L.TOGGLE_BUTTON_WIDTH);
+  const closeButtonWidth = toDPR(L.CLOSE_BUTTON_WIDTH);
 
-  const panelHeight = contentHeight + L.PANEL_PADDING * 2;
+  const contentHeight =
+    titleHeight +
+    gapTitleToAudio +
+    audioLabelHeight +
+    gapAudioToToggles +
+    toggleButtonHeight +
+    gapTogglesToClose +
+    closeButtonHeight;
+
+  const panelHeight = contentHeight + panelPadding * 2;
 
   // Calculate Y positions relative to panel center
-  let y = -panelHeight / 2 + L.PANEL_PADDING;
+  let y = -panelHeight / 2 + panelPadding;
 
-  const titleY = y + L.TITLE_HEIGHT / 2;
-  y += L.TITLE_HEIGHT + L.GAP_TITLE_TO_AUDIO;
+  const titleY = y + titleHeight / 2;
+  y += titleHeight + gapTitleToAudio;
 
-  const audioLabelY = y + L.AUDIO_LABEL_HEIGHT / 2;
-  y += L.AUDIO_LABEL_HEIGHT + L.GAP_AUDIO_TO_TOGGLES;
+  const audioLabelY = y + audioLabelHeight / 2;
+  y += audioLabelHeight + gapAudioToToggles;
 
-  const togglesY = y + L.TOGGLE_BUTTON_HEIGHT / 2;
-  y += L.TOGGLE_BUTTON_HEIGHT + L.GAP_TOGGLES_TO_CLOSE;
+  const togglesY = y + toggleButtonHeight / 2;
+  y += toggleButtonHeight + gapTogglesToClose;
 
-  const closeY = y + L.CLOSE_BUTTON_HEIGHT / 2;
+  const closeY = y + closeButtonHeight / 2;
 
   return {
-    panelWidth: L.PANEL_WIDTH,
+    panelWidth,
     panelHeight,
     titleY,
     audioLabelY,
     togglesY,
     closeY,
-    toggleButtonWidth: L.TOGGLE_BUTTON_WIDTH,
-    toggleButtonHeight: L.TOGGLE_BUTTON_HEIGHT,
-    closeButtonWidth: L.CLOSE_BUTTON_WIDTH,
-    closeButtonHeight: L.CLOSE_BUTTON_HEIGHT,
+    toggleButtonWidth,
+    toggleButtonHeight,
+    closeButtonWidth,
+    closeButtonHeight,
   };
 }
 
@@ -103,11 +117,11 @@ export class MenuSettingsPanel {
     const container = this.scene.add.container(x, y);
     container.setDepth(100);
 
-    const size = 44;
+    const size = toDPR(44);
 
     // Button background
     const bg = this.scene.add.rectangle(0, 0, size, size, PALETTE.purple[800], ALPHA.PANEL_SOLID);
-    bg.setStrokeStyle(2, PALETTE.purple[500], ALPHA.BORDER_MEDIUM);
+    bg.setStrokeStyle(toDPR(2), PALETTE.purple[500], ALPHA.BORDER_MEDIUM);
     bg.setInteractive({ useHandCursor: true });
     container.add(bg);
 
@@ -123,11 +137,11 @@ export class MenuSettingsPanel {
     // Hover effects
     bg.on('pointerover', () => {
       bg.setFillStyle(PALETTE.purple[700], 1);
-      bg.setStrokeStyle(2, PALETTE.purple[400], ALPHA.BORDER_SOLID);
+      bg.setStrokeStyle(toDPR(2), PALETTE.purple[400], ALPHA.BORDER_SOLID);
     });
     bg.on('pointerout', () => {
       bg.setFillStyle(PALETTE.purple[800], ALPHA.PANEL_SOLID);
-      bg.setStrokeStyle(2, PALETTE.purple[500], ALPHA.BORDER_MEDIUM);
+      bg.setStrokeStyle(toDPR(2), PALETTE.purple[500], ALPHA.BORDER_MEDIUM);
     });
     bg.on('pointerdown', () => this.open());
 
@@ -193,8 +207,8 @@ export class MenuSettingsPanel {
     audioLabel.setOrigin(0.5, 0.5);
     this.panel.add(audioLabel);
 
-    // Toggle buttons spacing
-    const toggleSpacing = L.toggleButtonWidth / 2 + 6;
+    // Toggle buttons spacing (6px gap between buttons, scaled to device pixels)
+    const toggleSpacing = L.toggleButtonWidth / 2 + toDPR(6);
 
     // Music toggle button
     this.musicButton = new BaseButton(this.scene, {

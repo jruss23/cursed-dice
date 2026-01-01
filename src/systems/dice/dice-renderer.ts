@@ -6,6 +6,7 @@
 
 import Phaser from 'phaser';
 import { COLORS, SIZES, FONTS, PALETTE, ALPHA, TIMING } from '@/config';
+import { toDPR } from '@/systems/responsive';
 import { createText } from '@/ui/ui-utils';
 
 // =============================================================================
@@ -208,15 +209,15 @@ export class DiceRenderer {
     // Update background colors
     if (isCursed) {
       sprite.bg.setFillStyle(COLORS.DICE_CURSED_BG);
-      sprite.bg.setStrokeStyle(SIZES.DICE_BORDER_WIDTH, COLORS.DICE_CURSED_BORDER);
+      sprite.bg.setStrokeStyle(toDPR(SIZES.DICE_BORDER_WIDTH), COLORS.DICE_CURSED_BORDER);
       sprite.innerBg.setFillStyle(PALETTE.purple[600]);
     } else if (isLocked) {
       sprite.bg.setFillStyle(PALETTE.green[700]);
-      sprite.bg.setStrokeStyle(SIZES.DICE_BORDER_WIDTH, PALETTE.green[500]);
+      sprite.bg.setStrokeStyle(toDPR(SIZES.DICE_BORDER_WIDTH), PALETTE.green[500]);
       sprite.innerBg.setFillStyle(PALETTE.green[700]);
     } else {
       sprite.bg.setFillStyle(COLORS.DICE_BG);
-      sprite.bg.setStrokeStyle(SIZES.DICE_BORDER_WIDTH, COLORS.DICE_BORDER);
+      sprite.bg.setStrokeStyle(toDPR(SIZES.DICE_BORDER_WIDTH), COLORS.DICE_BORDER);
       sprite.innerBg.setFillStyle(PALETTE.neutral[700]);
     }
 
@@ -246,7 +247,7 @@ export class DiceRenderer {
     if (isLocked) {
       // Locked dice show dimmed - they won't change
       sprite.bg.setFillStyle(PALETTE.neutral[700], ALPHA.BORDER_MEDIUM);
-      sprite.bg.setStrokeStyle(SIZES.DICE_BORDER_WIDTH, PALETTE.neutral[500], ALPHA.BORDER_MEDIUM);
+      sprite.bg.setStrokeStyle(toDPR(SIZES.DICE_BORDER_WIDTH), PALETTE.neutral[500], ALPHA.BORDER_MEDIUM);
       sprite.innerBg.setFillStyle(PALETTE.neutral[700], ALPHA.BORDER_MEDIUM);
       this.drawPips(sprite.pipsGraphics, value, COLORS.DICE_PIP);
       sprite.pipsGraphics.setAlpha(ALPHA.DISABLED);

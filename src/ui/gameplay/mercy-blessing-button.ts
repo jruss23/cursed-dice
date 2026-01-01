@@ -65,13 +65,13 @@ export class MercyBlessingButton extends BlessingButtonBase<MercyBlessingButtonC
     this.events.on('blessing:mercy:used', this.updateDisplay, this);
   }
 
-  protected updateDisplay = (): void => {
+  protected updateDisplay(): void {
     if (this.config.canUse()) {
       this.setAvailableState('MERCY');
     } else {
       this.setSpentState('SPENT');
     }
-  };
+  }
 
   protected cleanupEvents(): void {
     this.events.off('blessing:mercy:reset', this.updateDisplay, this);

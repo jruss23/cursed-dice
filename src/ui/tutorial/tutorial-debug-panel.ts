@@ -7,6 +7,7 @@
 
 import Phaser from 'phaser';
 import { FONTS, PALETTE, COLORS, SIZES } from '@/config';
+import { toDPR } from '@/systems/responsive';
 import { createText } from '@/ui/ui-utils';
 
 // Debug-specific colors
@@ -48,14 +49,16 @@ export class TutorialDebugPanel {
 
   private buildMobileIcon(height: number): void {
     const { width } = this.scene.cameras.main;
-    const iconSize = 32;
-    const iconX = width - iconSize - 6;
-    const iconY = height - iconSize - 6;
+    // Scale dimensions for DPR
+    const iconSize = toDPR(32);
+    const edgePadding = toDPR(6);
+    const iconX = width - iconSize - edgePadding;
+    const iconY = height - iconSize - edgePadding;
 
     this.container.setPosition(iconX, iconY);
 
     const iconBg = this.scene.add.rectangle(iconSize / 2, iconSize / 2, iconSize, iconSize, DEBUG_COLORS.panelBg, 0.9);
-    iconBg.setStrokeStyle(2, DEBUG_COLORS.panelBorder, 0.8);
+    iconBg.setStrokeStyle(toDPR(2), DEBUG_COLORS.panelBorder, 0.8);
     iconBg.setInteractive({ useHandCursor: true });
     this.container.add(iconBg);
 
@@ -89,22 +92,24 @@ export class TutorialDebugPanel {
     backdrop.on('pointerdown', () => this.closeModal());
     this.modalContainer.add(backdrop);
 
-    // Panel
-    const panelWidth = 180;
-    const panelHeight = 190;
+    // Panel (scaled for DPR)
+    const panelWidth = toDPR(180);
+    const panelHeight = toDPR(190);
     const panelX = width / 2;
     const panelY = height / 2;
 
     const panelBg = this.scene.add.rectangle(panelX, panelY, panelWidth, panelHeight, DEBUG_COLORS.panelBg, 0.98);
-    panelBg.setStrokeStyle(SIZES.PANEL_BORDER_WIDTH, DEBUG_COLORS.panelBorder, 1);
+    panelBg.setStrokeStyle(toDPR(SIZES.PANEL_BORDER_WIDTH), DEBUG_COLORS.panelBorder, 1);
     panelBg.setInteractive();
     this.modalContainer.add(panelBg);
 
-    // Close button
-    const closeX = panelX + panelWidth / 2 - 20;
-    const closeY = panelY - panelHeight / 2 + 20;
-    const closeBtn = this.scene.add.rectangle(closeX, closeY, 30, 30, PALETTE.debug.closeBg, 0.9);
-    closeBtn.setStrokeStyle(2, PALETTE.debug.closeBorder, 0.8);
+    // Close button (scaled for DPR)
+    const closeBtnSize = toDPR(30);
+    const closeOffset = toDPR(20);
+    const closeX = panelX + panelWidth / 2 - closeOffset;
+    const closeY = panelY - panelHeight / 2 + closeOffset;
+    const closeBtn = this.scene.add.rectangle(closeX, closeY, closeBtnSize, closeBtnSize, PALETTE.debug.closeBg, 0.9);
+    closeBtn.setStrokeStyle(toDPR(2), PALETTE.debug.closeBorder, 0.8);
     closeBtn.setInteractive({ useHandCursor: true });
     this.modalContainer.add(closeBtn);
 
@@ -121,8 +126,8 @@ export class TutorialDebugPanel {
     closeBtn.on('pointerout', () => closeBtn.setFillStyle(PALETTE.debug.closeBg));
     closeBtn.on('pointerdown', () => this.closeModal());
 
-    // Title
-    const title = createText(this.scene, panelX, panelY - 70, '🐛 DEBUG', {
+    // Title (scaled for DPR)
+    const title = createText(this.scene, panelX, panelY - toDPR(70), '🐛 DEBUG', {
       fontSize: FONTS.SIZE_BODY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_WARNING,
@@ -131,12 +136,12 @@ export class TutorialDebugPanel {
     title.setOrigin(0.5, 0.5);
     this.modalContainer.add(title);
 
-    // Buttons
-    const buttonWidth = panelWidth - 32;
-    const buttonHeight = 36;
+    // Buttons (scaled for DPR)
+    const buttonWidth = panelWidth - toDPR(32);
+    const buttonHeight = toDPR(36);
 
     // Skip to Practice button (cyan)
-    this.createModalButton(panelX, panelY - 30, buttonWidth, buttonHeight, 'Skip to Practice',
+    this.createModalButton(panelX, panelY - toDPR(30), buttonWidth, buttonHeight, 'Skip to Practice',
       DEBUG_COLORS.practiceBg, DEBUG_COLORS.practiceBorder, DEBUG_COLORS.practiceBgHover,
       COLORS.DEBUG_CYAN, () => {
         this.callbacks.onSkipToPractice();
@@ -144,7 +149,7 @@ export class TutorialDebugPanel {
       });
 
     // Pass Tutorial button (green)
-    this.createModalButton(panelX, panelY + 15, buttonWidth, buttonHeight, 'Pass Tutorial',
+    this.createModalButton(panelX, panelY + toDPR(15), buttonWidth, buttonHeight, 'Pass Tutorial',
       DEBUG_COLORS.passBg, DEBUG_COLORS.passBorder, DEBUG_COLORS.passBgHover,
       COLORS.DEBUG_GREEN, () => {
         this.callbacks.onPassTutorial();
@@ -152,7 +157,7 @@ export class TutorialDebugPanel {
       });
 
     // Fail Tutorial button (red)
-    this.createModalButton(panelX, panelY + 60, buttonWidth, buttonHeight, 'Fail Tutorial',
+    this.createModalButton(panelX, panelY + toDPR(60), buttonWidth, buttonHeight, 'Fail Tutorial',
       DEBUG_COLORS.failBg, DEBUG_COLORS.failBorder, DEBUG_COLORS.failBgHover,
       COLORS.DEBUG_RED, () => {
         this.callbacks.onFailTutorial();
@@ -170,7 +175,7 @@ export class TutorialDebugPanel {
     if (!this.modalContainer) return;
 
     const btn = this.scene.add.rectangle(x, y, width, height, bgColor, 1);
-    btn.setStrokeStyle(2, borderColor, 0.8);
+    btn.setStrokeStyle(toDPR(2), borderColor, 0.8);
     btn.setInteractive({ useHandCursor: true });
     this.modalContainer.add(btn);
 
@@ -185,11 +190,11 @@ export class TutorialDebugPanel {
 
     btn.on('pointerover', () => {
       btn.setFillStyle(hoverBg);
-      btn.setStrokeStyle(2, borderColor, 1);
+      btn.setStrokeStyle(toDPR(2), borderColor, 1);
     });
     btn.on('pointerout', () => {
       btn.setFillStyle(bgColor);
-      btn.setStrokeStyle(2, borderColor, 0.8);
+      btn.setStrokeStyle(toDPR(2), borderColor, 0.8);
     });
     btn.on('pointerdown', onClick);
   }

@@ -136,6 +136,8 @@ export interface TutorialStepConfig<StepId extends string = string> {
   advanceOn?: 'roll' | 'lock-count' | 'score';
   /** For lock-count advance, how many locks needed */
   lockCountRequired?: number;
+  /** Use taller popup for longer messages */
+  tallPopup?: boolean;
 }
 
 export interface TutorialStepDisplay {
@@ -145,4 +147,6 @@ export interface TutorialStepDisplay {
   highlight: Bounds | null;
   popupPosition: PopupPosition;
   showNextButton: boolean;
+  /** Use taller popup for longer messages */
+  tallPopup?: boolean;
 }

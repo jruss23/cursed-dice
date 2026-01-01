@@ -6,6 +6,7 @@
 
 import Phaser from 'phaser';
 import { FONTS, PALETTE, COLORS, SIZES, DEPTH, FLASH, END_SCREEN } from '@/config';
+import { toDPR } from '@/systems/responsive';
 import { createText, createPanelFrame, addPanelFrameToContainer, PANEL_PRESETS } from '@/ui/ui-utils';
 
 // Use END_SCREEN constants for consistency with end-screen-overlay.ts
@@ -27,47 +28,62 @@ interface TutorialCompleteLayout {
 }
 
 function getTutorialCompleteLayout(): TutorialCompleteLayout {
-  const panelWidth = S.PANEL_WIDTH;
-  const buttonHeight = S.BUTTON_HEIGHT;
+  // Scale all END_SCREEN values for DPR
+  const panelWidth = toDPR(S.PANEL_WIDTH);
+  const buttonHeight = toDPR(S.BUTTON_HEIGHT);
+  const panelPadding = toDPR(S.PANEL_PADDING);
+  const titleHeight = toDPR(S.TITLE_HEIGHT);
+  const subtitleHeight = toDPR(S.SUBTITLE_HEIGHT);
+  const dividerHeight = toDPR(S.DIVIDER_HEIGHT);
+  const scoreLabelHeight = toDPR(S.SCORE_LABEL_HEIGHT);
+  const scoreValueHeight = toDPR(S.SCORE_VALUE_HEIGHT);
+
+  // Scale gaps
+  const gapTitleToSubtitle = toDPR(S.GAP_TITLE_TO_SUBTITLE);
+  const gapSubtitleToDivider = toDPR(S.GAP_SUBTITLE_TO_DIVIDER);
+  const gapDividerToScores = toDPR(S.GAP_DIVIDER_TO_SCORES);
+  const gapScoreLabelToValue = toDPR(S.GAP_SCORE_LABEL_TO_VALUE);
+  const gapScoresToDivider = toDPR(S.GAP_SCORES_TO_DIVIDER);
+  const gapDividerToButton = toDPR(S.GAP_DIVIDER_TO_BUTTON);
 
   // Calculate total content height
   let contentHeight = 0;
-  contentHeight += S.TITLE_HEIGHT;
-  contentHeight += S.GAP_TITLE_TO_SUBTITLE;
-  contentHeight += S.SUBTITLE_HEIGHT;
-  contentHeight += S.GAP_SUBTITLE_TO_DIVIDER;
-  contentHeight += S.DIVIDER_HEIGHT;
-  contentHeight += S.GAP_DIVIDER_TO_SCORES;
-  contentHeight += S.SCORE_LABEL_HEIGHT;
-  contentHeight += S.GAP_SCORE_LABEL_TO_VALUE;
-  contentHeight += S.SCORE_VALUE_HEIGHT;
-  contentHeight += S.GAP_SCORES_TO_DIVIDER;
-  contentHeight += S.DIVIDER_HEIGHT;
-  contentHeight += S.GAP_DIVIDER_TO_BUTTON;
+  contentHeight += titleHeight;
+  contentHeight += gapTitleToSubtitle;
+  contentHeight += subtitleHeight;
+  contentHeight += gapSubtitleToDivider;
+  contentHeight += dividerHeight;
+  contentHeight += gapDividerToScores;
+  contentHeight += scoreLabelHeight;
+  contentHeight += gapScoreLabelToValue;
+  contentHeight += scoreValueHeight;
+  contentHeight += gapScoresToDivider;
+  contentHeight += dividerHeight;
+  contentHeight += gapDividerToButton;
   contentHeight += buttonHeight;
 
-  const panelHeight = contentHeight + S.PANEL_PADDING * 2;
+  const panelHeight = contentHeight + panelPadding * 2;
 
   // Calculate Y positions (relative to panel top-left at 0,0)
-  let y = S.PANEL_PADDING;
+  let y = panelPadding;
 
-  const titleY = y + S.TITLE_HEIGHT / 2;
-  y += S.TITLE_HEIGHT + S.GAP_TITLE_TO_SUBTITLE;
+  const titleY = y + titleHeight / 2;
+  y += titleHeight + gapTitleToSubtitle;
 
-  const subtitleY = y + S.SUBTITLE_HEIGHT / 2;
-  y += S.SUBTITLE_HEIGHT + S.GAP_SUBTITLE_TO_DIVIDER;
+  const subtitleY = y + subtitleHeight / 2;
+  y += subtitleHeight + gapSubtitleToDivider;
 
-  const divider1Y = y + S.DIVIDER_HEIGHT / 2;
-  y += S.DIVIDER_HEIGHT + S.GAP_DIVIDER_TO_SCORES;
+  const divider1Y = y + dividerHeight / 2;
+  y += dividerHeight + gapDividerToScores;
 
-  const scoreLabelY = y + S.SCORE_LABEL_HEIGHT / 2;
-  y += S.SCORE_LABEL_HEIGHT + S.GAP_SCORE_LABEL_TO_VALUE;
+  const scoreLabelY = y + scoreLabelHeight / 2;
+  y += scoreLabelHeight + gapScoreLabelToValue;
 
-  const scoreValueY = y + S.SCORE_VALUE_HEIGHT / 2;
-  y += S.SCORE_VALUE_HEIGHT + S.GAP_SCORES_TO_DIVIDER;
+  const scoreValueY = y + scoreValueHeight / 2;
+  y += scoreValueHeight + gapScoresToDivider;
 
-  const divider2Y = y + S.DIVIDER_HEIGHT / 2;
-  y += S.DIVIDER_HEIGHT + S.GAP_DIVIDER_TO_BUTTON;
+  const divider2Y = y + dividerHeight / 2;
+  y += dividerHeight + gapDividerToButton;
 
   const buttonY = y + buttonHeight / 2;
 
@@ -81,9 +97,9 @@ function getTutorialCompleteLayout(): TutorialCompleteLayout {
     scoreValueY,
     divider2Y,
     buttonY,
-    buttonWidth: S.BUTTON_WIDTH,
+    buttonWidth: toDPR(S.BUTTON_WIDTH),
     buttonHeight,
-    buttonOffset: S.BUTTON_OFFSET,
+    buttonOffset: toDPR(S.BUTTON_OFFSET),
   };
 }
 
@@ -120,8 +136,8 @@ export class TutorialCompleteOverlay {
     this.overlay.setInteractive();
     this.overlay.setDepth(DEPTH.OVERLAY);
 
-    // Panel dimensions - responsive for mobile
-    const panelWidth = Math.min(this.layout.panelWidth, width - S.PANEL_MARGIN);
+    // Panel dimensions - responsive for mobile (scale margin for DPR)
+    const panelWidth = Math.min(this.layout.panelWidth, width - toDPR(S.PANEL_MARGIN));
     const panelHeight = this.layout.panelHeight;
     const panelX = (width - panelWidth) / 2;
     const panelY = (height - panelHeight) / 2;
@@ -192,15 +208,16 @@ export class TutorialCompleteOverlay {
     subtitle.setOrigin(0.5, 0.5);
     this.panel.add(subtitle);
 
-    // Divider line
-    const divider1 = this.scene.add.rectangle(panelWidth / 2, L.divider1Y, panelWidth - 60, 1, PALETTE.purple[500], 0.4);
+    // Divider line (scale inset for DPR)
+    const dividerInset = toDPR(60);
+    const divider1 = this.scene.add.rectangle(panelWidth / 2, L.divider1Y, panelWidth - dividerInset, 1, PALETTE.purple[500], 0.4);
     this.panel.add(divider1);
 
     // Score section
     this.buildScoresSection(panelWidth, totalScore, passed);
 
     // Divider before buttons
-    const divider2 = this.scene.add.rectangle(panelWidth / 2, L.divider2Y, panelWidth - 60, 1, PALETTE.purple[500], 0.4);
+    const divider2 = this.scene.add.rectangle(panelWidth / 2, L.divider2Y, panelWidth - dividerInset, 1, PALETTE.purple[500], 0.4);
     this.panel.add(divider2);
 
     // Buttons
@@ -298,13 +315,14 @@ export class TutorialCompleteOverlay {
 
     const s = styles[style];
 
-    // Button glow
-    const btnGlow = this.scene.add.rectangle(x, y, btnWidth + 8, btnHeight + 8, s.glow, 0.1);
+    // Button glow (scale padding for DPR)
+    const glowPad = toDPR(8);
+    const btnGlow = this.scene.add.rectangle(x, y, btnWidth + glowPad, btnHeight + glowPad, s.glow, 0.1);
     this.panel.add(btnGlow);
 
     // Button background
     const btnBg = this.scene.add.rectangle(x, y, btnWidth, btnHeight, s.bg, 0.95);
-    btnBg.setStrokeStyle(2, s.border);
+    btnBg.setStrokeStyle(toDPR(2), s.border);
     btnBg.setInteractive({ useHandCursor: true });
     this.panel.add(btnBg);
 
@@ -321,12 +339,12 @@ export class TutorialCompleteOverlay {
     // Hover effects
     btnBg.on('pointerover', () => {
       btnBg.setFillStyle(s.bgHover, 1);
-      btnBg.setStrokeStyle(2, s.borderHover);
+      btnBg.setStrokeStyle(toDPR(2), s.borderHover);
       btnGlow.setAlpha(0.25);
     });
     btnBg.on('pointerout', () => {
       btnBg.setFillStyle(s.bg, 0.95);
-      btnBg.setStrokeStyle(2, s.border);
+      btnBg.setStrokeStyle(toDPR(2), s.border);
       btnGlow.setAlpha(0.1);
     });
     btnBg.on('pointerdown', onClick);

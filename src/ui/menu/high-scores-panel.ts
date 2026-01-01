@@ -5,7 +5,7 @@
 
 import Phaser from 'phaser';
 import { type Difficulty, DIFFICULTIES, FONTS, SIZES, PALETTE, COLORS } from '@/config';
-import { type ViewportSizing } from '@/systems/responsive';
+import { type ViewportSizing, toDPR } from '@/systems/responsive';
 import { getSave } from '@/systems/services';
 import { createText } from '@/ui/ui-utils';
 
@@ -39,37 +39,49 @@ export class HighScoresPanel {
       highScores.byDifficulty.normal > 0 ||
       highScores.byDifficulty.intense > 0;
 
-    // Use viewport-relative sizing
-    const panelWidth = sizing?.highScoresPanelWidth ?? 170;
-    const panelHeight = hasData ? (sizing?.highScoresPanelHeight ?? 155) : 70;
+    // Use viewport-relative sizing (sizing values are already in device pixels from getMenuSizing)
+    const panelWidth = sizing?.highScoresPanelWidth ?? toDPR(170);
+    const panelHeight = hasData ? (sizing?.highScoresPanelHeight ?? toDPR(155)) : toDPR(70);
     const fontSize = sizing?.tinyFontSize ?? FONTS.SIZE_TINY;
     const headerFontSize = sizing?.smallFontSize ?? FONTS.SIZE_SMALL;
     const centerX = x + panelWidth / 2;
     const centerY = y + panelHeight / 2;
 
+    // Spacing values (scale to device pixels)
+    const shadowOffset = toDPR(3);
+    const cornerInset = toDPR(5);
+    const cornerSize = toDPR(10);
+    const textPaddingX = toDPR(10);
+    const textIndentX = toDPR(14);
+    const headerY = toDPR(18);
+    const emptyTextY = toDPR(45);
+    const contentStartY = toDPR(42);
+    const lineHeightSmall = toDPR(15);
+    const lineHeightMedium = toDPR(16);
+    const lineHeightLarge = toDPR(20);
+
     // Background shadow
-    const bgShadow = this.scene.add.rectangle(centerX + 3, centerY + 3, panelWidth, panelHeight, PALETTE.neutral[900], 0.5);
+    const bgShadow = this.scene.add.rectangle(centerX + shadowOffset, centerY + shadowOffset, panelWidth, panelHeight, PALETTE.neutral[900], 0.5);
     bgShadow.setDepth(depth);
     this.container.add(bgShadow);
 
     // Main background
     const bg = this.scene.add.rectangle(centerX, centerY, panelWidth, panelHeight, PALETTE.purple[900], 0.95);
-    bg.setStrokeStyle(SIZES.PANEL_BORDER_WIDTH, PALETTE.purple[500], 0.7);
+    bg.setStrokeStyle(toDPR(SIZES.PANEL_BORDER_WIDTH), PALETTE.purple[500], 0.7);
     bg.setDepth(depth);
     this.container.add(bg);
 
     // Corner accents
-    const cornerSize = 10;
     const corners = [
-      { cx: x + 5, cy: y + 5, ax: 1, ay: 1 },
-      { cx: x + panelWidth - 5, cy: y + 5, ax: -1, ay: 1 },
-      { cx: x + panelWidth - 5, cy: y + panelHeight - 5, ax: -1, ay: -1 },
-      { cx: x + 5, cy: y + panelHeight - 5, ax: 1, ay: -1 },
+      { cx: x + cornerInset, cy: y + cornerInset, ax: 1, ay: 1 },
+      { cx: x + panelWidth - cornerInset, cy: y + cornerInset, ax: -1, ay: 1 },
+      { cx: x + panelWidth - cornerInset, cy: y + panelHeight - cornerInset, ax: -1, ay: -1 },
+      { cx: x + cornerInset, cy: y + panelHeight - cornerInset, ax: 1, ay: -1 },
     ];
 
     corners.forEach(corner => {
       const accent = this.scene.add.graphics();
-      accent.lineStyle(2, PALETTE.purple[400], 0.6);
+      accent.lineStyle(toDPR(2), PALETTE.purple[400], 0.6);
       accent.beginPath();
       accent.moveTo(corner.cx, corner.cy + corner.ay * cornerSize);
       accent.lineTo(corner.cx, corner.cy);
@@ -80,7 +92,7 @@ export class HighScoresPanel {
     });
 
     // Header
-    const header = createText(this.scene, centerX, y + 18, 'HIGH SCORES', {
+    const header = createText(this.scene, centerX, y + headerY, 'HIGH SCORES', {
       fontSize: headerFontSize,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_ACCENT,
@@ -92,7 +104,7 @@ export class HighScoresPanel {
 
     // Show "No scores yet" if empty
     if (!hasData) {
-      const emptyText = createText(this.scene, centerX, y + 45, 'No scores yet', {
+      const emptyText = createText(this.scene, centerX, y + emptyTextY, 'No scores yet', {
         fontSize,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_MUTED,
@@ -103,11 +115,11 @@ export class HighScoresPanel {
       return;
     }
 
-    let currentY = y + 42;
+    let currentY = y + contentStartY;
 
     // Best Run section (if any completed runs)
     if (highScores.bestRunTotal > 0) {
-      const fullRunHeader = createText(this.scene, x + 10, currentY, '4-Seal Run', {
+      const fullRunHeader = createText(this.scene, x + textPaddingX, currentY, '4-Seal Run', {
         fontSize,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_ACCENT,
@@ -117,9 +129,9 @@ export class HighScoresPanel {
       fullRunHeader.setDepth(depth + 1);
       this.container.add(fullRunHeader);
 
-      currentY += 16;
+      currentY += lineHeightMedium;
 
-      const bestRunLabel = createText(this.scene, x + 14, currentY, 'Best Total:', {
+      const bestRunLabel = createText(this.scene, x + textIndentX, currentY, 'Best Total:', {
         fontSize,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_SECONDARY,
@@ -129,7 +141,7 @@ export class HighScoresPanel {
       bestRunLabel.setDepth(depth + 1);
       this.container.add(bestRunLabel);
 
-      const bestRunValue = createText(this.scene, x + panelWidth - 10, currentY, highScores.bestRunTotal.toString(), {
+      const bestRunValue = createText(this.scene, x + panelWidth - textPaddingX, currentY, highScores.bestRunTotal.toString(), {
         fontSize,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_WARNING,
@@ -139,9 +151,9 @@ export class HighScoresPanel {
       bestRunValue.setDepth(depth + 1);
       this.container.add(bestRunValue);
 
-      currentY += 15;
+      currentY += lineHeightSmall;
 
-      const runsLabel = createText(this.scene, x + 14, currentY, 'Completed:', {
+      const runsLabel = createText(this.scene, x + textIndentX, currentY, 'Completed:', {
         fontSize,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_SECONDARY,
@@ -151,7 +163,7 @@ export class HighScoresPanel {
       runsLabel.setDepth(depth + 1);
       this.container.add(runsLabel);
 
-      const runsValue = createText(this.scene, x + panelWidth - 10, currentY, `${highScores.runsCompleted}x`, {
+      const runsValue = createText(this.scene, x + panelWidth - textPaddingX, currentY, `${highScores.runsCompleted}x`, {
         fontSize,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_SECONDARY,
@@ -161,7 +173,7 @@ export class HighScoresPanel {
       runsValue.setDepth(depth + 1);
       this.container.add(runsValue);
 
-      currentY += 20;
+      currentY += lineHeightLarge;
     }
 
     // Per-difficulty high scores
@@ -170,7 +182,7 @@ export class HighScoresPanel {
       highScores.byDifficulty.intense > 0;
 
     if (hasDiffScores) {
-      const sealHeader = createText(this.scene, x + 10, currentY, 'Best Single Seal', {
+      const sealHeader = createText(this.scene, x + textPaddingX, currentY, 'Best Single Seal', {
         fontSize,
         fontFamily: FONTS.FAMILY,
         color: COLORS.TEXT_ACCENT,
@@ -180,7 +192,7 @@ export class HighScoresPanel {
       sealHeader.setDepth(depth + 1);
       this.container.add(sealHeader);
 
-      currentY += 16;
+      currentY += lineHeightMedium;
 
       const difficulties: { key: Difficulty; label: string; color: string }[] = [
         { key: 'chill', label: DIFFICULTIES.chill.label, color: DIFFICULTIES.chill.color },
@@ -191,7 +203,7 @@ export class HighScoresPanel {
       for (const diff of difficulties) {
         const score = highScores.byDifficulty[diff.key];
         if (score > 0) {
-          const diffLabel = createText(this.scene, x + 14, currentY, diff.label + ':', {
+          const diffLabel = createText(this.scene, x + textIndentX, currentY, diff.label + ':', {
             fontSize,
             fontFamily: FONTS.FAMILY,
             color: diff.color,
@@ -201,7 +213,7 @@ export class HighScoresPanel {
           diffLabel.setDepth(depth + 1);
           this.container.add(diffLabel);
 
-          const diffValue = createText(this.scene, x + panelWidth - 10, currentY, score.toString(), {
+          const diffValue = createText(this.scene, x + panelWidth - textPaddingX, currentY, score.toString(), {
             fontSize,
             fontFamily: FONTS.FAMILY,
             color: COLORS.TEXT_PRIMARY,
@@ -211,7 +223,7 @@ export class HighScoresPanel {
           diffValue.setDepth(depth + 1);
           this.container.add(diffValue);
 
-          currentY += 15;
+          currentY += lineHeightSmall;
         }
       }
     }

@@ -166,11 +166,17 @@ export interface PortraitLayout {
 // =============================================================================
 
 /**
- * Reference width for sizing calculations (iPhone 16 Pro Max)
- * With RESIZE mode, canvas matches viewport exactly.
- * Scale = 1.0 at 430px width (our desktop lock target).
+ * Device pixel ratio - cached for performance
+ * Used throughout layout system to convert between CSS and device pixels
  */
-const REFERENCE_WIDTH = 430;
+export const DPR = window.devicePixelRatio || 1;
+
+/**
+ * Reference width for sizing calculations (iPhone 16 Pro Max)
+ * This is in CSS pixels - used for scale calculations.
+ * Scale = 1.0 at 430px CSS width.
+ */
+const REFERENCE_WIDTH_CSS = 430;
 
 /** Responsive breakpoints (mobile-only app) */
 export const BREAKPOINTS = {
@@ -227,23 +233,32 @@ export const RESPONSIVE = {
 
 /**
  * Get current viewport metrics from a Phaser scene
- * With EXPAND mode, canvas dimensions match the actual viewport.
+ * With Scale.NONE + zoom, canvas is in device pixels.
+ * We convert to CSS pixels for breakpoint/scale calculations,
+ * but return device pixel dimensions for actual positioning.
  */
 export function getViewportMetrics(scene: Phaser.Scene): ViewportMetrics {
+  // Camera dimensions are in device pixels with Scale.NONE + zoom
   const { width, height } = scene.cameras.main;
+
+  // Convert to CSS pixels for breakpoint and scale calculations
+  const cssWidth = width / DPR;
+  const cssHeight = height / DPR;
 
   const aspectRatio = width / height;
   const isPortrait = height > width * 0.9;
   // Mobile-only app: always true, but keep for compatibility
   const isMobile = true;
-  const isSmallMobile = width < BREAKPOINTS.SMALL_MOBILE;
-  const isShortScreen = height < 700; // iPhone X Safari ~640px
-  // Scale relative to reference width for sizing calculations
+  // Use CSS pixels for breakpoint checks
+  const isSmallMobile = cssWidth < BREAKPOINTS.SMALL_MOBILE;
+  const isShortScreen = cssHeight < 700; // iPhone X Safari ~640px
+  // Scale relative to reference width (CSS pixels)
   // Clamped to reasonable range for very small/large viewports
-  const scale = Math.max(0.85, Math.min(1.15, width / REFERENCE_WIDTH));
+  const scale = Math.max(0.85, Math.min(1.15, cssWidth / REFERENCE_WIDTH_CSS));
   const safeArea = getSafeAreaInsets();
 
   return {
+    // Return device pixel dimensions for positioning
     width,
     height,
     aspectRatio,
@@ -286,57 +301,69 @@ export function getSafeAreaInsets(): SafeAreaInsets {
 
 /**
  * Get all scaled sizes based on viewport metrics
+ * All returned values are in device pixels for Scale.NONE + zoom rendering
  */
 export function getScaledSizes(metrics: ViewportMetrics): ScaledSizes {
   const { width, isMobile, scale } = metrics;
 
-  // Dice sizing - scale down on mobile
-  const diceSize = scaleValue(
+  // CSS pixel width for constraint calculations
+  const cssWidth = width / DPR;
+
+  // Dice sizing - calculate in CSS pixels, then scale to device pixels
+  const diceSizeCSS = scaleValue(
     RESPONSIVE.DICE_SIZE_MAX,
     scale,
     RESPONSIVE.DICE_SIZE_MIN,
     RESPONSIVE.DICE_SIZE_MAX
   );
 
-  const diceSpacing = scaleValue(
+  const diceSpacingCSS = scaleValue(
     RESPONSIVE.DICE_SPACING_MAX,
     scale,
     RESPONSIVE.DICE_SPACING_MIN,
     RESPONSIVE.DICE_SPACING_MAX
   );
 
-  // Pip sizing proportional to dice
+  // Scale to device pixels
+  const diceSize = Math.round(diceSizeCSS * DPR);
+  const diceSpacing = Math.round(diceSpacingCSS * DPR);
+
+  // Pip sizing proportional to dice (already in device pixels since diceSize is)
   const pipRadius = Math.round(diceSize * 0.086); // 6/70 ratio
   const pipOffset = Math.round(diceSize * 0.257); // 18/70 ratio
 
-  // Scorecard width
-  const scorecardWidth = isMobile
-    ? Math.min(RESPONSIVE.SCORECARD_WIDTH_TWO_COL, width - 20)
+  // Scorecard width - calculate in CSS pixels, scale to device pixels
+  const scorecardWidthCSS = isMobile
+    ? Math.min(RESPONSIVE.SCORECARD_WIDTH_TWO_COL, cssWidth - 20)
     : scaleValue(
         RESPONSIVE.SCORECARD_WIDTH_MAX,
         scale,
         RESPONSIVE.SCORECARD_WIDTH_MIN,
         RESPONSIVE.SCORECARD_WIDTH_MAX
       );
+  const scorecardWidth = Math.round(scorecardWidthCSS * DPR);
 
   // Row height - larger on mobile for touch
-  const rowHeight = isMobile
+  const rowHeightCSS = isMobile
     ? RESPONSIVE.ROW_HEIGHT_MOBILE
     : RESPONSIVE.ROW_HEIGHT_MIN;
+  const rowHeight = Math.round(rowHeightCSS * DPR);
 
   // Header width
-  const headerWidth = Math.min(
+  const headerWidthCSS = Math.min(
     RESPONSIVE.HEADER_WIDTH_MAX,
-    width - 20
+    cssWidth - 20
   );
+  const headerWidth = Math.round(headerWidthCSS * DPR);
 
   // Touch target minimum
-  const touchTarget = RESPONSIVE.TOUCH_TARGET_MIN;
+  const touchTarget = Math.round(RESPONSIVE.TOUCH_TARGET_MIN * DPR);
 
   // Button height
-  const buttonHeight = isMobile
+  const buttonHeightCSS = isMobile
     ? RESPONSIVE.BUTTON_HEIGHT_MIN
     : RESPONSIVE.BUTTON_HEIGHT_MAX;
+  const buttonHeight = Math.round(buttonHeightCSS * DPR);
 
   return {
     dice: diceSize,
@@ -364,6 +391,14 @@ export function scaleValue(
   if (min !== undefined) value = Math.max(min, value);
   if (max !== undefined) value = Math.min(max, value);
   return value;
+}
+
+/**
+ * Scale a CSS pixel value to device pixels
+ * Use this when accessing LAYOUT constants directly
+ */
+export function toDPR(cssValue: number): number {
+  return cssValue * DPR;
 }
 
 // =============================================================================
@@ -506,26 +541,26 @@ export function getMenuSizing(scene: Phaser.Scene): ViewportSizing {
   const { width, height } = scene.cameras.main;
 
   // ==========================================================================
-  // FIXED SIZES (in pixels) - Easy to adjust
+  // FIXED SIZES (in CSS pixels, scaled to device pixels)
   // ==========================================================================
-  const TITLE_HEIGHT = 32;
-  const VERSION_HEIGHT = 14;
-  const SUBTITLE_HEIGHT = 16;
-  const TITLE_INTERNAL_GAP = 6;      // Between title elements
+  const TITLE_HEIGHT = 32 * DPR;
+  const VERSION_HEIGHT = 14 * DPR;
+  const SUBTITLE_HEIGHT = 16 * DPR;
+  const TITLE_INTERNAL_GAP = 6 * DPR;      // Between title elements
 
-  const LEARN_BTN_HEIGHT = 36;
+  const LEARN_BTN_HEIGHT = 36 * DPR;
 
-  const HEADER_TEXT_HEIGHT = 18;
-  const BUTTON_HEIGHT = 52;
-  const BUTTON_GAP = 16;              // Between difficulty buttons
-  const HEADER_TO_BUTTON_GAP = 12;    // "Choose Your Fate" to first button
+  const HEADER_TEXT_HEIGHT = 18 * DPR;
+  const BUTTON_HEIGHT = 52 * DPR;
+  const BUTTON_GAP = 16 * DPR;              // Between difficulty buttons
+  const HEADER_TO_BUTTON_GAP = 12 * DPR;    // "Choose Your Fate" to first button
 
-  const HIGH_SCORES_HEIGHT = 160;
+  const HIGH_SCORES_HEIGHT = 160 * DPR;
 
   // Gaps between major groups
-  const GAP_TITLE_TO_LEARN = 30;
-  const GAP_LEARN_TO_DIFFICULTY = 30;
-  const GAP_DIFFICULTY_TO_SCORES = 24;
+  const GAP_TITLE_TO_LEARN = 30 * DPR;
+  const GAP_LEARN_TO_DIFFICULTY = 30 * DPR;
+  const GAP_DIFFICULTY_TO_SCORES = 24 * DPR;
 
   // ==========================================================================
   // CALCULATE GROUP HEIGHTS
@@ -549,7 +584,7 @@ export function getMenuSizing(scene: Phaser.Scene): ViewportSizing {
   // POSITION LAYOUT VERTICALLY
   // ==========================================================================
   // If layout fits: center it. If not: use minimum top padding.
-  const MIN_TOP_PADDING = 30;
+  const MIN_TOP_PADDING = 30 * DPR;
   const availableSpace = height - totalLayoutHeight;
   const topPadding = availableSpace > MIN_TOP_PADDING * 2
     ? availableSpace / 2  // Center if there's room
@@ -623,20 +658,20 @@ export function getMenuSizing(scene: Phaser.Scene): ViewportSizing {
     smallFontSize: '12px',
     tinyFontSize: '11px',
 
-    // Button dimensions
-    buttonWidth: Math.min(width * 0.70, 272),
+    // Button dimensions (max values scaled by DPR)
+    buttonWidth: Math.min(width * 0.70, 272 * DPR),
     buttonHeight: BUTTON_HEIGHT,
-    smallButtonWidth: Math.min(width * 0.38, 145),
+    smallButtonWidth: Math.min(width * 0.38, 145 * DPR),
     smallButtonHeight: LEARN_BTN_HEIGHT,
 
-    // Panel dimensions
-    panelWidth: Math.min(width * 0.85, 340),
-    highScoresPanelWidth: Math.min(width * 0.56, 200),
+    // Panel dimensions (max values scaled by DPR)
+    panelWidth: Math.min(width * 0.85, 340 * DPR),
+    highScoresPanelWidth: Math.min(width * 0.56, 200 * DPR),
     highScoresPanelHeight: HIGH_SCORES_HEIGHT,
 
-    // Spacing
-    padding: 12,
-    smallPadding: 6,
+    // Spacing (scaled by DPR)
+    padding: 12 * DPR,
+    smallPadding: 6 * DPR,
   };
 }
 
@@ -660,43 +695,46 @@ export function getMenuSizing(scene: Phaser.Scene): ViewportSizing {
  * Reference: https://rexrainbow.github.io/phaser3-rex-notes/docs/site/scalemanager/
  */
 export function getPortraitLayout(scene: Phaser.Scene): PortraitLayout {
-  // Use Phaser's scale API for actual visible dimensions
+  // Use Phaser's scale API for actual visible dimensions (device pixels)
   const { width, height } = scene.scale.gameSize;
   const safeArea = getSafeAreaInsets();
 
-  // Usable height after safe areas
+  // Usable height after safe areas (device pixels)
   const usableHeight = height - safeArea.top - safeArea.bottom;
+  const usableHeightCSS = usableHeight / DPR;
 
-  // Ultra-compact mode for very short screens (iPhone SE with browser chrome ~550px)
-  const isUltraCompact = usableHeight < 580;
+  // Ultra-compact mode for very short screens (iPhone SE with browser chrome ~550px CSS)
+  const isUltraCompact = usableHeightCSS < 580;
 
-  // === HEADER ===
-  const headerHeight = isUltraCompact ? 40 : 48;
-  const headerGap = isUltraCompact ? 5 : 8;
+  // === HEADER (scaled to device pixels) ===
+  const headerHeight = (isUltraCompact ? 40 : 48) * DPR;
+  const headerGap = (isUltraCompact ? 5 : 8) * DPR;
 
   // === DICE SIZING (match getScaledSizes logic) ===
-  const scale = Math.max(0.85, Math.min(1.15, width / REFERENCE_WIDTH));
-  const diceSize = scaleValue(RESPONSIVE.DICE_SIZE_MAX, scale, RESPONSIVE.DICE_SIZE_MIN, RESPONSIVE.DICE_SIZE_MAX);
+  const cssWidth = width / DPR;
+  const scale = Math.max(0.85, Math.min(1.15, cssWidth / REFERENCE_WIDTH_CSS));
+  const diceSizeCSS = scaleValue(RESPONSIVE.DICE_SIZE_MAX, scale, RESPONSIVE.DICE_SIZE_MIN, RESPONSIVE.DICE_SIZE_MAX);
+  const diceSize = diceSizeCSS * DPR;
   const diceRadius = diceSize / 2;
 
-  // Tip text above dice (matches dice-manager.ts)
-  const tipGap = 4;
-  const tipHeight = 14; // Approximate text height
+  // Tip text above dice (scaled to device pixels)
+  const tipGap = 4 * DPR;
+  const tipHeight = 14 * DPR; // Approximate text height
 
   // Lock icons below dice (matches dice-renderer.ts)
-  const iconScale = diceSize / 70;
-  const iconGap = Math.round(12 * iconScale);
-  const iconHeight = Math.round(10 * iconScale);
+  const iconScale = diceSize / (70 * DPR);
+  const iconGap = Math.round(12 * DPR * iconScale);
+  const iconHeight = Math.round(10 * DPR * iconScale);
 
-  // Controls panel height (matches dice-controls.ts)
-  const controlsPanelHeight = isUltraCompact ? 50 : 60;
+  // Controls panel height (scaled to device pixels)
+  const controlsPanelHeight = (isUltraCompact ? 50 : 60) * DPR;
 
   // Gap between icons and controls
-  const diceToControlsGap = isUltraCompact ? 4 : 8;
+  const diceToControlsGap = (isUltraCompact ? 4 : 8) * DPR;
 
-  // === CALCULATE POSITIONS ===
-  const headerY = safeArea.top + headerHeight / 2 + 5;
-  const headerEndY = safeArea.top + headerHeight + 5;
+  // === CALCULATE POSITIONS (all in device pixels) ===
+  const headerY = safeArea.top + headerHeight / 2 + 5 * DPR;
+  const headerEndY = safeArea.top + headerHeight + 5 * DPR;
 
   // Dice zone starts after header with gap
   const diceZoneStartY = headerEndY + headerGap;
@@ -708,15 +746,15 @@ export function getPortraitLayout(scene: Phaser.Scene): PortraitLayout {
   const controlsY = diceY + diceRadius + iconGap + iconHeight + diceToControlsGap + controlsPanelHeight / 2;
 
   // Scorecard starts after controls
-  const scorecardGap = isUltraCompact ? 8 : 12;
+  const scorecardGap = (isUltraCompact ? 8 : 12) * DPR;
   const scorecardStartY = controlsY + controlsPanelHeight / 2 + scorecardGap;
 
   // Bottom padding (for quit buttons, etc.)
-  const bottomPadding = isUltraCompact ? 35 : 45;
+  const bottomPadding = (isUltraCompact ? 35 : 45) * DPR;
 
   // Scorecard gets remaining space
   const scorecardHeight = Math.max(
-    200, // minimum usable height
+    200 * DPR, // minimum usable height
     height - safeArea.bottom - bottomPadding - scorecardStartY
   );
 
@@ -748,23 +786,28 @@ export function getGameplayLayout(scene: Phaser.Scene): GameplayLayout {
   const safeArea = getSafeAreaInsets();
   const centerX = width / 2;
 
-  // Usable height after safe areas
+  // Convert to CSS pixels for calculations
+  const cssWidth = width / DPR;
+
+  // Usable height after safe areas (device pixels, converted to CSS for threshold)
   const usableHeight = height - safeArea.top - safeArea.bottom;
 
-  // Ultra-compact mode for very short screens
-  const isUltraCompact = usableHeight < LAYOUT.ULTRA_COMPACT_THRESHOLD;
+  // Ultra-compact mode for very short screens (CSS pixels threshold)
+  const isUltraCompact = (usableHeight / DPR) < LAYOUT.ULTRA_COMPACT_THRESHOLD;
   const isMobile = true; // Always mobile-first
 
-  // Scale factor for sizing (clamped to 0.85-1.15)
-  const scale = Math.max(0.85, Math.min(1.15, width / REFERENCE_WIDTH));
+  // Scale factor for sizing (CSS pixels, clamped to 0.85-1.15)
+  const scale = Math.max(0.85, Math.min(1.15, cssWidth / REFERENCE_WIDTH_CSS));
 
   // ==========================================================================
-  // DICE SIZING
+  // DICE SIZING (calculate in CSS, convert to device pixels)
   // ==========================================================================
-  const diceSize = scaleValue(RESPONSIVE.DICE_SIZE_MAX, scale, RESPONSIVE.DICE_SIZE_MIN, RESPONSIVE.DICE_SIZE_MAX);
-  const diceSpacing = scaleValue(RESPONSIVE.DICE_SPACING_MAX, scale, RESPONSIVE.DICE_SPACING_MIN, RESPONSIVE.DICE_SPACING_MAX);
+  const diceSizeCSS = scaleValue(RESPONSIVE.DICE_SIZE_MAX, scale, RESPONSIVE.DICE_SIZE_MIN, RESPONSIVE.DICE_SIZE_MAX);
+  const diceSpacingCSS = scaleValue(RESPONSIVE.DICE_SPACING_MAX, scale, RESPONSIVE.DICE_SPACING_MIN, RESPONSIVE.DICE_SPACING_MAX);
+  const diceSize = toDPR(diceSizeCSS);
+  const diceSpacing = toDPR(diceSpacingCSS);
   const diceRadius = diceSize / 2;
-  const diceVisualScale = diceSize / LAYOUT.dice.REFERENCE_SIZE;
+  const diceVisualScale = diceSizeCSS / LAYOUT.dice.REFERENCE_SIZE;
 
   // Pip sizing proportional to dice
   const pipRadius = Math.round(diceSize * LAYOUT.dice.PIP_RADIUS_RATIO);
@@ -774,23 +817,24 @@ export function getGameplayLayout(scene: Phaser.Scene): GameplayLayout {
   // ICON SIZING (lock/cursed indicators below dice)
   // ==========================================================================
   const iconScale = diceVisualScale;
-  const iconGap = Math.round(LAYOUT.icons.GAP_BASE * iconScale);
-  const iconHeight = Math.round(LAYOUT.icons.HEIGHT_BASE * iconScale);
+  const iconGap = Math.round(toDPR(LAYOUT.icons.GAP_BASE) * iconScale);
+  const iconHeight = Math.round(toDPR(LAYOUT.icons.HEIGHT_BASE) * iconScale);
 
   // ==========================================================================
-  // HEADER
+  // HEADER (all values scaled to device pixels)
   // ==========================================================================
-  const headerHeight = isUltraCompact ? LAYOUT.header.HEIGHT_COMPACT : LAYOUT.header.HEIGHT;
-  const headerWidth = Math.min(RESPONSIVE.HEADER_WIDTH_MAX, width - LAYOUT.header.MARGIN);
-  const headerGap = isUltraCompact ? LAYOUT.header.GAP_COMPACT : LAYOUT.header.GAP;
-  const headerY = safeArea.top + headerHeight / 2 + LAYOUT.header.TOP_PADDING;
-  const headerEndY = safeArea.top + headerHeight + LAYOUT.header.TOP_PADDING;
+  const headerHeight = toDPR(isUltraCompact ? LAYOUT.header.HEIGHT_COMPACT : LAYOUT.header.HEIGHT);
+  const headerWidthCSS = Math.min(RESPONSIVE.HEADER_WIDTH_MAX, cssWidth - LAYOUT.header.MARGIN);
+  const headerWidth = toDPR(headerWidthCSS);
+  const headerGap = toDPR(isUltraCompact ? LAYOUT.header.GAP_COMPACT : LAYOUT.header.GAP);
+  const headerY = safeArea.top + headerHeight / 2 + toDPR(LAYOUT.header.TOP_PADDING);
+  const headerEndY = safeArea.top + headerHeight + toDPR(LAYOUT.header.TOP_PADDING);
 
   // ==========================================================================
   // TIP TEXT (above dice)
   // ==========================================================================
-  const tipGap = LAYOUT.tip.GAP;
-  const tipHeight = LAYOUT.tip.HEIGHT;
+  const tipGap = toDPR(LAYOUT.tip.GAP);
+  const tipHeight = toDPR(LAYOUT.tip.HEIGHT);
   const tipFontSize = isMobile ? FONTS.SIZE_MICRO : FONTS.SIZE_SMALL;
 
   // ==========================================================================
@@ -802,33 +846,34 @@ export function getGameplayLayout(scene: Phaser.Scene): GameplayLayout {
   const iconY = diceCenterY + diceRadius + iconGap;
 
   // ==========================================================================
-  // CONTROLS PANEL
+  // CONTROLS PANEL (all values scaled to device pixels)
   // ==========================================================================
-  const controlsHeight = isUltraCompact ? LAYOUT.controls.HEIGHT_COMPACT : LAYOUT.controls.HEIGHT;
-  const diceToControlsGap = isUltraCompact ? LAYOUT.controls.GAP_COMPACT : LAYOUT.controls.GAP;
+  const controlsHeight = toDPR(isUltraCompact ? LAYOUT.controls.HEIGHT_COMPACT : LAYOUT.controls.HEIGHT);
+  const diceToControlsGap = toDPR(isUltraCompact ? LAYOUT.controls.GAP_COMPACT : LAYOUT.controls.GAP);
   const controlsCenterY = diceCenterY + diceRadius + iconGap + iconHeight + diceToControlsGap + controlsHeight / 2;
 
   // Controls sizing
-  const controlsColWidth = isUltraCompact || isMobile ? LAYOUT.controls.COL_WIDTH_MOBILE : LAYOUT.controls.COL_WIDTH;
-  const controlsButtonHeight = isUltraCompact ? LAYOUT.controls.BUTTON_HEIGHT_COMPACT : (isMobile ? LAYOUT.controls.BUTTON_HEIGHT_MOBILE : LAYOUT.controls.BUTTON_HEIGHT);
-  const controlsButtonWidth = isMobile ? LAYOUT.controls.BUTTON_WIDTH_MOBILE : LAYOUT.controls.BUTTON_WIDTH;
-  const controlsDividerPadding = isUltraCompact ? LAYOUT.controls.DIVIDER_PADDING_COMPACT : (isMobile ? LAYOUT.controls.DIVIDER_PADDING_MOBILE : LAYOUT.controls.DIVIDER_PADDING);
+  const controlsColWidth = toDPR(isUltraCompact || isMobile ? LAYOUT.controls.COL_WIDTH_MOBILE : LAYOUT.controls.COL_WIDTH);
+  const controlsButtonHeight = toDPR(isUltraCompact ? LAYOUT.controls.BUTTON_HEIGHT_COMPACT : (isMobile ? LAYOUT.controls.BUTTON_HEIGHT_MOBILE : LAYOUT.controls.BUTTON_HEIGHT));
+  const controlsButtonWidth = toDPR(isMobile ? LAYOUT.controls.BUTTON_WIDTH_MOBILE : LAYOUT.controls.BUTTON_WIDTH);
+  const controlsDividerPadding = toDPR(isUltraCompact ? LAYOUT.controls.DIVIDER_PADDING_COMPACT : (isMobile ? LAYOUT.controls.DIVIDER_PADDING_MOBILE : LAYOUT.controls.DIVIDER_PADDING));
   const controlsFontSize = isMobile ? FONTS.SIZE_LABEL : FONTS.SIZE_BODY;
-  const controlsGlowPaddingX = isUltraCompact ? LAYOUT.controls.GLOW_PADDING_X_COMPACT : LAYOUT.controls.GLOW_PADDING_X;
-  const controlsGlowPaddingY = isUltraCompact ? LAYOUT.controls.GLOW_PADDING_Y_COMPACT : LAYOUT.controls.GLOW_PADDING_Y;
-  const controlsLabelValueGap = isMobile ? LAYOUT.controls.LABEL_VALUE_GAP_MOBILE : LAYOUT.controls.LABEL_VALUE_GAP;
-  const controlsCompactMeetOffset = isUltraCompact ? LAYOUT.controls.COMPACT_MEET_OFFSET_COMPACT : LAYOUT.controls.COMPACT_MEET_OFFSET;
+  const controlsGlowPaddingX = toDPR(isUltraCompact ? LAYOUT.controls.GLOW_PADDING_X_COMPACT : LAYOUT.controls.GLOW_PADDING_X);
+  const controlsGlowPaddingY = toDPR(isUltraCompact ? LAYOUT.controls.GLOW_PADDING_Y_COMPACT : LAYOUT.controls.GLOW_PADDING_Y);
+  const controlsLabelValueGap = toDPR(isMobile ? LAYOUT.controls.LABEL_VALUE_GAP_MOBILE : LAYOUT.controls.LABEL_VALUE_GAP);
+  const controlsCompactMeetOffset = toDPR(isUltraCompact ? LAYOUT.controls.COMPACT_MEET_OFFSET_COMPACT : LAYOUT.controls.COMPACT_MEET_OFFSET);
   const controlsUseCompactLayout = isUltraCompact || isMobile;
 
   // ==========================================================================
-  // SCORECARD
+  // SCORECARD (all values scaled to device pixels)
   // ==========================================================================
-  const scorecardGap = isUltraCompact ? LAYOUT.scorecard.GAP_COMPACT : LAYOUT.scorecard.GAP;
+  const scorecardGap = toDPR(isUltraCompact ? LAYOUT.scorecard.GAP_COMPACT : LAYOUT.scorecard.GAP);
   const scorecardY = controlsCenterY + controlsHeight / 2 + scorecardGap;
-  const scorecardWidth = Math.min(RESPONSIVE.SCORECARD_WIDTH_TWO_COL, width - LAYOUT.header.MARGIN);
+  const scorecardWidthCSS = Math.min(RESPONSIVE.SCORECARD_WIDTH_TWO_COL, cssWidth - LAYOUT.header.MARGIN);
+  const scorecardWidth = toDPR(scorecardWidthCSS);
   const scorecardX = (width - scorecardWidth) / 2;
-  const bottomPadding = isUltraCompact ? LAYOUT.scorecard.BOTTOM_PADDING_COMPACT : LAYOUT.scorecard.BOTTOM_PADDING;
-  const scorecardHeight = Math.max(LAYOUT.scorecard.MIN_HEIGHT, height - safeArea.bottom - bottomPadding - scorecardY);
+  const bottomPadding = toDPR(isUltraCompact ? LAYOUT.scorecard.BOTTOM_PADDING_COMPACT : LAYOUT.scorecard.BOTTOM_PADDING);
+  const scorecardHeight = Math.max(toDPR(LAYOUT.scorecard.MIN_HEIGHT), height - safeArea.bottom - bottomPadding - scorecardY);
 
   // ==========================================================================
   // RETURN COMPLETE LAYOUT

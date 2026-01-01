@@ -55,29 +55,60 @@ window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => 
 // RESPONSIVE CONFIGURATION
 // =============================================================================
 
-log.log(`Device pixel ratio: ${window.devicePixelRatio}`);
+const DPR = window.devicePixelRatio || 1;
+log.log(`Device pixel ratio: ${DPR}`);
+
+/**
+ * Get the game container's CSS dimensions
+ * On desktop, container is locked to 430px width via CSS
+ * On mobile, container fills the viewport
+ */
+function getContainerSize(): { width: number; height: number } {
+  const container = document.getElementById('game-container');
+  if (container) {
+    const rect = container.getBoundingClientRect();
+    // Debug: log what we're getting
+    log.log(`Container rect: width=${rect.width}, height=${rect.height}, top=${rect.top}, left=${rect.left}`);
+
+    // If container has no dimensions yet (CSS not applied), fall back to window
+    if (rect.width === 0 || rect.height === 0) {
+      log.warn('Container has no dimensions, falling back to window size');
+      return { width: window.innerWidth, height: window.innerHeight };
+    }
+    return { width: rect.width, height: rect.height };
+  }
+  // Fallback to window if container not found
+  log.warn('Container not found, falling back to window size');
+  return { width: window.innerWidth, height: window.innerHeight };
+}
+
+const initialSize = getContainerSize();
+log.log(`Container size: ${initialSize.width}x${initialSize.height} CSS pixels`);
+log.log(`DPR: ${DPR}, Canvas will be: ${initialSize.width * DPR}x${initialSize.height * DPR} device pixels`);
 
 /**
  * Phaser Game Configuration
- * Uses Scale.EXPAND for true mobile-first scaling
- * - Canvas fills parent container exactly (no letterboxing)
- * - Game dimensions match actual viewport
- * - All UI uses viewport-relative sizing (percentages)
- * - Text sharpness handled via setResolution() in createText helper
+ * Uses Scale.NONE + zoom for crisp text on high-DPR displays
+ * - Canvas created at device pixel resolution (container × DPR)
+ * - Zoom scales display back to CSS pixels (1/DPR)
+ * - All coordinates work in device pixels for pixel-perfect rendering
+ * - Text sharpness via resolution: DPR in createText helper
  */
 const phaserConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.WEBGL,
   parent: 'game-container',
   backgroundColor: COLORS.BG_DARK,
   scale: {
-    mode: Phaser.Scale.RESIZE,
-    autoCenter: Phaser.Scale.NO_CENTER,
+    mode: Phaser.Scale.NONE,
+    width: initialSize.width * DPR,
+    height: initialSize.height * DPR,
+    zoom: 1 / DPR,
   },
   render: {
     antialias: true,
     antialiasGL: true,
     pixelArt: false,
-    roundPixels: false,
+    roundPixels: true,
   },
   audio: {
     disableWebAudio: false, // Enable audio for music
@@ -97,19 +128,34 @@ const phaserConfig: Phaser.Types.Core.GameConfig = {
 const game = new Phaser.Game(phaserConfig);
 
 /**
- * Handle orientation change on mobile (iOS Safari needs a delay)
- * EXPAND mode handles resize automatically, but orientation needs a nudge
+ * Handle resize/orientation changes
+ * Scale.NONE requires manual resize handling
  */
+function handleResize(): void {
+  const size = getContainerSize();
+  const newWidth = size.width * DPR;
+  const newHeight = size.height * DPR;
+  game.scale.resize(newWidth, newHeight);
+  log.debug(`Resized to ${newWidth}x${newHeight} (DPR: ${DPR})`);
+}
+
+window.addEventListener('resize', handleResize);
 window.addEventListener('orientationchange', () => {
-  setTimeout(() => {
-    game.scale.refresh();
-    log.debug('Orientation changed, scale refreshed');
-  }, 100);
+  // iOS Safari needs a delay for orientation changes
+  setTimeout(handleResize, 100);
 });
 
 // Show game container after Phaser finishes initializing (hides resize flicker)
 game.events.once('ready', () => {
   requestAnimationFrame(() => {
     document.getElementById('game-container')?.classList.add('ready');
+
+    // Debug: Log actual canvas dimensions
+    const canvas = game.canvas;
+    if (canvas) {
+      log.log(`Canvas internal: ${canvas.width}x${canvas.height}`);
+      log.log(`Canvas CSS: ${canvas.style.width}x${canvas.style.height}`);
+      log.log(`Canvas getBoundingClientRect: ${canvas.getBoundingClientRect().width}x${canvas.getBoundingClientRect().height}`);
+    }
   });
 });

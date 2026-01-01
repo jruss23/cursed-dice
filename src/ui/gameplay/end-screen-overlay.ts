@@ -5,6 +5,7 @@
 
 import Phaser from 'phaser';
 import { FONTS, PALETTE, COLORS, SIZES, TIMING, DEPTH, CELEBRATION, END_SCREEN, FLASH } from '@/config';
+import { toDPR } from '@/systems/responsive';
 import { createText, hexToRgb } from '@/ui/ui-utils';
 import { MODE_CONFIGS, type GameMode } from '@/systems/game-progression';
 
@@ -32,80 +33,102 @@ interface EndScreenLayout {
 
 function getEndScreenLayout(showPreview: boolean): EndScreenLayout {
   const S = END_SCREEN;
-  const panelWidth = S.PANEL_WIDTH;
-  const buttonHeight = S.BUTTON_HEIGHT;
-  const previewBoxHeight = showPreview ? S.PREVIEW_BOX_HEIGHT : 0;
+
+  // Scale all dimensions for DPR
+  const panelWidth = toDPR(S.PANEL_WIDTH);
+  const panelPadding = toDPR(S.PANEL_PADDING);
+  const buttonHeight = toDPR(S.BUTTON_HEIGHT);
+  const previewBoxHeight = showPreview ? toDPR(S.PREVIEW_BOX_HEIGHT) : 0;
+
+  // Scale element heights
+  const titleHeight = toDPR(S.TITLE_HEIGHT);
+  const subtitleHeight = toDPR(S.SUBTITLE_HEIGHT);
+  const dividerHeight = toDPR(S.DIVIDER_HEIGHT);
+  const scoreLabelHeight = toDPR(S.SCORE_LABEL_HEIGHT);
+  const scoreValueHeight = toDPR(S.SCORE_VALUE_HEIGHT);
+  const scoreRoundHeight = toDPR(S.SCORE_ROUND_HEIGHT);
+
+  // Scale gaps
+  const gapTitleToSubtitle = toDPR(S.GAP_TITLE_TO_SUBTITLE);
+  const gapSubtitleToPreview = toDPR(S.GAP_SUBTITLE_TO_PREVIEW);
+  const gapPreviewToDivider = toDPR(S.GAP_PREVIEW_TO_DIVIDER);
+  const gapSubtitleToDivider = toDPR(S.GAP_SUBTITLE_TO_DIVIDER);
+  const gapDividerToScores = toDPR(S.GAP_DIVIDER_TO_SCORES);
+  const gapScoreLabelToValue = toDPR(S.GAP_SCORE_LABEL_TO_VALUE);
+  const gapScoreValueToRound = toDPR(S.GAP_SCORE_VALUE_TO_ROUND);
+  const gapScoresToDivider = toDPR(S.GAP_SCORES_TO_DIVIDER);
+  const gapDividerToButton = toDPR(S.GAP_DIVIDER_TO_BUTTON);
 
   // Calculate total content height
   let contentHeight = 0;
 
   // Title group
-  contentHeight += S.TITLE_HEIGHT;
-  contentHeight += S.GAP_TITLE_TO_SUBTITLE;
-  contentHeight += S.SUBTITLE_HEIGHT;
+  contentHeight += titleHeight;
+  contentHeight += gapTitleToSubtitle;
+  contentHeight += subtitleHeight;
 
   // Preview box (conditional)
   if (showPreview) {
-    contentHeight += S.GAP_SUBTITLE_TO_PREVIEW;
+    contentHeight += gapSubtitleToPreview;
     contentHeight += previewBoxHeight;
-    contentHeight += S.GAP_PREVIEW_TO_DIVIDER;
+    contentHeight += gapPreviewToDivider;
   } else {
-    contentHeight += S.GAP_SUBTITLE_TO_DIVIDER;
+    contentHeight += gapSubtitleToDivider;
   }
 
   // Divider 1
-  contentHeight += S.DIVIDER_HEIGHT;
-  contentHeight += S.GAP_DIVIDER_TO_SCORES;
+  contentHeight += dividerHeight;
+  contentHeight += gapDividerToScores;
 
   // Score group
-  contentHeight += S.SCORE_LABEL_HEIGHT;
-  contentHeight += S.GAP_SCORE_LABEL_TO_VALUE;
-  contentHeight += S.SCORE_VALUE_HEIGHT;
-  contentHeight += S.GAP_SCORE_VALUE_TO_ROUND;
-  contentHeight += S.SCORE_ROUND_HEIGHT;
-  contentHeight += S.GAP_SCORES_TO_DIVIDER;
+  contentHeight += scoreLabelHeight;
+  contentHeight += gapScoreLabelToValue;
+  contentHeight += scoreValueHeight;
+  contentHeight += gapScoreValueToRound;
+  contentHeight += scoreRoundHeight;
+  contentHeight += gapScoresToDivider;
 
   // Divider 2
-  contentHeight += S.DIVIDER_HEIGHT;
-  contentHeight += S.GAP_DIVIDER_TO_BUTTON;
+  contentHeight += dividerHeight;
+  contentHeight += gapDividerToButton;
 
   // Button
   contentHeight += buttonHeight;
 
-  const panelHeight = contentHeight + S.PANEL_PADDING * 2;
+  const panelHeight = contentHeight + panelPadding * 2;
 
   // Calculate Y positions (relative to panel top-left at 0,0)
-  let y = S.PANEL_PADDING;
+  let y = panelPadding;
 
-  const titleY = y + S.TITLE_HEIGHT / 2;
-  y += S.TITLE_HEIGHT + S.GAP_TITLE_TO_SUBTITLE;
+  const titleY = y + titleHeight / 2;
+  y += titleHeight + gapTitleToSubtitle;
 
-  const subtitleY = y + S.SUBTITLE_HEIGHT / 2;
-  y += S.SUBTITLE_HEIGHT;
+  const subtitleY = y + subtitleHeight / 2;
+  y += subtitleHeight;
 
   let previewBoxY = 0;
   if (showPreview) {
-    y += S.GAP_SUBTITLE_TO_PREVIEW;
+    y += gapSubtitleToPreview;
     previewBoxY = y + previewBoxHeight / 2;
-    y += previewBoxHeight + S.GAP_PREVIEW_TO_DIVIDER;
+    y += previewBoxHeight + gapPreviewToDivider;
   } else {
-    y += S.GAP_SUBTITLE_TO_DIVIDER;
+    y += gapSubtitleToDivider;
   }
 
-  const divider1Y = y + S.DIVIDER_HEIGHT / 2;
-  y += S.DIVIDER_HEIGHT + S.GAP_DIVIDER_TO_SCORES;
+  const divider1Y = y + dividerHeight / 2;
+  y += dividerHeight + gapDividerToScores;
 
-  const scoreLabelY = y + S.SCORE_LABEL_HEIGHT / 2;
-  y += S.SCORE_LABEL_HEIGHT + S.GAP_SCORE_LABEL_TO_VALUE;
+  const scoreLabelY = y + scoreLabelHeight / 2;
+  y += scoreLabelHeight + gapScoreLabelToValue;
 
-  const scoreValueY = y + S.SCORE_VALUE_HEIGHT / 2;
-  y += S.SCORE_VALUE_HEIGHT + S.GAP_SCORE_VALUE_TO_ROUND;
+  const scoreValueY = y + scoreValueHeight / 2;
+  y += scoreValueHeight + gapScoreValueToRound;
 
-  const scoreRoundY = y + S.SCORE_ROUND_HEIGHT / 2;
-  y += S.SCORE_ROUND_HEIGHT + S.GAP_SCORES_TO_DIVIDER;
+  const scoreRoundY = y + scoreRoundHeight / 2;
+  y += scoreRoundHeight + gapScoresToDivider;
 
-  const divider2Y = y + S.DIVIDER_HEIGHT / 2;
-  y += S.DIVIDER_HEIGHT + S.GAP_DIVIDER_TO_BUTTON;
+  const divider2Y = y + dividerHeight / 2;
+  y += dividerHeight + gapDividerToButton;
 
   const buttonY = y + buttonHeight / 2;
 
@@ -121,9 +144,9 @@ function getEndScreenLayout(showPreview: boolean): EndScreenLayout {
     scoreRoundY,
     divider2Y,
     buttonY,
-    buttonWidth: S.BUTTON_WIDTH,
+    buttonWidth: toDPR(S.BUTTON_WIDTH),
     buttonHeight,
-    buttonOffset: S.BUTTON_OFFSET,
+    buttonOffset: toDPR(S.BUTTON_OFFSET),
     previewBoxHeight,
   };
 }
@@ -196,7 +219,7 @@ export class EndScreenOverlay {
     this.layout = getEndScreenLayout(showPreview);
 
     // Constrain panel width to viewport
-    const panelWidth = Math.min(this.layout.panelWidth, width - END_SCREEN.PANEL_MARGIN);
+    const panelWidth = Math.min(this.layout.panelWidth, width - toDPR(END_SCREEN.PANEL_MARGIN));
     const panelHeight = this.layout.panelHeight;
     const panelX = (width - panelWidth) / 2;
     const panelY = (height - panelHeight) / 2;
@@ -228,7 +251,7 @@ export class EndScreenOverlay {
       panelWidth, panelHeight,
       PALETTE.purple[900], 0.98
     );
-    this.panelBg.setStrokeStyle(SIZES.PANEL_BORDER_WIDTH, PALETTE.purple[500], 0.8);
+    this.panelBg.setStrokeStyle(toDPR(SIZES.PANEL_BORDER_WIDTH), PALETTE.purple[500], 0.8);
     this.panel.add(this.panelBg);
 
     // Corner accents
@@ -274,7 +297,7 @@ export class EndScreenOverlay {
       const nextModeNum = (currentMode + 1) as GameMode;
       const nextMode = MODE_CONFIGS[nextModeNum];
       if (nextMode) {
-        const previewBoxWidth = panelWidth - 40;
+        const previewBoxWidth = panelWidth - toDPR(40);
 
         // Red warning box
         const previewBox = this.scene.add.rectangle(
@@ -282,13 +305,13 @@ export class EndScreenOverlay {
           previewBoxWidth, L.previewBoxHeight,
           PALETTE.red[800], 0.4
         );
-        previewBox.setStrokeStyle(1, PALETTE.red[500], 0.5);
+        previewBox.setStrokeStyle(toDPR(1), PALETTE.red[500], 0.5);
         this.panel.add(previewBox);
 
         // Warning icons + title (inside preview box)
-        const row1Offset = 14;
+        const row1Offset = toDPR(14);
         const row1Y = L.previewBoxY - row1Offset;
-        const iconOffset = 20;
+        const iconOffset = toDPR(20);
 
         const iconLeft = createText(this.scene, panelWidth / 2 - previewBoxWidth / 2 + iconOffset, row1Y, '⚠️', {
           fontSize: FONTS.SIZE_SMALL,
@@ -319,7 +342,7 @@ export class EndScreenOverlay {
           fontSize: FONTS.SIZE_TINY,
           fontFamily: FONTS.FAMILY,
           color: COLORS.TEXT_WARNING,
-          wordWrap: { width: previewBoxWidth - 20 },
+          wordWrap: { width: previewBoxWidth - toDPR(20) },
           align: 'center',
         });
         nextDesc.setOrigin(0.5, 0.5);
@@ -328,7 +351,8 @@ export class EndScreenOverlay {
     }
 
     // Divider line
-    const divider1 = this.scene.add.rectangle(panelWidth / 2, L.divider1Y, panelWidth - 60, 1, PALETTE.purple[500], 0.4);
+    const dividerInset = toDPR(60);
+    const divider1 = this.scene.add.rectangle(panelWidth / 2, L.divider1Y, panelWidth - dividerInset, 1, PALETTE.purple[500], 0.4);
     this.panel.add(divider1);
     this.dividers.push(divider1);
 
@@ -336,7 +360,7 @@ export class EndScreenOverlay {
     this.buildScoresSection(panelWidth, modeScore, totalScore, passed);
 
     // Divider before buttons
-    const divider2 = this.scene.add.rectangle(panelWidth / 2, L.divider2Y, panelWidth - 60, 1, PALETTE.purple[500], 0.4);
+    const divider2 = this.scene.add.rectangle(panelWidth / 2, L.divider2Y, panelWidth - dividerInset, 1, PALETTE.purple[500], 0.4);
     this.panel.add(divider2);
     this.dividers.push(divider2);
 
@@ -359,7 +383,7 @@ export class EndScreenOverlay {
 
     this.cornerData.forEach(corner => {
       const accent = this.scene.add.graphics();
-      accent.lineStyle(2, PALETTE.purple[400], 0.6);
+      accent.lineStyle(toDPR(2), PALETTE.purple[400], 0.6);
       accent.beginPath();
       accent.moveTo(corner.x, corner.y + cornerSize * corner.ay);
       accent.lineTo(corner.x, corner.y);
@@ -546,12 +570,13 @@ export class EndScreenOverlay {
     const s = styles[style];
 
     // Button glow
-    const btnGlow = this.scene.add.rectangle(x, y, btnWidth + 8, btnHeight + 8, s.glow, 0.1);
+    const glowPad = toDPR(8);
+    const btnGlow = this.scene.add.rectangle(x, y, btnWidth + glowPad, btnHeight + glowPad, s.glow, 0.1);
     this.panel.add(btnGlow);
 
     // Button background
     const btnBg = this.scene.add.rectangle(x, y, btnWidth, btnHeight, s.bg, 0.95);
-    btnBg.setStrokeStyle(2, s.border);
+    btnBg.setStrokeStyle(toDPR(2), s.border);
     btnBg.setInteractive({ useHandCursor: true });
     this.panel.add(btnBg);
 
@@ -568,12 +593,12 @@ export class EndScreenOverlay {
     // Hover effects
     btnBg.on('pointerover', () => {
       btnBg.setFillStyle(s.bgHover, 1);
-      btnBg.setStrokeStyle(2, s.borderHover);
+      btnBg.setStrokeStyle(toDPR(2), s.borderHover);
       btnGlow.setAlpha(0.25);
     });
     btnBg.on('pointerout', () => {
       btnBg.setFillStyle(s.bg, 0.95);
-      btnBg.setStrokeStyle(2, s.border);
+      btnBg.setStrokeStyle(toDPR(2), s.border);
       btnGlow.setAlpha(0.1);
     });
     btnBg.on('pointerdown', onClick);
@@ -852,7 +877,7 @@ export class EndScreenOverlay {
             Math.floor(borderProxy.g),
             Math.floor(borderProxy.b)
           );
-          this.panelBg?.setStrokeStyle(SIZES.PANEL_BORDER_WIDTH, color, 1);
+          this.panelBg?.setStrokeStyle(toDPR(SIZES.PANEL_BORDER_WIDTH), color, 1);
         },
       });
       this.tweens.push(borderTween);
@@ -905,7 +930,7 @@ export class EndScreenOverlay {
           );
           const corner = this.cornerData[index];
           accent.clear();
-          accent.lineStyle(2, color, 1);
+          accent.lineStyle(toDPR(2), color, 1);
           accent.beginPath();
           accent.moveTo(corner.x, corner.y + cornerSize * corner.ay);
           accent.lineTo(corner.x, corner.y);
@@ -1114,7 +1139,7 @@ export class EndScreenOverlay {
             Math.floor(borderProxy.g),
             Math.floor(borderProxy.b)
           );
-          this.victoryButtonBg?.setStrokeStyle(2, color, 1);
+          this.victoryButtonBg?.setStrokeStyle(toDPR(2), color, 1);
         },
       });
       this.tweens.push(borderTween);
