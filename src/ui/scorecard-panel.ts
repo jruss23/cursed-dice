@@ -1030,10 +1030,11 @@ export class ScorecardPanel implements TutorialControllableScorecard {
    */
   getCategoriesCounterBounds(): Bounds {
     const lc = this.layoutConfig;
-    const counterWidth = 56;
+    const counterWidth = toDPR(56);
+    const rightPadding = toDPR(6);
     const counterHeight = lc.titleHeight;
     return {
-      x: this.config.x + lc.width - counterWidth - 6,
+      x: this.config.x + lc.width - counterWidth - rightPadding,
       y: this.config.y + lc.contentPadding,
       width: counterWidth,
       height: counterHeight,
@@ -1087,11 +1088,12 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     const bottomRow = leftRows[leftRows.length - 1];
     const bottomY = bottomRow.y + bottomRow.height;
 
+    const borderPadding = toDPR(1);
     return {
-      x: this.config.x + lc.leftColumnX - 1,
-      y: this.config.y + topY - 1,
-      width: lc.columnWidth + 2,
-      height: bottomY - topY + 2,
+      x: this.config.x + lc.leftColumnX - borderPadding,
+      y: this.config.y + topY - borderPadding,
+      width: lc.columnWidth + borderPadding * 2,
+      height: bottomY - topY + borderPadding * 2,
     };
   }
 

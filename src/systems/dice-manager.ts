@@ -6,6 +6,7 @@
 
 import Phaser from 'phaser';
 import { SIZES, FONTS, GAME_RULES, COLORS, type GameplayLayout } from '@/config';
+import { toDPR } from '@/systems/responsive';
 import { createText } from '@/ui/ui-utils';
 import { GameEventEmitter } from './game-events';
 import { createLogger } from './logger';
@@ -831,14 +832,14 @@ export class DiceManager implements TutorialControllableDice {
    */
   getDiceAreaBounds(): { x: number; y: number; width: number; height: number } {
     const diceAreaWidth = (GAME_RULES.DICE_COUNT - 1) * this.sizeConfig.spacing + this.sizeConfig.size;
-    const padding = 10;
+    const padding = toDPR(10);
 
     // Top: starts at the tip text (with some padding above)
-    const topY = this.layoutCenterY - this.layoutTipOffset - 12;
+    const topY = this.layoutCenterY - this.layoutTipOffset - toDPR(12);
 
     // Bottom: stops at the top of the controls panel
     const controlsBounds = this.getControlsBounds();
-    const bottomY = controlsBounds.y - 4;
+    const bottomY = controlsBounds.y - toDPR(4);
 
     return {
       x: this.layoutCenterX - diceAreaWidth / 2 - padding,
