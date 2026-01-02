@@ -762,10 +762,18 @@ cd "$(dirname "$0")"
 ## Recent Session Work (Jan 2, 2026)
 
 ### Phaser 4.0.0-rc.6 Upgrade - COMPLETE
-- [x] **Upgraded from Phaser 3.90 to 4.0.0-rc.6** - No code changes required
+- [x] **Upgraded from Phaser 3.90 to 4.0.0-rc.6**
 - [x] **Verified no breaking changes** - No camera.matrix usage, all standard APIs
 - [x] **All tests passing** - 103 tests pass
-- [x] **Build successful** - Bundle size ~407KB gzip (slight increase expected)
+- [x] **Build successful** - Bundle size ~407KB gzip
+
+**Bug Fixes Required:**
+1. **Rectangle origin bug** - Phaser 4 renders rectangles with non-default origins (e.g., `setOrigin(0, 1)`) as triangles
+   - Fix: Changed pause/quit buttons to center-based positioning (`src/scenes/gameplay/ui-setup.ts`)
+2. **Lock icon z-order bug** - Red X icons disappearing in Mode 3/4 (unrelated to Phaser 4, pre-existing)
+   - Root cause: Hover-promoted elements covered lock icons due to `bringToTop()` calls
+   - Fix: Call `bringToTop()` on lockIcon when making visible (`src/ui/scorecard-panel.ts`)
+   - Changed from Graphics-based X to Text-based "X" for consistent font metrics
 
 **Benefits:**
 - Better iOS audio handling

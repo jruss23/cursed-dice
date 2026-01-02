@@ -41,7 +41,7 @@ interface CategoryRow {
   nameText: Phaser.GameObjects.Text;
   scoreText: Phaser.GameObjects.Text;
   potentialText: Phaser.GameObjects.Text;
-  lockIcon: Phaser.GameObjects.Graphics;
+  lockIcon: Phaser.GameObjects.Text;
   background: Phaser.GameObjects.Rectangle;
   hitArea: Phaser.GameObjects.Rectangle;
   rowColor: number;
@@ -247,29 +247,19 @@ export class ScorecardPanel implements TutorialControllableScorecard {
   // UI BUILDING
   // ===========================================================================
 
-  /** Helper to create a "locked" X icon using Graphics */
-  private createLockIcon(x: number, y: number, color: number = PALETTE.red[400]): Phaser.GameObjects.Graphics {
-    const g = this.scene.add.graphics();
-    const size = toDPR(5); // Half-size of the X (total 10px CSS)
-    const strokeWidth = toDPR(2.5);
-
-    // Draw X shape - two diagonal lines
-    g.lineStyle(strokeWidth, color, 1);
-
-    // Top-left to bottom-right
-    g.beginPath();
-    g.moveTo(x - size, y - size);
-    g.lineTo(x + size, y + size);
-    g.strokePath();
-
-    // Top-right to bottom-left
-    g.beginPath();
-    g.moveTo(x + size, y - size);
-    g.lineTo(x - size, y + size);
-    g.strokePath();
-
-    g.setVisible(false); // Hidden by default
-    return g;
+  /** Helper to create a "locked" X icon using Text (more reliable than Graphics) */
+  private createLockIcon(x: number, y: number, color: number = PALETTE.red[400]): Phaser.GameObjects.Text {
+    const colorStr = '#' + color.toString(16).padStart(6, '0');
+    // Use same font size as potentialText for consistent vertical alignment
+    const icon = createText(this.scene, x, y, 'X', {
+      fontSize: this.layoutConfig.smallFontSize,
+      fontFamily: FONTS.FAMILY,
+      color: colorStr,
+      fontStyle: 'bold',
+    });
+    icon.setOrigin(0.5, 0.5);
+    icon.setVisible(false); // Hidden by default
+    return icon;
   }
 
   private build(): void {
@@ -705,6 +695,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
    * Update display to reflect current scorecard state
    */
   updateDisplay(): void {
+
     // Update category rows
     for (const [id, row] of this.categoryRows) {
       const cat = this.scorecard.getCategory(id);
@@ -726,6 +717,8 @@ export class ScorecardPanel implements TutorialControllableScorecard {
         row.scoreText.setText('');
         row.potentialText.setText('');
         row.lockIcon.setVisible(true);
+        // Bring lockIcon to top to ensure it's visible above any hover-promoted elements
+        this.container.bringToTop(row.lockIcon);
         row.background.setFillStyle(LOCKED_CATEGORY_COLOR);
         row.background.setStrokeStyle(toDPR(1), LOCKED_CATEGORY_BORDER);
         row.hitArea.disableInteractive();

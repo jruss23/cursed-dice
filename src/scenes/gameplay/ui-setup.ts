@@ -162,14 +162,14 @@ export function createControlButtons(config: ControlButtonsConfig): ControlButto
   const btnGap = toDPR(4);
   const margin = toDPR(6);
 
-  // PAUSE button (left)
-  const pauseX = margin;
-  const pauseBg = scene.add.rectangle(pauseX, btnY, btnWidth, btnHeight, PALETTE.purple[700], ALPHA.PANEL_SOLID);
-  pauseBg.setOrigin(0, 1);
+  // PAUSE button (left) - use center origin for Phaser 4 compatibility
+  const pauseCenterX = margin + btnWidth / 2;
+  const pauseCenterY = btnY - btnHeight / 2;
+  const pauseBg = scene.add.rectangle(pauseCenterX, pauseCenterY, btnWidth, btnHeight, PALETTE.purple[700], ALPHA.PANEL_SOLID);
   pauseBg.setStrokeStyle(toDPR(2), PALETTE.purple[500], ALPHA.BORDER_SOLID);
   pauseBg.setInteractive({ useHandCursor: true });
 
-  const pauseText = createText(scene, pauseX + btnWidth / 2, btnY - btnHeight / 2, 'PAUSE', {
+  const pauseText = createText(scene, pauseCenterX, pauseCenterY, 'PAUSE', {
     fontSize: FONTS.SIZE_SMALL,
     fontFamily: FONTS.FAMILY,
     color: COLORS.TEXT_ACCENT,
@@ -187,14 +187,14 @@ export function createControlButtons(config: ControlButtonsConfig): ControlButto
   });
   pauseBg.on('pointerdown', () => config.onPause());
 
-  // QUIT button (right of pause)
-  const quitX = pauseX + btnWidth + btnGap;
-  const quitBg = scene.add.rectangle(quitX, btnY, btnWidth, btnHeight, PALETTE.red[800], ALPHA.PANEL_SOLID);
-  quitBg.setOrigin(0, 1);
+  // QUIT button (right of pause) - use center origin for Phaser 4 compatibility
+  const quitCenterX = margin + btnWidth + btnGap + btnWidth / 2;
+  const quitCenterY = btnY - btnHeight / 2;
+  const quitBg = scene.add.rectangle(quitCenterX, quitCenterY, btnWidth, btnHeight, PALETTE.red[800], ALPHA.PANEL_SOLID);
   quitBg.setStrokeStyle(toDPR(2), PALETTE.red[500], ALPHA.BORDER_SOLID);
   quitBg.setInteractive({ useHandCursor: true });
 
-  const quitText = createText(scene, quitX + btnWidth / 2, btnY - btnHeight / 2, 'QUIT', {
+  const quitText = createText(scene, quitCenterX, quitCenterY, 'QUIT', {
     fontSize: FONTS.SIZE_SMALL,
     fontFamily: FONTS.FAMILY,
     color: COLORS.TEXT_DANGER,
