@@ -404,7 +404,7 @@ export class MenuScene extends BaseScene {
       style: 'primary',
       onClick: () => {
         this.cameras.main.flash(TIMING.FAST, FLASH.GREEN.r, FLASH.GREEN.g, FLASH.GREEN.b);
-        this.closeTutorialChoiceDialog();
+        // Don't close dialog - let it stay visible during fade, cleaned up in onShutdown
         this.startTutorial(true);
       },
     });
@@ -420,7 +420,7 @@ export class MenuScene extends BaseScene {
       style: 'secondary',
       onClick: () => {
         this.cameras.main.flash(TIMING.FAST, FLASH.PURPLE.r, FLASH.PURPLE.g, FLASH.PURPLE.b);
-        this.closeTutorialChoiceDialog();
+        // Don't close dialog - let it stay visible during fade, cleaned up in onShutdown
         this.startTutorial(false);
       },
     });
