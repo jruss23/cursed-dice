@@ -1,6 +1,6 @@
 # Cursed Dice - Development Progress & Architecture Review
 
-## Last Updated: January 1, 2026
+## Last Updated: January 2, 2026
 
 ---
 
@@ -756,6 +756,42 @@ cd "$(dirname "$0")"
 - `android/app/src/main/res/values/colors.xml` - Dark theme colors (#0a0a1a)
 - `android/gradle.properties` - JVM args for IPv4 preference
 - `~/.gradle/gradle.properties` - Global Gradle settings
+
+---
+
+## Recent Session Work (Jan 2, 2026)
+
+### Barrel Files & Import Audit - COMPLETE
+- [x] **Audited all 11 barrel files** - Reviewed usage patterns across codebase
+- [x] **Added blessing class exports** - `SixthBlessing`, `MercyBlessing`, `SanctuaryBlessing`, `BlessingOfAbundance` now exported from `@/systems/blessings`
+- [x] **Fixed 7 direct imports** - Updated to use barrel files:
+  - `ui/pause-menu.ts` → `@/ui/base`
+  - `ui/menu/menu-settings-panel.ts` → `@/ui/base`
+  - `systems/debug-controller.ts` → `@/systems/blessings`
+  - `ui/blessing-choice-panel.ts` → `@/systems/blessings`
+  - `scenes/TutorialScene.ts` → `@/ui/gameplay`
+  - `scenes/GameplayScene.ts` → `@/systems/blessings`
+- [x] **Fixed duplicate import** - `scenes/gameplay/ui-setup.ts` had two separate imports from `@/ui/gameplay`
+
+### Test Environment Fix - COMPLETE
+- [x] **Fixed DPR for Node environment** - `responsive.ts:172` now checks `typeof window !== 'undefined'`
+- [x] **All 103 tests passing** - Previously 2 test files failed due to `window.devicePixelRatio` at module load
+
+### Code Quality
+- TypeScript: ✅ Clean (0 errors)
+- ESLint: ✅ Clean (0 warnings)
+- Tests: ✅ 103 passed
+
+### Files Modified
+- `src/systems/blessings/index.ts` - Added blessing class exports
+- `src/systems/responsive.ts` - Node-safe DPR constant
+- `src/scenes/GameplayScene.ts` - Use barrel import
+- `src/scenes/TutorialScene.ts` - Use barrel import
+- `src/scenes/gameplay/ui-setup.ts` - Combined duplicate imports
+- `src/systems/debug-controller.ts` - Use barrel import
+- `src/ui/blessing-choice-panel.ts` - Use barrel import
+- `src/ui/menu/menu-settings-panel.ts` - Use barrel import
+- `src/ui/pause-menu.ts` - Use barrel import
 
 ---
 

@@ -17,8 +17,7 @@ import {
   type ViewportMetrics,
 } from '@/config';
 import { toDPR } from '@/systems/responsive';
-import { HeaderPanel } from '@/ui/gameplay';
-import { DebugPanel } from '@/ui/gameplay';
+import { HeaderPanel, DebugPanel } from '@/ui/gameplay';
 import { PauseMenu } from '@/ui/pause-menu';
 import { InputManager } from '@/systems/input-manager';
 import { DebugController } from '@/systems/debug-controller';

@@ -6,7 +6,7 @@
 import Phaser from 'phaser';
 import { FONTS, COLORS, TIMING, FLASH, LAYOUT, ALPHA, SCALE } from '@/config';
 import { createText, createPanelFrame, addPanelFrameToContainer, PANEL_PRESETS } from '@/ui/ui-utils';
-import { BaseButton } from '@/ui/base/base-button';
+import { BaseButton } from '@/ui/base';
 import { toggleSFX, isSFXEnabled } from '@/systems/sfx-manager';
 import { MusicManager } from '@/systems/music-manager';
 import { toDPR } from '@/systems/responsive';

@@ -8,7 +8,7 @@ import { FONTS, COLORS, SIZES, getViewportMetrics, type Difficulty } from '@/con
 import type { Scorecard } from '@/systems/scorecard';
 import { CATEGORY_ID, type CategoryId } from '@/data/categories';
 import { type GameMode, resetGameProgression, debugSetMode } from '@/systems/game-progression';
-import { resetBlessingManager, debugSetBlessing } from '@/systems/blessings/blessing-manager';
+import { resetBlessingManager, debugSetBlessing } from '@/systems/blessings';
 import { getSave } from '@/systems/services';
 import { createLogger } from '@/systems/logger';
 import { createText } from '@/ui/ui-utils';

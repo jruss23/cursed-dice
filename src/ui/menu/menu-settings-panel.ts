@@ -8,7 +8,7 @@ import Phaser from 'phaser';
 import { FONTS, PALETTE, COLORS, TIMING, LAYOUT, ALPHA } from '@/config';
 import { type ViewportSizing, toDPR } from '@/systems/responsive';
 import { createText, createPanelFrame, addPanelFrameToContainer, PANEL_PRESETS } from '@/ui/ui-utils';
-import { BaseButton } from '@/ui/base/base-button';
+import { BaseButton } from '@/ui/base';
 import { toggleSFX, isSFXEnabled } from '@/systems/sfx-manager';
 import { isMusicEnabled } from '@/systems/music-manager';
 

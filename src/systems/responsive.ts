@@ -169,7 +169,7 @@ export interface PortraitLayout {
  * Device pixel ratio - cached for performance
  * Used throughout layout system to convert between CSS and device pixels
  */
-export const DPR = window.devicePixelRatio || 1;
+export const DPR = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
 
 /**
  * Reference width for sizing calculations (iPhone 16 Pro Max)

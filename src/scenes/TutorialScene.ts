@@ -19,7 +19,7 @@ import type { CategoryId } from '@/data/categories';
 import { createGameEvents, type GameEventEmitter } from '@/systems/game-events';
 import { DiceManager } from '@/systems/dice-manager';
 import { ScorecardPanel } from '@/ui/scorecard-panel';
-import { HeaderPanel } from '@/ui/gameplay/header-panel';
+import { HeaderPanel } from '@/ui/gameplay';
 import { createLogger } from '@/systems/logger';
 import { createText } from '@/ui/ui-utils';
 import { TutorialOverlay } from '@/ui/tutorial/tutorial-overlay';

@@ -7,7 +7,8 @@ export * from './types';
 export * from './blessing-manager';
 
 // Import blessings to trigger registration with BlessingManager
-import './blessing-expansion';
-import './blessing-sixth';
-import './blessing-mercy';
-import './blessing-sanctuary';
+// Also re-export classes for direct instantiation (e.g., debug, testing)
+export { BlessingOfAbundance } from './blessing-expansion';
+export { SixthBlessing } from './blessing-sixth';
+export { MercyBlessing } from './blessing-mercy';
+export { SanctuaryBlessing } from './blessing-sanctuary';

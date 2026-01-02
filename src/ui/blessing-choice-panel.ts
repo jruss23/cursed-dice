@@ -7,7 +7,7 @@
 import Phaser from 'phaser';
 import { FONTS, PALETTE, COLORS, SIZES, FLASH, LAYOUT } from '@/config';
 import { createText } from '@/ui/ui-utils';
-import { BLESSING_CONFIGS, type BlessingId } from '@/systems/blessings/types';
+import { BLESSING_CONFIGS, type BlessingId } from '@/systems/blessings';
 import { getImplementedBlessings } from '@/data/blessings';
 import { toDPR } from '@/systems/responsive';
 

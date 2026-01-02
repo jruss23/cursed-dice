@@ -58,7 +58,7 @@ import { HeaderPanel, DebugPanel, EndScreenOverlay } from '@/ui/gameplay';
 import { ParticlePool } from '@/systems/particle-pool';
 import { DebugController } from '@/systems/debug-controller';
 import { playScoreConfirmSound, playModeCompleteSound, playVictoryFanfare, stopAllSFX, isSFXEnabled } from '@/systems/sfx-manager';
-import { SixthBlessing } from '@/systems/blessings/blessing-sixth';
+import { SixthBlessing } from '@/systems/blessings';
 import { BaseScene } from './BaseScene';
 import {
   BlessingIntegration,
