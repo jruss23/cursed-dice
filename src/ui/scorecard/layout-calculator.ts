@@ -21,6 +21,8 @@ export interface LayoutInput {
   maxHeight?: number;
   /** Optional width override (in device pixels) from GameplayLayout */
   width?: number;
+  /** Height-based scale factor for taller screens (1.0-1.4) */
+  heightScale?: number;
   upperCategories: Category[];
   lowerCategories: Category[];
   specialCategories: Category[];
@@ -48,21 +50,32 @@ function calculateTwoColumnLayout(input: LayoutInput, needsCompact: boolean): La
   // Use provided width (already in device pixels) or fall back to fixed width
   const width = input.width ?? toDPR(L.WIDTH);
 
-  // Select sizing based on compact mode (all scaled to device pixels)
-  const contentPadding = toDPR(needsCompact ? L.CONTENT_PADDING_COMPACT : L.CONTENT_PADDING);
-  const titleHeight = toDPR(needsCompact ? L.TITLE_HEIGHT_COMPACT : L.TITLE_HEIGHT);
-  const titleGap = toDPR(needsCompact ? L.TITLE_GAP_COMPACT : L.TITLE_GAP);
-  const headerHeight = toDPR(needsCompact ? L.HEADER_HEIGHT_COMPACT : L.HEADER_HEIGHT);
-  const totalRowHeight = toDPR(needsCompact ? L.TOTAL_ROW_HEIGHT_COMPACT : L.TOTAL_ROW_HEIGHT);
-  const dividerHeight = toDPR(needsCompact ? L.DIVIDER_HEIGHT_COMPACT : L.DIVIDER_HEIGHT);
+  // heightScale allows elements to grow on taller screens
+  const heightScale = input.heightScale ?? 1.0;
+  // Helper to scale a value by heightScale (capped at 1.3x for non-row elements)
+  const scaleByHeight = (base: number, maxScale: number = 1.3): number => {
+    const scaleFactor = Math.min(heightScale, maxScale);
+    return Math.round(toDPR(base) * scaleFactor);
+  };
+
+  // Select sizing based on compact mode (scaled by heightScale for taller screens)
+  const contentPadding = scaleByHeight(needsCompact ? L.CONTENT_PADDING_COMPACT : L.CONTENT_PADDING);
+  const titleHeight = scaleByHeight(needsCompact ? L.TITLE_HEIGHT_COMPACT : L.TITLE_HEIGHT);
+  const titleGap = scaleByHeight(needsCompact ? L.TITLE_GAP_COMPACT : L.TITLE_GAP);
+  const headerHeight = scaleByHeight(needsCompact ? L.HEADER_HEIGHT_COMPACT : L.HEADER_HEIGHT);
+  const totalRowHeight = scaleByHeight(needsCompact ? L.TOTAL_ROW_HEIGHT_COMPACT : L.TOTAL_ROW_HEIGHT);
+  const dividerHeight = scaleByHeight(needsCompact ? L.DIVIDER_HEIGHT_COMPACT : L.DIVIDER_HEIGHT);
   // Use internal padding for inside the panel (smaller than external BOTTOM_PADDING)
-  const bottomPadding = toDPR(needsCompact ? L.INTERNAL_BOTTOM_PADDING_COMPACT : L.INTERNAL_BOTTOM_PADDING);
-  const columnGap = toDPR(L.COLUMN_GAP);
+  const bottomPadding = scaleByHeight(needsCompact ? L.INTERNAL_BOTTOM_PADDING_COMPACT : L.INTERNAL_BOTTOM_PADDING);
+  const columnGap = toDPR(L.COLUMN_GAP); // Column gap stays fixed for alignment
   const columnWidth = (width - contentPadding * 2 - columnGap) / 2;
 
   // Calculate row height dynamically if maxHeight is provided
   // maxHeight comes from getGameplayLayout which is already in device pixels
-  let rowHeight: number = toDPR(L.ROW_HEIGHT);
+  // heightScale allows row heights to grow on taller screens (36px → 56px max)
+  const MAX_ROW_HEIGHT_CSS = 56; // Allow larger rows on tall screens to fill space
+  const maxRowHeightCSS = L.ROW_HEIGHT + (MAX_ROW_HEIGHT_CSS - L.ROW_HEIGHT) * Math.min((heightScale - 1) / 0.4, 1);
+  let rowHeight: number = toDPR(maxRowHeightCSS);
   if (input.maxHeight) {
     const fixedHeight = contentPadding + titleHeight + titleGap + headerHeight + totalRowHeight + bottomPadding;
     let extraHeight = 0;
@@ -75,7 +88,7 @@ function calculateTwoColumnLayout(input: LayoutInput, needsCompact: boolean): La
 
     const availableForRows = input.maxHeight - fixedHeight - extraHeight;
     const idealRowHeight = Math.floor(availableForRows / numRows);
-    rowHeight = Math.max(toDPR(L.ROW_HEIGHT_MIN), Math.min(toDPR(L.ROW_HEIGHT), idealRowHeight));
+    rowHeight = Math.max(toDPR(L.ROW_HEIGHT_MIN), Math.min(toDPR(maxRowHeightCSS), idealRowHeight));
   }
 
   // Calculate height

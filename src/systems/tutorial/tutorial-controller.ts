@@ -103,7 +103,7 @@ export class TutorialController {
 
   private steps: TutorialStepConfig<StepId>[];
   private currentStepIndex: number = 0;
-  private lockedCount: number = 0;
+  private lockedDiceIndices: Set<number> = new Set();
   private tutorialComplete: boolean = false;
 
   constructor(config: TutorialControllerConfig) {
@@ -249,7 +249,7 @@ export class TutorialController {
         advanceOn: 'lock-count',
         lockCountRequired: 3,
         onEnter: () => {
-          this.lockedCount = 0;
+          this.lockedDiceIndices.clear();
           this.dice.setTutorialMode({ lockableIndices: ONES_INDICES.roll1, canRoll: false });
           this.dice.setEnabled(true);
           this.scorecard.lockInput();
@@ -293,7 +293,7 @@ export class TutorialController {
         advanceOn: 'lock-count',
         lockCountRequired: 1,
         onEnter: () => {
-          this.lockedCount = 0;
+          this.lockedDiceIndices.clear();
           this.dice.setTutorialMode({ lockableIndices: ONES_INDICES.roll3, canRoll: false });
           this.dice.setEnabled(true);
           this.scorecard.lockInput();
@@ -484,8 +484,9 @@ export class TutorialController {
 
     const currentStep = this.steps[this.currentStepIndex];
     if (currentStep.advanceOn === 'lock-count') {
-      this.lockedCount++;
-      if (this.lockedCount >= (currentStep.lockCountRequired ?? 1)) {
+      // Track unique dice indices to prevent locking same die multiple times counting
+      this.lockedDiceIndices.add(data.index);
+      if (this.lockedDiceIndices.size >= (currentStep.lockCountRequired ?? 1)) {
         this.scene.time.delayedCall(200, () => {
           if (this.steps[this.currentStepIndex].id === currentStep.id) {
             this.advanceStep();

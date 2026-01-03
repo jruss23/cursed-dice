@@ -158,6 +158,7 @@ export class TutorialScene extends Phaser.Scene {
       width: layout.scorecard.width,
       compact: true,
       maxHeight: layout.scorecard.height,
+      heightScale: layout.viewport.heightScale,
     });
 
     // Hint text with background (shown briefly for guidance)

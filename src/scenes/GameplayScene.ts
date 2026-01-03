@@ -506,6 +506,7 @@ export class GameplayScene extends BaseScene {
       width: layout.scorecard.width,
       compact: true,
       maxHeight: layout.scorecard.height,
+      heightScale: layout.viewport.heightScale,
       passThreshold: PASS_THRESHOLD,
     });
 

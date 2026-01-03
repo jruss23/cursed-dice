@@ -79,6 +79,10 @@ export interface GameplayLayout {
     height: number;
     centerX: number;
     scale: number;
+    /** Height-based scale factor for taller screens (0.75-1.4) */
+    heightScale: number;
+    /** Combined scale factor (min of height and width) for text sizing (0.75-1.4) */
+    combinedScale: number;
     isUltraCompact: boolean;
     isMobile: boolean;
     safeArea: SafeAreaInsets;
@@ -178,6 +182,12 @@ export const DPR = typeof window !== 'undefined' ? window.devicePixelRatio || 1 
  */
 const REFERENCE_WIDTH_CSS = 430;
 
+/**
+ * Reference height for vertical scaling (smallest supported screen)
+ * heightScale = 1.0 at 630px CSS height, up to 1.4 at 880px+
+ */
+const REFERENCE_HEIGHT_CSS = 630;
+
 /** Responsive breakpoints (mobile-only app) */
 export const BREAKPOINTS = {
   SMALL_MOBILE: 380,  // iPhone SE, small Androids
@@ -194,8 +204,10 @@ export const RESPONSIVE = {
   // 325px: 5×48 + 42 = 282px, leaves 21px margins each side
   DICE_SIZE_MIN: 42,
   DICE_SIZE_MAX: 50,
+  DICE_SIZE_TALL_MAX: 70,     // Max on tall screens (heightScale = 1.4)
   DICE_SPACING_MIN: 48,
   DICE_SPACING_MAX: 64,
+  DICE_SPACING_TALL_MAX: 90,  // Max on tall screens (heightScale = 1.4)
 
   // Scorecard
   SCORECARD_WIDTH_MIN: 280,
@@ -541,26 +553,46 @@ export function getMenuSizing(scene: Phaser.Scene): ViewportSizing {
   const { width, height } = scene.cameras.main;
 
   // ==========================================================================
-  // FIXED SIZES (in CSS pixels, scaled to device pixels)
+  // COMBINED SCALING (use minimum of height and width scales)
+  // This prevents large text on tall narrow screens
   // ==========================================================================
-  const TITLE_HEIGHT = 32 * DPR;
-  const VERSION_HEIGHT = 14 * DPR;
-  const SUBTITLE_HEIGHT = 16 * DPR;
-  const TITLE_INTERNAL_GAP = 6 * DPR;      // Between title elements
+  const cssHeight = height / DPR;
+  const cssWidth = width / DPR;
 
-  const LEARN_BTN_HEIGHT = 36 * DPR;
+  // Calculate both scales
+  const heightScale = Math.max(0.75, Math.min(1.4, cssHeight / REFERENCE_HEIGHT_CSS));
+  const widthScale = Math.max(0.75, Math.min(1.4, cssWidth / REFERENCE_WIDTH_CSS));
 
-  const HEADER_TEXT_HEIGHT = 18 * DPR;
-  const BUTTON_HEIGHT = 52 * DPR;
-  const BUTTON_GAP = 16 * DPR;              // Between difficulty buttons
-  const HEADER_TO_BUTTON_GAP = 12 * DPR;    // "Choose Your Fate" to first button
+  // Use the smaller of the two to prevent overflow on narrow screens
+  const combinedScale = Math.min(heightScale, widthScale);
 
-  const HIGH_SCORES_HEIGHT = 160 * DPR;
+  // Helper to scale a base value (CSS pixels -> device pixels)
+  const scaleBySize = (base: number, maxScale: number = 1.4): number => {
+    const scaleFactor = Math.min(combinedScale, maxScale);
+    return Math.round(base * scaleFactor * DPR);
+  };
+
+  // ==========================================================================
+  // SCALED SIZES (base values in CSS pixels, scaled by combinedScale)
+  // ==========================================================================
+  const TITLE_HEIGHT = scaleBySize(32);
+  const VERSION_HEIGHT = scaleBySize(14, 1.2); // Less scaling for small text
+  const SUBTITLE_HEIGHT = scaleBySize(16, 1.25);
+  const TITLE_INTERNAL_GAP = scaleBySize(6);
+
+  const LEARN_BTN_HEIGHT = scaleBySize(36);
+
+  const HEADER_TEXT_HEIGHT = scaleBySize(18, 1.25);
+  const BUTTON_HEIGHT = scaleBySize(52);
+  const BUTTON_GAP = scaleBySize(16);
+  const HEADER_TO_BUTTON_GAP = scaleBySize(12);
+
+  const HIGH_SCORES_HEIGHT = scaleBySize(160);
 
   // Gaps between major groups
-  const GAP_TITLE_TO_LEARN = 30 * DPR;
-  const GAP_LEARN_TO_DIFFICULTY = 30 * DPR;
-  const GAP_DIFFICULTY_TO_SCORES = 24 * DPR;
+  const GAP_TITLE_TO_LEARN = scaleBySize(30);
+  const GAP_LEARN_TO_DIFFICULTY = scaleBySize(30);
+  const GAP_DIFFICULTY_TO_SCORES = scaleBySize(24);
 
   // ==========================================================================
   // CALCULATE GROUP HEIGHTS
@@ -638,6 +670,13 @@ export function getMenuSizing(scene: Phaser.Scene): ViewportSizing {
   // ==========================================================================
   // RETURN SIZING
   // ==========================================================================
+
+  // Scale font sizes with combinedScale (base -> max as scale goes 1.0 -> 1.4)
+  const scaleFontSize = (base: number, max: number): string => {
+    const scaled = Math.round(base + (max - base) * (combinedScale - 1) / 0.4);
+    return `${scaled}px`;
+  };
+
   return {
     titleY,
     versionY,
@@ -649,29 +688,29 @@ export function getMenuSizing(scene: Phaser.Scene): ViewportSizing {
     modeInfoY: 0, // Unused
     highScoresY,
 
-    // Fixed font sizes (no scaling needed with fixed layout)
-    titleFontSize: '32px',
-    versionFontSize: '11px',
-    subtitleFontSize: '14px',
-    headerFontSize: '16px',
-    bodyFontSize: '14px',
-    smallFontSize: '12px',
-    tinyFontSize: '11px',
+    // Font sizes scale with combinedScale
+    titleFontSize: scaleFontSize(32, 44),
+    versionFontSize: scaleFontSize(11, 14),
+    subtitleFontSize: scaleFontSize(14, 18),
+    headerFontSize: scaleFontSize(16, 20),
+    bodyFontSize: scaleFontSize(14, 18),
+    smallFontSize: scaleFontSize(12, 15),
+    tinyFontSize: scaleFontSize(11, 13),
 
-    // Button dimensions (max values scaled by DPR)
-    buttonWidth: Math.min(width * 0.70, 272 * DPR),
+    // Button dimensions scale with combinedScale
+    buttonWidth: Math.min(width * 0.70, scaleBySize(272, 1.25)),
     buttonHeight: BUTTON_HEIGHT,
-    smallButtonWidth: Math.min(width * 0.38, 145 * DPR),
+    smallButtonWidth: Math.min(width * 0.38, scaleBySize(145, 1.25)),
     smallButtonHeight: LEARN_BTN_HEIGHT,
 
-    // Panel dimensions (max values scaled by DPR)
-    panelWidth: Math.min(width * 0.85, 340 * DPR),
-    highScoresPanelWidth: Math.min(width * 0.56, 200 * DPR),
+    // Panel dimensions scale with combinedScale
+    panelWidth: Math.min(width * 0.85, scaleBySize(340, 1.25)),
+    highScoresPanelWidth: Math.min(width * 0.56, scaleBySize(200, 1.3)),
     highScoresPanelHeight: HIGH_SCORES_HEIGHT,
 
-    // Spacing (scaled by DPR)
-    padding: 12 * DPR,
-    smallPadding: 6 * DPR,
+    // Spacing scales with combinedScale
+    padding: scaleBySize(12),
+    smallPadding: scaleBySize(6),
   };
 }
 
@@ -799,11 +838,42 @@ export function getGameplayLayout(scene: Phaser.Scene): GameplayLayout {
   // Scale factor for sizing (CSS pixels, clamped to 0.85-1.15)
   const scale = Math.max(0.85, Math.min(1.15, cssWidth / REFERENCE_WIDTH_CSS));
 
+  // Height and width scale factors (0.75x to 1.4x range)
+  const usableHeightCSS = usableHeight / DPR;
+  const heightScale = Math.max(0.75, Math.min(1.4, usableHeightCSS / REFERENCE_HEIGHT_CSS));
+  const widthScale = Math.max(0.75, Math.min(1.4, cssWidth / REFERENCE_WIDTH_CSS));
+
+  // Combined scale uses minimum of both to prevent overflow on narrow screens
+  const combinedScale = Math.min(heightScale, widthScale);
+
   // ==========================================================================
   // DICE SIZING (calculate in CSS, convert to device pixels)
+  // Scale up dice size based on heightScale (interpolate between MAX and TALL_MAX)
+  // BUT constrain so 6 dice fit within SCORECARD width (not full screen)
   // ==========================================================================
-  const diceSizeCSS = scaleValue(RESPONSIVE.DICE_SIZE_MAX, scale, RESPONSIVE.DICE_SIZE_MIN, RESPONSIVE.DICE_SIZE_MAX);
-  const diceSpacingCSS = scaleValue(RESPONSIVE.DICE_SPACING_MAX, scale, RESPONSIVE.DICE_SPACING_MIN, RESPONSIVE.DICE_SPACING_MAX);
+
+  // Calculate scorecard width first (dice must fit within this)
+  const diceConstraintWidth = Math.min(RESPONSIVE.SCORECARD_WIDTH_TWO_COL, cssWidth - LAYOUT.header.MARGIN);
+  const diceAreaPadding = 8; // Small padding inside dice area
+
+  // Calculate maximum dice size that allows 6 dice to fit within scorecard:
+  // 6 dice need: 5 * spacing + 1 * size <= (scorecardWidth - padding)
+  // With spacing ≈ size * 1.28 ratio: 5 * 1.28 * size + size <= available
+  // So: 7.4 * size <= available, meaning size <= available / 7.4
+  const diceAvailableWidth = diceConstraintWidth - diceAreaPadding * 2;
+  const maxDiceSizeForWidth = Math.floor(diceAvailableWidth / 7.4);
+
+  // Height-based max (scales from 50 to 70 as heightScale goes 1.0 to 1.4)
+  const diceMaxForHeight = RESPONSIVE.DICE_SIZE_MAX + (RESPONSIVE.DICE_SIZE_TALL_MAX - RESPONSIVE.DICE_SIZE_MAX) * (heightScale - 1) / 0.4;
+
+  // Use the smaller of height-based and width-based constraints
+  const diceMaxConstrained = Math.min(diceMaxForHeight, maxDiceSizeForWidth);
+  const diceSizeCSS = scaleValue(diceMaxConstrained, scale, RESPONSIVE.DICE_SIZE_MIN, diceMaxConstrained);
+
+  // Spacing scales proportionally (ratio of ~1.28)
+  const spacingRatio = RESPONSIVE.DICE_SPACING_MAX / RESPONSIVE.DICE_SIZE_MAX;
+  const diceSpacingCSS = Math.round(diceSizeCSS * spacingRatio);
+
   const diceSize = toDPR(diceSizeCSS);
   const diceSpacing = toDPR(diceSpacingCSS);
   const diceRadius = diceSize / 2;
@@ -823,20 +893,33 @@ export function getGameplayLayout(scene: Phaser.Scene): GameplayLayout {
   // ==========================================================================
   // HEADER (all values scaled to device pixels)
   // Use same width as scorecard for visual alignment
+  // Scale height by heightScale (capped at 1.25x = 60px max from 48px)
+  // Gaps stay fixed - extra space goes to scorecard
   // ==========================================================================
-  const headerHeight = toDPR(isUltraCompact ? LAYOUT.header.HEIGHT_COMPACT : LAYOUT.header.HEIGHT);
+  // Helper to scale gaps with heightScale (capped at 1.3x to prevent excessive spacing)
+  const scaleGap = (base: number): number => toDPR(base * Math.min(heightScale, 1.3));
+
+  const headerHeightBase = isUltraCompact ? LAYOUT.header.HEIGHT_COMPACT : LAYOUT.header.HEIGHT;
+  const headerHeight = toDPR(headerHeightBase * Math.min(heightScale, 1.25));
   const headerWidthCSS = Math.min(RESPONSIVE.SCORECARD_WIDTH_TWO_COL, cssWidth - LAYOUT.header.MARGIN);
   const headerWidth = toDPR(headerWidthCSS);
-  const headerGap = toDPR(isUltraCompact ? LAYOUT.header.GAP_COMPACT : LAYOUT.header.GAP);
+  const headerGap = scaleGap(isUltraCompact ? LAYOUT.header.GAP_COMPACT : LAYOUT.header.GAP);
   const headerY = safeArea.top + headerHeight / 2 + toDPR(LAYOUT.header.TOP_PADDING);
   const headerEndY = safeArea.top + headerHeight + toDPR(LAYOUT.header.TOP_PADDING);
 
   // ==========================================================================
   // TIP TEXT (above dice)
+  // Gap scales with heightScale to let layout breathe on taller screens
+  // Font scales with heightScale (11px base → 16px max on tall screens)
   // ==========================================================================
-  const tipGap = toDPR(LAYOUT.tip.GAP);
-  const tipHeight = toDPR(LAYOUT.tip.HEIGHT);
-  const tipFontSize = isMobile ? FONTS.SIZE_MICRO : FONTS.SIZE_SMALL;
+  const tipGap = scaleGap(LAYOUT.tip.GAP);
+  const tipFontSizeBase = isMobile ? 11 : 14;
+  const tipFontSizeMax = isMobile ? 16 : 20;
+  // Use heightScale for tip text (short text won't overflow, and we want it visible on tall screens)
+  const tipFontSizeScaled = Math.round(tipFontSizeBase + (tipFontSizeMax - tipFontSizeBase) * Math.min((heightScale - 1) / 0.4, 1));
+  const tipFontSize = `${tipFontSizeScaled}px`;
+  // Height scales proportionally with font (approx 1.3x line height)
+  const tipHeight = toDPR(Math.round(tipFontSizeScaled * 1.3));
 
   // ==========================================================================
   // DICE ZONE POSITIONING
@@ -848,15 +931,19 @@ export function getGameplayLayout(scene: Phaser.Scene): GameplayLayout {
 
   // ==========================================================================
   // CONTROLS PANEL (all values scaled to device pixels)
+  // Scale height by heightScale (capped at 1.33x = 80px max from 60px)
+  // Gap scales with heightScale to let layout breathe
   // ==========================================================================
-  const controlsHeight = toDPR(isUltraCompact ? LAYOUT.controls.HEIGHT_COMPACT : LAYOUT.controls.HEIGHT);
-  const diceToControlsGap = toDPR(isUltraCompact ? LAYOUT.controls.GAP_COMPACT : LAYOUT.controls.GAP);
+  const controlsHeightBase = isUltraCompact ? LAYOUT.controls.HEIGHT_COMPACT : LAYOUT.controls.HEIGHT;
+  const controlsHeight = toDPR(controlsHeightBase * Math.min(heightScale, 1.33));
+  const diceToControlsGap = scaleGap(isUltraCompact ? LAYOUT.controls.GAP_COMPACT : LAYOUT.controls.GAP);
   const controlsCenterY = diceCenterY + diceRadius + iconGap + iconHeight + diceToControlsGap + controlsHeight / 2;
 
   // ==========================================================================
   // SCORECARD (calculate width first - controls will match this)
+  // Gap scales with heightScale to let layout breathe
   // ==========================================================================
-  const scorecardGap = toDPR(isUltraCompact ? LAYOUT.scorecard.GAP_COMPACT : LAYOUT.scorecard.GAP);
+  const scorecardGap = scaleGap(isUltraCompact ? LAYOUT.scorecard.GAP_COMPACT : LAYOUT.scorecard.GAP);
   const scorecardY = controlsCenterY + controlsHeight / 2 + scorecardGap;
   const scorecardWidthCSS = Math.min(RESPONSIVE.SCORECARD_WIDTH_TWO_COL, cssWidth - LAYOUT.header.MARGIN);
   const scorecardWidth = toDPR(scorecardWidthCSS);
@@ -886,6 +973,8 @@ export function getGameplayLayout(scene: Phaser.Scene): GameplayLayout {
       height,
       centerX,
       scale,
+      heightScale,
+      combinedScale,
       isUltraCompact,
       isMobile,
       safeArea,

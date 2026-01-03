@@ -42,23 +42,29 @@ export class HighScoresPanel {
     // Use viewport-relative sizing (sizing values are already in device pixels from getMenuSizing)
     const panelWidth = sizing?.highScoresPanelWidth ?? toDPR(170);
     const panelHeight = hasData ? (sizing?.highScoresPanelHeight ?? toDPR(155)) : toDPR(70);
-    const fontSize = sizing?.tinyFontSize ?? FONTS.SIZE_TINY;
-    const headerFontSize = sizing?.smallFontSize ?? FONTS.SIZE_SMALL;
+    const fontSize = sizing?.bodyFontSize ?? FONTS.SIZE_SMALL; // Use body size for better readability
+    const headerFontSize = sizing?.headerFontSize ?? FONTS.SIZE_BUTTON;
     const centerX = x + panelWidth / 2;
     const centerY = y + panelHeight / 2;
 
-    // Spacing values (scale to device pixels)
+    // Calculate scale factor based on panel height vs base height (155px)
+    const baseHeight = toDPR(155);
+    const heightScale = panelHeight / baseHeight;
+
+    // Spacing values scale with panel height
+    const scaleSpacing = (base: number): number => Math.round(toDPR(base) * heightScale);
+
     const shadowOffset = toDPR(3);
     const cornerInset = toDPR(SIZES.PANEL_CORNER_INSET);
     const cornerSize = toDPR(SIZES.PANEL_CORNER_SIZE);
-    const textPaddingX = toDPR(10);
-    const textIndentX = toDPR(14);
-    const headerY = toDPR(18);
-    const emptyTextY = toDPR(45);
-    const contentStartY = toDPR(42);
-    const lineHeightSmall = toDPR(15);
-    const lineHeightMedium = toDPR(16);
-    const lineHeightLarge = toDPR(20);
+    const textPaddingX = scaleSpacing(10);
+    const textIndentX = scaleSpacing(14);
+    const headerY = scaleSpacing(16);
+    const emptyTextY = scaleSpacing(40);
+    const contentStartY = scaleSpacing(36);
+    const lineHeightSmall = scaleSpacing(14);
+    const lineHeightMedium = scaleSpacing(15);
+    const lineHeightLarge = scaleSpacing(18);
 
     // Background shadow
     const bgShadow = this.scene.add.rectangle(centerX + shadowOffset, centerY + shadowOffset, panelWidth, panelHeight, PALETTE.neutral[900], 0.5);

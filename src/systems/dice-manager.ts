@@ -87,6 +87,7 @@ export class DiceManager implements TutorialControllableDice {
   /**
    * Reset dice state for a new turn
    * Clears cursed die - will be set again by GameplayScene after roll
+   * NOTE: Does NOT update die visuals - the following roll() will handle that
    */
   reset(): void {
     // Deactivate 6th die if it was active
@@ -100,7 +101,9 @@ export class DiceManager implements TutorialControllableDice {
       this.state.values.push(1);
       this.state.locked.push(false);
     }
-    this.updateDisplay();
+    // Only update controls UI - don't update die visuals (avoids flash of 1s before roll)
+    this.updateRerollText();
+    this.updateRollButton();
     this.events.emit('dice:unlockAll');
   }
 
@@ -638,6 +641,12 @@ export class DiceManager implements TutorialControllableDice {
         }
         return;
       }
+
+      // In tutorial mode, prevent unlocking already-locked dice
+      if (this.state.locked[index]) {
+        log.debug(`onDieClicked rejected: die ${index} already locked in tutorial mode`);
+        return;
+      }
     }
 
     // Execute lock toggle directly
@@ -778,15 +787,6 @@ export class DiceManager implements TutorialControllableDice {
   // ===========================================================================
   // UI UPDATES
   // ===========================================================================
-
-  private updateDisplay(): void {
-    const diceCount = this.state.sixthDieActive ? 6 : GAME_RULES.DICE_COUNT;
-    for (let i = 0; i < diceCount; i++) {
-      this.updateDieDisplay(i);
-    }
-    this.updateRerollText();
-    this.updateRollButton();
-  }
 
   private updateDieDisplay(index: number): void {
     const sprite = this.sprites[index];

@@ -54,22 +54,28 @@ export class DifficultyButton {
     const buttonWidth = sizing?.buttonWidth ?? toDPR(320);
     const buttonHeight = sizing?.buttonHeight ?? toDPR(60);
 
-    // Fixed font sizes for buttons (they have fixed max width, so font shouldn't scale)
-    const labelSize = FONTS.SIZE_BUTTON;
-    const iconSize = FONTS.SIZE_BUTTON;
+    // Calculate scale factor based on button height vs base (52px)
+    const baseHeight = toDPR(52);
+    const heightScale = buttonHeight / baseHeight;
+
+    // Font sizes scale with button height
+    const labelSize = sizing?.headerFontSize ?? FONTS.SIZE_BUTTON;
+    const iconSize = sizing?.headerFontSize ?? FONTS.SIZE_BUTTON;
 
     const config = this.config;
     const smallPadding = sizing?.smallPadding ?? toDPR(5);
 
-    // Layout values (scale to device pixels)
-    const shadowOffset = toDPR(4);
-    const cornerInset = toDPR(SIZES.PANEL_CORNER_INSET);
-    const cornerSize = toDPR(SIZES.PANEL_CORNER_SIZE);
-    const highlightInset = toDPR(20);
-    const iconOffset = toDPR(30);
-    const labelOffsetX = toDPR(10);
-    const labelOffsetY = toDPR(-6);
-    const subtitleOffsetY = toDPR(8);
+    // Layout values scale with button height
+    const scaleSpacing = (base: number): number => Math.round(toDPR(base) * heightScale);
+
+    const shadowOffset = scaleSpacing(4);
+    const cornerInset = scaleSpacing(SIZES.PANEL_CORNER_INSET);
+    const cornerSize = scaleSpacing(SIZES.PANEL_CORNER_SIZE);
+    const highlightInset = scaleSpacing(20);
+    const iconOffset = scaleSpacing(30);
+    const labelOffsetX = scaleSpacing(10);
+    const labelOffsetY = scaleSpacing(-8);
+    const subtitleOffsetY = scaleSpacing(10);
 
     // Outer glow (pulsing)
     const glowStroke = SIZES.GLOW_STROKE_SMALL;
@@ -129,7 +135,7 @@ export class DifficultyButton {
     this.container.add(label);
 
     // Subtitle with time (two parts: flavor text + time in difficulty color)
-    const subtitleSize = FONTS.SIZE_TINY; // Fixed size for button subtitle
+    const subtitleSize = sizing?.smallFontSize ?? FONTS.SIZE_TINY;
     const flavorPart = `${config.subtitle} •`;
     const timePart = ` ${config.timeDisplay}/seal`;
 

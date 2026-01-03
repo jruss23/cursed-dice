@@ -426,6 +426,10 @@ export class DiceRenderer {
     const riseDuration = rollDuration * 0.35;
     const fallDuration = rollDuration * 0.4;
 
+    // Track which dice are animating to know when all are done
+    const animatingDice = sprites.filter((_, i) => !locked[i] || initial);
+    let completedCount = 0;
+
     for (let i = 0; i < sprites.length; i++) {
       if (!locked[i] || initial) {
         const sprite = sprites[i];
@@ -457,13 +461,13 @@ export class DiceRenderer {
         const jumpHeight = Phaser.Math.Between(jumpMin, jumpMax);
         const horizontalOffset = Phaser.Math.Between(-horizontalRange, horizontalRange);
 
-        // Phase 1: Launch up with smooth deceleration
+        // Smooth rotation - always complete full rotations (no snap)
+        const rotations = Phaser.Math.Between(1, 2) * 360;
         this.scene.tweens.add({
-          targets: sprite.container,
-          y: sprite.originalY - jumpHeight,
-          x: sprite.originalX + horizontalOffset,
-          duration: riseDuration,
-          ease: 'Sine.easeOut',
+          targets: [sprite.bg, sprite.innerBg, sprite.shine, sprite.pipsGraphics],
+          angle: { from: 0, to: rotations },
+          duration: riseDuration + fallDuration,
+          ease: 'Cubic.easeOut',
           delay,
         });
 
@@ -478,40 +482,50 @@ export class DiceRenderer {
           delay,
         });
 
-        // Smooth rotation - always complete full rotations (no snap)
-        const rotations = Phaser.Math.Between(1, 2) * 360;
+        // Phase 1: Launch up - then chain to Phase 2 via onComplete
         this.scene.tweens.add({
-          targets: [sprite.bg, sprite.innerBg, sprite.shine, sprite.pipsGraphics],
-          angle: { from: 0, to: rotations },
-          duration: riseDuration + fallDuration,
-          ease: 'Cubic.easeOut',
+          targets: sprite.container,
+          y: sprite.originalY - jumpHeight,
+          x: sprite.originalX + horizontalOffset,
+          duration: riseDuration,
+          ease: 'Sine.easeOut',
           delay,
-        });
+          onComplete: () => {
+            // Phase 2: Fall and land (chained from rise, not delayedCall)
+            this.scene.tweens.add({
+              targets: sprite.container,
+              y: sprite.originalY,
+              x: sprite.originalX,
+              duration: fallDuration,
+              ease: 'Quad.easeOut',
+              onComplete: () => {
+                // This die has landed - clean up its state
+                sprite.bg.setAngle(0);
+                sprite.innerBg.setAngle(0);
+                sprite.shine.setAngle(0);
+                sprite.pipsGraphics.setAngle(0);
 
-        // Phase 2: Fall and land with satisfying settle (no bounce jitter)
-        this.scene.time.delayedCall(riseDuration + delay, () => {
-          // Die falls back to position
-          this.scene.tweens.add({
-            targets: sprite.container,
-            y: sprite.originalY,
-            x: sprite.originalX,
-            duration: fallDuration,
-            ease: 'Back.easeOut',
-          });
+                // Landing impact effect
+                this.createLandingImpact(sprite, finalValues[i]);
 
-          // Shadow grows back with slight overshoot
-          this.scene.tweens.add({
-            targets: sprite.shadow,
-            scaleX: 1,
-            scaleY: 1,
-            alpha: ALPHA.SHADOW_LIGHT,
-            duration: fallDuration,
-            ease: 'Back.easeOut',
-          });
+                // Check if all dice have landed
+                completedCount++;
+                if (completedCount === animatingDice.length) {
+                  onComplete();
+                }
+              },
+            });
 
-          // NOTE: Pips stay hidden (alpha 0) until animation callback fires
-          // The callback redraws pips with NEW values, then fades them in
-          // This prevents the visual "snap" of old values → new values
+            // Shadow grows back smoothly (parallel with fall)
+            this.scene.tweens.add({
+              targets: sprite.shadow,
+              scaleX: 1,
+              scaleY: 1,
+              alpha: ALPHA.SHADOW_LIGHT,
+              duration: fallDuration,
+              ease: 'Quad.easeOut',
+            });
+          },
         });
 
         // Create trail particles
@@ -519,30 +533,10 @@ export class DiceRenderer {
       }
     }
 
-    // Calculate when the last die finishes (account for stagger)
-    const lastDieDelay = (sprites.filter((_, i) => !locked[i] || initial).length - 1) * staggerDelay;
-    const totalAnimTime = riseDuration + fallDuration + lastDieDelay + 50;
-
-    // Complete after all dice have landed
-    this.scene.time.delayedCall(totalAnimTime, () => {
-      for (let i = 0; i < sprites.length; i++) {
-        if (!locked[i] || initial) {
-          const sprite = sprites[i];
-
-          // Ensure clean state (rotation already at multiple of 360)
-          sprite.bg.setAngle(0);
-          sprite.innerBg.setAngle(0);
-          sprite.shine.setAngle(0);
-          sprite.pipsGraphics.setAngle(0);
-          // NOTE: Don't set pipsGraphics.alpha here - keep hidden
-          // onComplete() will redraw pips with new values, then fade them in
-
-          // Landing impact effect
-          this.createLandingImpact(sprite, finalValues[i]);
-        }
-      }
+    // Edge case: if no dice are animating (all locked), complete immediately
+    if (animatingDice.length === 0) {
       onComplete();
-    });
+    }
   }
 
   /**

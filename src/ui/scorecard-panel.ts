@@ -31,6 +31,7 @@ export interface ScorecardPanelConfig {
   height?: number;
   compact?: boolean; // Smaller row heights for portrait/mobile layout
   maxHeight?: number; // Maximum height constraint from viewport layout
+  heightScale?: number; // Height-based scale factor for taller screens (1.0-1.4)
   passThreshold?: number; // Score threshold to display next to total (e.g., 250)
   // Note: layout is auto-determined based on viewport size, not passed in
 }
@@ -88,6 +89,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
   private layout: ScorecardLayout = 'two-column'; // Layout mode
   private gauntletPulseTweens: Map<CategoryId, Phaser.Tweens.Tween> = new Map(); // Pulsing effects by category
   private maxHeight: number | undefined; // Maximum height constraint from viewport
+  private heightScale: number = 1.0; // Height-based scale factor for taller screens
   private passThreshold: number = 250; // Score threshold to display next to total
 
   // Tutorial mode controls
@@ -128,6 +130,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
       hasSpecialSection: this.scorecard.isSpecialSectionEnabled(),
       maxHeight: this.maxHeight,
       width: configWidth,
+      heightScale: this.heightScale,
       upperCategories: this.scorecard.getUpperSection(),
       lowerCategories: this.scorecard.getLowerSection(),
       specialCategories: this.scorecard.getSpecialSection(),
@@ -149,6 +152,7 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     this.events = events;
     this.isCompact = config.compact ?? false;
     this.maxHeight = config.maxHeight;
+    this.heightScale = config.heightScale ?? 1.0;
     this.passThreshold = config.passThreshold ?? 250;
 
     // Initialize modular state manager
@@ -1020,17 +1024,21 @@ export class ScorecardPanel implements TutorialControllableScorecard {
 
   /**
    * Get bounds for the categories counter (0/13) in the title area
+   * Uses actual text position and width for accurate highlighting
    */
   getCategoriesCounterBounds(): Bounds {
     const lc = this.layoutConfig;
-    const counterWidth = toDPR(56);
-    const rightPadding = toDPR(6);
-    const counterHeight = lc.titleHeight;
+    // Get actual text width if available, otherwise estimate
+    const textWidth = this.categoriesFilledText?.width ?? toDPR(40);
+    const padding = toDPR(6);
+    // Text is right-aligned at (lc.width - 10px), so its left edge is at width - 10 - textWidth
+    const textRightEdge = lc.width - toDPR(10);
+    const textLeftEdge = textRightEdge - textWidth;
     return {
-      x: this.config.x + lc.width - counterWidth - rightPadding,
+      x: this.config.x + textLeftEdge - padding,
       y: this.config.y + lc.contentPadding,
-      width: counterWidth,
-      height: counterHeight,
+      width: textWidth + padding * 2,
+      height: lc.titleHeight,
     };
   }
 
