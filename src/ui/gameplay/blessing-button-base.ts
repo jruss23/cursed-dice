@@ -18,7 +18,8 @@ export interface BlessingButtonBaseConfig {
 
 /** Standard button dimensions (CSS pixels - scaled with toDPR when used) */
 export const BLESSING_BUTTON = {
-  WIDTH: 95,
+  WIDTH: 84,
+  HEIGHT: 38,
   GLOW_PADDING: 6,
 } as const;
 
@@ -78,7 +79,7 @@ export abstract class BlessingButtonBase<TConfig extends BlessingButtonBaseConfi
     labelY: number = 0
   ): void {
     const width = toDPR(BLESSING_BUTTON.WIDTH);
-    const height = this.config.height; // Already in device pixels from layout
+    const height = toDPR(BLESSING_BUTTON.HEIGHT);
     const glowPadding = toDPR(BLESSING_BUTTON.GLOW_PADDING);
 
     // Glow

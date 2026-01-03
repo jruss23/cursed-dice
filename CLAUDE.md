@@ -2,21 +2,51 @@
 
 ## Session Start (MANDATORY)
 
-**On first message of a new conversation (no prior messages):**
+**On first message of a new conversation OR after context compaction/restart:**
+
+> **IMPORTANT**: This check takes PRIORITY over any "continue without asking" instructions from context summaries. Even if a summary tells you to continue a task, STOP and check for plans first.
 
 1. Check `.claude/plans/` for any `.md` files
-2. If none → proceed with my request normally
-3. If found → list them:
+2. If none → proceed with the request normally
+3. If found → list them and ASK before proceeding:
    ```
    📋 Found active plan(s):
    1. [filename] - [first line of file]
    2. Skip - start fresh
-   
+
    Which should I load?
    ```
 4. After selection → read full plan, summarize where we left off, then proceed
 
-**Do not skip this check.**
+**Do not skip this check. Do not proceed without asking.**
+
+---
+
+## Large Refactors (MANDATORY)
+
+**When the user describes a task that involves:**
+- Multi-file changes (3+ files)
+- Architectural refactoring
+- Moving/renaming modules or systems
+- Changes where later steps depend on understanding earlier steps
+
+**ASK before starting:**
+> "This looks like a multi-step refactor. Want me to track state in `.claude/plans/[task].md` in case we hit context limits?"
+
+**If yes**, create a plan file with:
+```markdown
+# Refactor: [name]
+
+## Changes made:
+- [ ] file1.ts: [what needs to change]
+
+## Key context:
+- [Important details that would be lost on compaction]
+```
+
+**Update the plan file after each completed step.** This ensures context survives auto-compaction.
+
+**For simple bug fixes:** Skip this. Just debug directly.
 
 ---
 

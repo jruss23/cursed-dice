@@ -5,7 +5,7 @@
  */
 
 import Phaser from 'phaser';
-import { FONTS, PALETTE, COLORS } from '@/config';
+import { FONTS, SIZES, PALETTE, COLORS } from '@/config';
 import { toDPR } from '@/systems/responsive';
 import { createText } from '@/ui/ui-utils';
 import { createLogger } from '@/systems/logger';
@@ -197,10 +197,10 @@ export class TutorialOverlay {
     this.cornerGraphics.forEach((g) => g.destroy());
     this.cornerGraphics = [];
 
-    // Scale corner dimensions for DPR
-    const inset = toDPR(6);
-    const length = toDPR(14);
-    const thickness = 2;
+    // Scale corner dimensions for DPR (use centralized SIZES for consistency)
+    const inset = toDPR(SIZES.PANEL_CORNER_INSET);
+    const length = toDPR(SIZES.PANEL_CORNER_SIZE);
+    const thickness = toDPR(2);
 
     const corners = [
       { x: -width / 2 + inset, y: -height / 2 + inset, ax: 1, ay: 1 },
@@ -290,7 +290,7 @@ export class TutorialOverlay {
       this.scene.tweens.add({
         targets: this.container,
         alpha: 1,
-        duration: 300,
+        duration: 150,
         ease: 'Power2',
       });
     } else {
@@ -310,8 +310,8 @@ export class TutorialOverlay {
       this.pulseTimeline = null;
     }
 
-    const fadeOutDuration = 120;
-    const fadeInDuration = 150;
+    const fadeOutDuration = 80;
+    const fadeInDuration = 100;
 
     // Fade out popup
     this.scene.tweens.add({
@@ -495,7 +495,7 @@ export class TutorialOverlay {
     this.scene.tweens.add({
       targets: this.container,
       alpha: 0,
-      duration: 150,
+      duration: 100,
       ease: 'Power2',
       onComplete: () => {
         this.container.setVisible(false);

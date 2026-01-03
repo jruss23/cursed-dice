@@ -4,7 +4,7 @@
  */
 
 import Phaser from 'phaser';
-import { PALETTE, FONTS, COLORS } from '@/config';
+import { PALETTE, FONTS, COLORS, SIZES } from '@/config';
 import { toDPR } from '@/systems/responsive';
 
 // =============================================================================
@@ -134,16 +134,22 @@ export function createPanelFrame(
     borderWidth = 2,
     cornerColor = PALETTE.purple[400],
     cornerAlpha = 0.6,
-    cornerSize = 10,
-    cornerInset = 6,
+    cornerSize = SIZES.PANEL_CORNER_SIZE,
+    cornerInset = SIZES.PANEL_CORNER_INSET,
   } = config;
+
+  // Scale CSS pixel values to device pixels
+  const scaledGlowSize = toDPR(glowSize);
+  const scaledBorderWidth = toDPR(borderWidth);
+  const scaledCornerSize = toDPR(cornerSize);
+  const scaledCornerInset = toDPR(cornerInset);
 
   // Outer glow
   const outerGlow = scene.add.rectangle(
     x + width / 2,
     y + height / 2,
-    width + glowSize,
-    height + glowSize,
+    width + scaledGlowSize,
+    height + scaledGlowSize,
     glowColor,
     glowAlpha
   );
@@ -157,14 +163,14 @@ export function createPanelFrame(
     bgColor,
     bgAlpha
   );
-  background.setStrokeStyle(borderWidth, borderColor, borderAlpha);
+  background.setStrokeStyle(scaledBorderWidth, borderColor, borderAlpha);
 
   // Corner accents
   const corners = [
-    { cx: x + cornerInset, cy: y + cornerInset, ax: 1, ay: 1 },
-    { cx: x + width - cornerInset, cy: y + cornerInset, ax: -1, ay: 1 },
-    { cx: x + width - cornerInset, cy: y + height - cornerInset, ax: -1, ay: -1 },
-    { cx: x + cornerInset, cy: y + height - cornerInset, ax: 1, ay: -1 },
+    { cx: x + scaledCornerInset, cy: y + scaledCornerInset, ax: 1, ay: 1 },
+    { cx: x + width - scaledCornerInset, cy: y + scaledCornerInset, ax: -1, ay: 1 },
+    { cx: x + width - scaledCornerInset, cy: y + height - scaledCornerInset, ax: -1, ay: -1 },
+    { cx: x + scaledCornerInset, cy: y + height - scaledCornerInset, ax: 1, ay: -1 },
   ];
 
   const cornerGraphics: Phaser.GameObjects.Graphics[] = [];
@@ -173,9 +179,9 @@ export function createPanelFrame(
     const g = scene.add.graphics();
     g.lineStyle(toDPR(2), cornerColor, cornerAlpha);
     g.beginPath();
-    g.moveTo(corner.cx, corner.cy + cornerSize * corner.ay);
+    g.moveTo(corner.cx, corner.cy + scaledCornerSize * corner.ay);
     g.lineTo(corner.cx, corner.cy);
-    g.lineTo(corner.cx + cornerSize * corner.ax, corner.cy);
+    g.lineTo(corner.cx + scaledCornerSize * corner.ax, corner.cy);
     g.strokePath();
     cornerGraphics.push(g);
   });

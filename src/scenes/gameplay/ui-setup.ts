@@ -110,6 +110,8 @@ export interface HeaderPanelConfig {
   passThreshold: number;
   compact: boolean;
   metrics: ViewportMetrics;
+  /** Width from layout calculation (device pixels) */
+  width?: number;
   compactHeight?: number;
 }
 
@@ -125,6 +127,7 @@ export function createHeaderPanel(config: HeaderPanelConfig): HeaderPanel {
     passThreshold: config.passThreshold,
     compact: config.compact,
     metrics: config.metrics,
+    width: config.width,
     compactHeight: config.compactHeight,
   });
 }

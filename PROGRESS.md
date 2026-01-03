@@ -815,6 +815,43 @@ cd "$(dirname "$0")"
 
 ---
 
+## Recent Session Work (Jan 2, 2026 - Continued)
+
+### Race Condition Fixes - COMPLETE
+- [x] **Event-driven dice state updates** - Changed from timer-based delays to `once('dice:rolled')` listeners
+- [x] **Fixed cursed die selection** - Now correctly selects highest value die (was always index 0)
+- [x] **Pip visual snap fix** - Pips now fade in AFTER redraw with new values (no old→new flash)
+- Files: GameplayScene.ts, dice-manager.ts, dice-renderer.ts
+
+### Dice Animation Polish - COMPLETE
+- [x] **Tighter stagger timing** - 50ms→30ms between dice launches
+- [x] **Smoother physics** - Back.easeOut landing instead of Bounce.easeOut
+- [x] **Reduced rotation** - 2-4 rotations→1-2 for cleaner settle
+- [x] **Proper pip hiding** - Pips hidden during animation, faded in after state update
+
+### Tutorial Responsiveness - COMPLETE
+- [x] **Faster transitions** - 270ms→180ms total (80ms fade out + 100ms fade in)
+- [x] **Reduced delays** - Lock: 400ms→200ms, Score: 1200ms→600ms, Roll: +200ms→+100ms
+- Files: tutorial-overlay.ts, tutorial-controller.ts
+
+### Button Sizing & UI Polish - COMPLETE
+- [x] **Roll button sizing** - Fixed to fit in dice controls (84x38px)
+- [x] **Blessing button sizing** - Consistent 84x38px across all blessing buttons
+- [x] **Sanctuary gold theme** - All states now gold instead of green
+- [x] **Corner accents** - Added to blessing choice panel cards
+- [x] **Panel corner size** - Standardized to 12px size, 5px inset
+
+### Layout Alignment Fixes - COMPLETE
+- [x] **Header width** - Now matches scorecard width for visual alignment
+- [x] **Controls column width** - Calculated from scorecard width (scorecardWidth / 3)
+- [x] **Camera FX reset** - BaseScene.fadeIn() now resets lingering camera effects
+
+### CLAUDE.md Updates
+- [x] **Session start priority** - Plan check now overrides context summary instructions
+- [x] **Large refactor workflow** - Added guidance for multi-file changes with plan files
+
+---
+
 ## Recent Session Work (Dec 28, 2025 - Evening)
 
 ### Tutorial Choice Dialog - COMPLETE

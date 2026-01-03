@@ -491,6 +491,7 @@ export class GameplayScene extends BaseScene {
       passThreshold: PASS_THRESHOLD,
       compact: true,
       metrics,
+      width: layout.header.width,
       compactHeight: layout.header.height,
     });
 
@@ -587,17 +588,21 @@ export class GameplayScene extends BaseScene {
     // Transition to rolling state
     this.stateMachine.transition('rolling');
 
-    // Initial roll
-    this.diceManager.roll(true);
+    // Use once() for automatic cleanup - prevents dangling listeners
+    // Handler fires when dice:rolled event emits (AFTER animation callback updates values)
+    this.gameEvents.once('dice:rolled', ({ isInitial }: { isInitial: boolean }) => {
+      if (!isInitial) return; // Safety check, should always be true for initial roll
 
-    // Apply mode mechanics after initial roll (e.g., curse die for Mode 2)
-    const afterRollCall = this.time.delayedCall(SIZES.ROLL_DURATION_MS + LAYOUT.gameplay.POST_ROLL_DELAY, () => {
       if (this.stateMachine.is('game-over') || this.stateMachine.is('mode-transition')) return;
+
+      // Apply curse immediately - values are guaranteed updated when event fires
       this.modeMechanics.onAfterInitialRoll(this.diceManager);
-      // Transition to selecting state after roll completes
+      // Transition to selecting state
       this.stateMachine.transition('selecting');
     });
-    this.pendingDelayedCalls.push(afterRollCall);
+
+    // Initial roll - event fires from animation callback AFTER state.values is updated
+    this.diceManager.roll(true);
 
     // Start timer
     this.timerEvent = this.time.addEvent({
@@ -788,15 +793,18 @@ export class GameplayScene extends BaseScene {
 
     // Reset dice for next turn
     this.diceManager.reset();
-    this.diceManager.roll(true);
 
-    // Apply mode-specific effects after scoring
-    const afterScoreCall = this.time.delayedCall(SIZES.ROLL_DURATION_MS + LAYOUT.gameplay.POST_ROLL_DELAY, () => {
+    // Use once() to apply mode effects after roll completes
+    // Event fires AFTER animation callback updates state.values
+    this.gameEvents.once('dice:rolled', ({ isInitial }: { isInitial: boolean }) => {
+      if (!isInitial) return;
       if (this.stateMachine.is('game-over') || this.stateMachine.is('mode-transition')) return;
+
       const availableCategories = this.scorecard.getAvailableCategories();
       this.modeMechanics.onAfterScore(this.diceManager, availableCategories);
     });
-    this.pendingDelayedCalls.push(afterScoreCall);
+
+    this.diceManager.roll(true);
   }
 
   private showScoreEffectUI(points: number): void {
@@ -819,29 +827,27 @@ export class GameplayScene extends BaseScene {
    * Handle Mercy blessing used - re-apply curse after roll completes
    */
   private onMercyUsed(): void {
-    // After Mercy resets the hand, we need to re-apply the curse for Mode 2
-    // Listen for the dice:rolled event (which fires AFTER the animation callback
-    // has finished wiping the locked array), then apply curse to highest die
-    this.pendingMercyRollHandler = ({ isInitial }) => {
-      // Only handle initial rolls (Mercy triggers an initial roll)
-      if (!isInitial) return;
+    // Prevent double-registration: remove any existing handler first
+    if (this.pendingMercyRollHandler) {
+      this.gameEvents.off('dice:rolled', this.pendingMercyRollHandler);
+    }
 
-      // Remove this one-time listener
-      if (this.pendingMercyRollHandler) {
-        this.gameEvents.off('dice:rolled', this.pendingMercyRollHandler);
-        this.pendingMercyRollHandler = null;
-      }
+    // After Mercy resets the hand, re-apply curse when dice:rolled fires
+    // The event fires AFTER animation callback updates state.values
+    this.pendingMercyRollHandler = ({ isInitial }: { isInitial: boolean }) => {
+      if (!isInitial) return; // Mercy triggers initial roll
+
+      // Clear reference - handler is done
+      this.pendingMercyRollHandler = null;
 
       if (this.stateMachine.is('game-over') || this.stateMachine.is('mode-transition')) return;
 
-      // Small delay for visual feedback, then apply curse
-      const afterMercyCall = this.time.delayedCall(LAYOUT.gameplay.POST_ROLL_DELAY, () => {
-        this.modeMechanics.onAfterInitialRoll(this.diceManager);
-      });
-      this.pendingDelayedCalls.push(afterMercyCall);
+      // Apply curse immediately - values are guaranteed updated when event fires
+      this.modeMechanics.onAfterInitialRoll(this.diceManager);
     };
 
-    this.gameEvents.on('dice:rolled', this.pendingMercyRollHandler);
+    // Use once() for automatic cleanup after firing
+    this.gameEvents.once('dice:rolled', this.pendingMercyRollHandler);
   }
 
   // ===========================================================================

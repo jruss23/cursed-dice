@@ -341,8 +341,8 @@ export class ScorecardPanel implements TutorialControllableScorecard {
     this.container.add(innerHighlight);
 
     // Corner accents (L-shaped, matching menu buttons)
-    const cornerSize = toDPR(12);
-    const cornerInset = toDPR(5);
+    const cornerSize = toDPR(SIZES.PANEL_CORNER_SIZE);
+    const cornerInset = toDPR(SIZES.PANEL_CORNER_INSET);
     const corners = [
       { x: cornerInset, y: cornerInset, dx: 1, dy: 1 },
       { x: width - cornerInset, y: cornerInset, dx: -1, dy: 1 },

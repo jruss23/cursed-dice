@@ -17,7 +17,9 @@ export interface HeaderPanelConfig {
   compact?: boolean;
   /** Viewport metrics for responsive sizing */
   metrics?: ViewportMetrics;
-  /** Override compact height from layout calculation */
+  /** Override width from layout calculation (device pixels) */
+  width?: number;
+  /** Override compact height from layout calculation (device pixels) */
   compactHeight?: number;
 }
 
@@ -43,16 +45,18 @@ export class HeaderPanel {
   }
 
   private build(centerX: number, config: HeaderPanelConfig): void {
-    const { currentMode, modeName, totalScore, timeRemaining, compact = false, metrics, compactHeight } = config;
+    const { currentMode, modeName, totalScore, timeRemaining, compact = false, metrics, width, compactHeight } = config;
     const L = LAYOUT.headerPanel;
 
     // Responsive sizing based on viewport (metrics are already in device pixels)
     const viewportWidth = metrics?.width ?? toDPR(430);
     const scale = metrics?.scale ?? 1;
 
-    // Panel width: constrained by viewport (scale LAYOUT values to device pixels)
-    const baseWidth = toDPR(compact ? L.WIDTH_COMPACT : L.WIDTH_NORMAL);
-    const panelWidth = Math.min(baseWidth, viewportWidth - toDPR(L.MARGIN));
+    // Panel width: use passed width from layout, or fall back to calculated value
+    const panelWidth = width ?? Math.min(
+      toDPR(compact ? L.WIDTH_COMPACT : L.WIDTH_NORMAL),
+      viewportWidth - toDPR(L.MARGIN)
+    );
 
     // Panel height: use provided compactHeight if available (already in device pixels),
     // otherwise use defaults scaled to device pixels

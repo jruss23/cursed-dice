@@ -144,6 +144,28 @@ export class BlessingChoicePanel {
     panelBg.setStrokeStyle(toDPR(SIZES.PANEL_BORDER_WIDTH), PALETTE.purple[500], 0.8);
     this.container.add(panelBg);
 
+    // Corner accents
+    const cornerSize = toDPR(SIZES.PANEL_CORNER_SIZE);
+    const cornerInset = toDPR(SIZES.PANEL_CORNER_INSET);
+    const panelLeft = (width - L.panelWidth) / 2;
+    const panelTop = (height - L.panelHeight) / 2;
+    const corners = [
+      { x: panelLeft + cornerInset, y: panelTop + cornerInset, ax: 1, ay: 1 },
+      { x: panelLeft + L.panelWidth - cornerInset, y: panelTop + cornerInset, ax: -1, ay: 1 },
+      { x: panelLeft + L.panelWidth - cornerInset, y: panelTop + L.panelHeight - cornerInset, ax: -1, ay: -1 },
+      { x: panelLeft + cornerInset, y: panelTop + L.panelHeight - cornerInset, ax: 1, ay: -1 },
+    ];
+    corners.forEach(corner => {
+      const accent = this.scene.add.graphics();
+      accent.lineStyle(toDPR(2), PALETTE.purple[400], 0.6);
+      accent.beginPath();
+      accent.moveTo(corner.x, corner.y + cornerSize * corner.ay);
+      accent.lineTo(corner.x, corner.y);
+      accent.lineTo(corner.x + cornerSize * corner.ax, corner.y);
+      accent.strokePath();
+      this.container.add(accent);
+    });
+
     // Title
     const title = createText(this.scene, width / 2, L.titleY, 'The Curse Weakens...', {
       fontSize: FONTS.SIZE_LARGE,
@@ -209,6 +231,16 @@ export class BlessingChoicePanel {
     const card = this.scene.add.container(x, y);
     this.container.add(card);
 
+    // Outer glow (gold for implemented, muted for unimplemented)
+    const glowPadding = toDPR(6);
+    const outerGlow = this.scene.add.rectangle(
+      cardWidth / 2, cardHeight / 2,
+      cardWidth + glowPadding, cardHeight + glowPadding,
+      isImplemented ? PALETTE.gold[500] : PALETTE.neutral[600],
+      isImplemented ? 0.08 : 0.04
+    );
+    card.add(outerGlow);
+
     // Card background
     const cardBg = this.scene.add.rectangle(
       cardWidth / 2, cardHeight / 2,
@@ -216,10 +248,32 @@ export class BlessingChoicePanel {
       isImplemented ? PALETTE.purple[800] : PALETTE.neutral[800],
       isImplemented ? 0.95 : 0.7
     );
-    cardBg.setStrokeStyle(toDPR(1), isImplemented ? PALETTE.purple[500] : PALETTE.neutral[600], 0.6);
+    cardBg.setStrokeStyle(toDPR(2), isImplemented ? PALETTE.gold[600] : PALETTE.neutral[600], isImplemented ? 0.5 : 0.3);
     card.add(cardBg);
 
-    // Card glow (hidden by default)
+    // Corner accents (gold for implemented cards)
+    if (isImplemented) {
+      const cornerSize = toDPR(SIZES.PANEL_CORNER_SIZE);
+      const cornerInset = toDPR(SIZES.PANEL_CORNER_INSET);
+      const corners = [
+        { cx: cornerInset, cy: cornerInset, ax: 1, ay: 1 },
+        { cx: cardWidth - cornerInset, cy: cornerInset, ax: -1, ay: 1 },
+        { cx: cardWidth - cornerInset, cy: cardHeight - cornerInset, ax: -1, ay: -1 },
+        { cx: cornerInset, cy: cardHeight - cornerInset, ax: 1, ay: -1 },
+      ];
+      corners.forEach(corner => {
+        const accent = this.scene.add.graphics();
+        accent.lineStyle(toDPR(2), PALETTE.gold[500], 0.6);
+        accent.beginPath();
+        accent.moveTo(corner.cx, corner.cy + cornerSize * corner.ay);
+        accent.lineTo(corner.cx, corner.cy);
+        accent.lineTo(corner.cx + cornerSize * corner.ax, corner.cy);
+        accent.strokePath();
+        card.add(accent);
+      });
+    }
+
+    // Selection glow (hidden by default, shown when selected)
     const cardGlow = this.scene.add.rectangle(
       cardWidth / 2, cardHeight / 2,
       cardWidth + 4, cardHeight + 4,
@@ -227,6 +281,7 @@ export class BlessingChoicePanel {
     );
     card.add(cardGlow);
     card.sendToBack(cardGlow);
+    card.sendToBack(outerGlow);
 
     // Compact layout: Icon | "Name: Subtitle" + Description
     // Scale positions to device pixels
@@ -313,19 +368,21 @@ export class BlessingChoicePanel {
       cardBg.on('pointerover', () => {
         if (this.selectedCard !== card) {
           cardBg.setFillStyle(PALETTE.purple[700], 1);
-          cardBg.setStrokeStyle(toDPR(1), PALETTE.purple[400], 0.8);
+          cardBg.setStrokeStyle(toDPR(2), PALETTE.gold[500], 0.8);
+          outerGlow.setAlpha(0.15);
         }
       });
 
       cardBg.on('pointerout', () => {
         if (this.selectedCard !== card) {
           cardBg.setFillStyle(PALETTE.purple[800], 0.95);
-          cardBg.setStrokeStyle(toDPR(1), PALETTE.purple[500], 0.6);
+          cardBg.setStrokeStyle(toDPR(2), PALETTE.gold[600], 0.5);
+          outerGlow.setAlpha(0.08);
         }
       });
 
       cardBg.on('pointerdown', () => {
-        this.selectBlessing(card, cardBg, cardGlow, blessingId, y);
+        this.selectBlessing(card, cardBg, cardGlow, outerGlow, blessingId, y);
       });
     }
   }
@@ -334,6 +391,7 @@ export class BlessingChoicePanel {
     card: Phaser.GameObjects.Container,
     cardBg: Phaser.GameObjects.Rectangle,
     cardGlow: Phaser.GameObjects.Rectangle,
+    outerGlow: Phaser.GameObjects.Rectangle,
     blessingId: BlessingId,
     originalY: number
   ): void {
@@ -349,11 +407,13 @@ export class BlessingChoicePanel {
       const prevData = this.selectedCard.getData('selectData') as {
         bg: Phaser.GameObjects.Rectangle;
         glow: Phaser.GameObjects.Rectangle;
+        outerGlow: Phaser.GameObjects.Rectangle;
         y: number;
       };
       if (prevData) {
         prevData.bg.setFillStyle(PALETTE.purple[800], 0.95);
-        prevData.bg.setStrokeStyle(toDPR(2), PALETTE.purple[500], 0.6);
+        prevData.bg.setStrokeStyle(toDPR(2), PALETTE.gold[600], 0.5);
+        prevData.outerGlow.setAlpha(0.08);
         this.scene.tweens.add({
           targets: prevData.glow,
           alpha: 0,
@@ -365,11 +425,16 @@ export class BlessingChoicePanel {
     // Select this card
     this.selectedCard = card;
     this.selectedBlessingId = blessingId;
-    card.setData('selectData', { bg: cardBg, glow: cardGlow, y: originalY });
+    card.setData('selectData', { bg: cardBg, glow: cardGlow, outerGlow, y: originalY });
 
-    cardBg.setFillStyle(PALETTE.green[800], 1);
-    cardBg.setStrokeStyle(toDPR(3), PALETTE.green[400], 1);
+    // Use gold/yellow for selection to match card theme
+    cardBg.setFillStyle(PALETTE.gold[800], 1);
+    cardBg.setStrokeStyle(toDPR(3), PALETTE.gold[400], 1);
+    outerGlow.setFillStyle(PALETTE.gold[400]);
+    outerGlow.setAlpha(0.2);
 
+    // Selection glow uses gold
+    cardGlow.setFillStyle(PALETTE.gold[500]);
     this.scene.tweens.add({
       targets: cardGlow,
       alpha: 0.15,
@@ -386,11 +451,14 @@ export class BlessingChoicePanel {
     const prevData = this.selectedCard.getData('selectData') as {
       bg: Phaser.GameObjects.Rectangle;
       glow: Phaser.GameObjects.Rectangle;
+      outerGlow: Phaser.GameObjects.Rectangle;
       y: number;
     };
     if (prevData) {
       prevData.bg.setFillStyle(PALETTE.purple[800], 0.95);
-      prevData.bg.setStrokeStyle(toDPR(2), PALETTE.purple[500], 0.6);
+      prevData.bg.setStrokeStyle(toDPR(2), PALETTE.gold[600], 0.5);
+      prevData.outerGlow.setFillStyle(PALETTE.gold[500]);
+      prevData.outerGlow.setAlpha(0.08);
       this.scene.tweens.add({
         targets: prevData.glow,
         alpha: 0,
@@ -498,8 +566,10 @@ export class BlessingChoicePanel {
     // Fade camera directly to black (keeps dark overlay intact)
     this.scene.cameras.main.fadeOut(300, 0, 0, 0);
     this.scene.cameras.main.once('camerafadeoutcomplete', () => {
+      // Call onSelect which triggers scene.restart()
+      // Don't call this.destroy() - scene restart handles cleanup
+      // Calling destroy after restart can cause issues with stale scene references
       this.callbacks.onSelect(blessingId);
-      this.destroy();
     });
   }
 

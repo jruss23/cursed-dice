@@ -35,15 +35,15 @@ export class SixthBlessingButton extends BlessingButtonBase<SixthBlessingButtonC
   protected create(): void {
     this.createButtonBase(PALETTE.gold[500], PALETTE.gold[800], PALETTE.gold[500]);
 
-    // Label: +1 emoji (left side)
-    this.labelText.setX(toDPR(-18));
+    // Label: +1 emoji (left side) - tighter positioning for 74px button
+    this.labelText.setX(toDPR(-12));
     this.labelText.setText('+1🎲');
     this.labelText.setColor(COLORS.TEXT_WARNING);
     this.labelText.setOrigin(0.5, ALPHA.BORDER_LIGHT);
 
     // Charges indicator: (3/3) - right side, inline
-    this.chargesText = createText(this.scene, toDPR(24), 0, '', {
-      fontSize: FONTS.SIZE_SMALL,
+    this.chargesText = createText(this.scene, toDPR(18), 0, '', {
+      fontSize: FONTS.SIZE_TINY,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_PRIMARY,
       fontStyle: 'bold',

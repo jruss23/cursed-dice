@@ -469,7 +469,7 @@ export class TutorialController {
       // where user could roll again before next step's onEnter sets up forced values
       this.dice.setEnabled(false);
 
-      this.scene.time.delayedCall(SIZES.ROLL_DURATION_MS + 200, () => {
+      this.scene.time.delayedCall(SIZES.ROLL_DURATION_MS + 100, () => {
         if (this.steps[this.currentStepIndex].id === currentStep.id) {
           this.advanceStep();
         }
@@ -486,7 +486,7 @@ export class TutorialController {
     if (currentStep.advanceOn === 'lock-count') {
       this.lockedCount++;
       if (this.lockedCount >= (currentStep.lockCountRequired ?? 1)) {
-        this.scene.time.delayedCall(400, () => {
+        this.scene.time.delayedCall(200, () => {
           if (this.steps[this.currentStepIndex].id === currentStep.id) {
             this.advanceStep();
           }
@@ -513,7 +513,7 @@ export class TutorialController {
     this.scorecard.updateDisplay();
 
     if (currentStep.advanceOn === 'score') {
-      this.scene.time.delayedCall(1200, () => {
+      this.scene.time.delayedCall(600, () => {
         if (this.steps[this.currentStepIndex].id === currentStep.id) {
           this.advanceStep();
         }

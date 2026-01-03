@@ -822,9 +822,10 @@ export function getGameplayLayout(scene: Phaser.Scene): GameplayLayout {
 
   // ==========================================================================
   // HEADER (all values scaled to device pixels)
+  // Use same width as scorecard for visual alignment
   // ==========================================================================
   const headerHeight = toDPR(isUltraCompact ? LAYOUT.header.HEIGHT_COMPACT : LAYOUT.header.HEIGHT);
-  const headerWidthCSS = Math.min(RESPONSIVE.HEADER_WIDTH_MAX, cssWidth - LAYOUT.header.MARGIN);
+  const headerWidthCSS = Math.min(RESPONSIVE.SCORECARD_WIDTH_TWO_COL, cssWidth - LAYOUT.header.MARGIN);
   const headerWidth = toDPR(headerWidthCSS);
   const headerGap = toDPR(isUltraCompact ? LAYOUT.header.GAP_COMPACT : LAYOUT.header.GAP);
   const headerY = safeArea.top + headerHeight / 2 + toDPR(LAYOUT.header.TOP_PADDING);
@@ -852,8 +853,17 @@ export function getGameplayLayout(scene: Phaser.Scene): GameplayLayout {
   const diceToControlsGap = toDPR(isUltraCompact ? LAYOUT.controls.GAP_COMPACT : LAYOUT.controls.GAP);
   const controlsCenterY = diceCenterY + diceRadius + iconGap + iconHeight + diceToControlsGap + controlsHeight / 2;
 
-  // Controls sizing
-  const controlsColWidth = toDPR(isUltraCompact || isMobile ? LAYOUT.controls.COL_WIDTH_MOBILE : LAYOUT.controls.COL_WIDTH);
+  // ==========================================================================
+  // SCORECARD (calculate width first - controls will match this)
+  // ==========================================================================
+  const scorecardGap = toDPR(isUltraCompact ? LAYOUT.scorecard.GAP_COMPACT : LAYOUT.scorecard.GAP);
+  const scorecardY = controlsCenterY + controlsHeight / 2 + scorecardGap;
+  const scorecardWidthCSS = Math.min(RESPONSIVE.SCORECARD_WIDTH_TWO_COL, cssWidth - LAYOUT.header.MARGIN);
+  const scorecardWidth = toDPR(scorecardWidthCSS);
+
+  // Controls sizing - match scorecard width exactly for visual alignment
+  // Use Math.floor to ensure 3 * colWidth <= scorecardWidth
+  const controlsColWidth = Math.floor(scorecardWidth / 3);
   const controlsButtonHeight = toDPR(isUltraCompact ? LAYOUT.controls.BUTTON_HEIGHT_COMPACT : (isMobile ? LAYOUT.controls.BUTTON_HEIGHT_MOBILE : LAYOUT.controls.BUTTON_HEIGHT));
   const controlsButtonWidth = toDPR(isMobile ? LAYOUT.controls.BUTTON_WIDTH_MOBILE : LAYOUT.controls.BUTTON_WIDTH);
   const controlsDividerPadding = toDPR(isUltraCompact ? LAYOUT.controls.DIVIDER_PADDING_COMPACT : (isMobile ? LAYOUT.controls.DIVIDER_PADDING_MOBILE : LAYOUT.controls.DIVIDER_PADDING));
@@ -863,14 +873,6 @@ export function getGameplayLayout(scene: Phaser.Scene): GameplayLayout {
   const controlsLabelValueGap = toDPR(isMobile ? LAYOUT.controls.LABEL_VALUE_GAP_MOBILE : LAYOUT.controls.LABEL_VALUE_GAP);
   const controlsCompactMeetOffset = toDPR(isUltraCompact ? LAYOUT.controls.COMPACT_MEET_OFFSET_COMPACT : LAYOUT.controls.COMPACT_MEET_OFFSET);
   const controlsUseCompactLayout = isUltraCompact || isMobile;
-
-  // ==========================================================================
-  // SCORECARD (all values scaled to device pixels)
-  // ==========================================================================
-  const scorecardGap = toDPR(isUltraCompact ? LAYOUT.scorecard.GAP_COMPACT : LAYOUT.scorecard.GAP);
-  const scorecardY = controlsCenterY + controlsHeight / 2 + scorecardGap;
-  const scorecardWidthCSS = Math.min(RESPONSIVE.SCORECARD_WIDTH_TWO_COL, cssWidth - LAYOUT.header.MARGIN);
-  const scorecardWidth = toDPR(scorecardWidthCSS);
   const scorecardX = (width - scorecardWidth) / 2;
   const bottomPadding = toDPR(isUltraCompact ? LAYOUT.scorecard.BOTTOM_PADDING_COMPACT : LAYOUT.scorecard.BOTTOM_PADDING);
   const scorecardHeight = Math.max(toDPR(LAYOUT.scorecard.MIN_HEIGHT), height - safeArea.bottom - bottomPadding - scorecardY);

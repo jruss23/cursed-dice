@@ -49,8 +49,8 @@ export class HighScoresPanel {
 
     // Spacing values (scale to device pixels)
     const shadowOffset = toDPR(3);
-    const cornerInset = toDPR(5);
-    const cornerSize = toDPR(10);
+    const cornerInset = toDPR(SIZES.PANEL_CORNER_INSET);
+    const cornerSize = toDPR(SIZES.PANEL_CORNER_SIZE);
     const textPaddingX = toDPR(10);
     const textIndentX = toDPR(14);
     const headerY = toDPR(18);

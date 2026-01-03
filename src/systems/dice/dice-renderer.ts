@@ -14,6 +14,7 @@ import { createText } from '@/ui/ui-utils';
 // =============================================================================
 
 export interface DiceSprite {
+  index: number; // Die index for O(1) lookup in event handlers
   container: Phaser.GameObjects.Container;
   shadow: Phaser.GameObjects.Ellipse;
   bg: Phaser.GameObjects.Rectangle;
@@ -174,6 +175,7 @@ export class DiceRenderer {
     container.add(cursedIcon);
 
     const sprite: DiceSprite = {
+      index,
       container,
       shadow,
       bg,
@@ -390,11 +392,12 @@ export class DiceRenderer {
 
     // Complete after animation
     this.scene.time.delayedCall(rollDuration, () => {
-      sprite.pipsGraphics.setVisible(true);
+      // Reset angles
       sprite.bg.setAngle(0);
       sprite.innerBg.setAngle(0);
       sprite.shine.setAngle(0);
       sprite.pipsGraphics.setAngle(0);
+      // NOTE: Don't show pips yet - onComplete() will redraw then show them
       onComplete();
     });
   }
@@ -411,94 +414,104 @@ export class DiceRenderer {
   ): void {
     const rollDuration = SIZES.ROLL_DURATION_MS;
     const scale = this.sizeConfig.size / 70;
-    const staggerDelay = Math.round(50 * scale);
-    const jumpMin = Math.round(60 * scale);
-    const jumpMax = Math.round(100 * scale);
-    const horizontalRange = Math.round(20 * scale);
+    const staggerDelay = Math.round(30 * scale); // Tighter stagger for snappier feel
+    const jumpMin = Math.round(50 * scale);
+    const jumpMax = Math.round(80 * scale);
+    const horizontalRange = Math.round(15 * scale);
+
+    // Timing breakdown (tighter, no gaps):
+    // - Rise: 0% to 35%
+    // - Fall: 35% to 75%
+    // - Settle: 75% to 100%
+    const riseDuration = rollDuration * 0.35;
+    const fallDuration = rollDuration * 0.4;
 
     for (let i = 0; i < sprites.length; i++) {
       if (!locked[i] || initial) {
         const sprite = sprites[i];
         const delay = i * staggerDelay;
 
-        // Hide pips during animation
-        sprite.pipsGraphics.setVisible(false);
+        // Fade out pips smoothly instead of hiding
+        this.scene.tweens.add({
+          targets: sprite.pipsGraphics,
+          alpha: 0,
+          duration: riseDuration * 0.5,
+          delay,
+        });
 
-        // Add glow during roll
+        // Subtle glow during roll
         sprite.glowGraphics.clear();
-        sprite.glowGraphics.fillStyle(PALETTE.purple[400], ALPHA.GLOW_HOVER);
-        sprite.glowGraphics.fillCircle(0, 0, this.sizeConfig.size * 0.8);
+        sprite.glowGraphics.fillStyle(PALETTE.purple[400], ALPHA.GLOW_SUBTLE);
+        sprite.glowGraphics.fillCircle(0, 0, this.sizeConfig.size * 0.7);
+        sprite.glowGraphics.setAlpha(1);
 
-        // Animate glow pulse
         this.scene.tweens.add({
           targets: sprite.glowGraphics,
           alpha: 0,
-          duration: rollDuration,
-          ease: 'Quad.easeIn',
+          duration: rollDuration * 0.8,
+          ease: 'Sine.easeIn',
+          delay,
         });
 
-        // Launch dice upward with random trajectory
+        // Random trajectory
         const jumpHeight = Phaser.Math.Between(jumpMin, jumpMax);
         const horizontalOffset = Phaser.Math.Between(-horizontalRange, horizontalRange);
 
-        // Phase 1: Launch up
+        // Phase 1: Launch up with smooth deceleration
         this.scene.tweens.add({
           targets: sprite.container,
           y: sprite.originalY - jumpHeight,
           x: sprite.originalX + horizontalOffset,
-          duration: rollDuration * 0.4,
-          ease: 'Quad.easeOut',
+          duration: riseDuration,
+          ease: 'Sine.easeOut',
           delay,
         });
 
-        // Shadow shrinks as die goes up
+        // Shadow shrinks smoothly as die rises
         this.scene.tweens.add({
           targets: sprite.shadow,
-          scaleX: 0.5,
-          scaleY: 0.3,
+          scaleX: 0.6,
+          scaleY: 0.4,
           alpha: ALPHA.GLOW_MEDIUM,
-          duration: rollDuration * 0.4,
-          ease: 'Quad.easeOut',
+          duration: riseDuration,
+          ease: 'Sine.easeOut',
           delay,
         });
 
-        // Tumble rotation
-        const rotations = Phaser.Math.Between(2, 4) * 360;
+        // Smooth rotation - always complete full rotations (no snap)
+        const rotations = Phaser.Math.Between(1, 2) * 360;
         this.scene.tweens.add({
           targets: [sprite.bg, sprite.innerBg, sprite.shine, sprite.pipsGraphics],
-          angle: rotations,
-          duration: rollDuration * 0.8,
+          angle: { from: 0, to: rotations },
+          duration: riseDuration + fallDuration,
           ease: 'Cubic.easeOut',
           delay,
         });
 
-        // Phase 2: Fall down and land with bounce
-        this.scene.time.delayedCall(rollDuration * 0.4 + delay, () => {
+        // Phase 2: Fall and land with satisfying settle (no bounce jitter)
+        this.scene.time.delayedCall(riseDuration + delay, () => {
+          // Die falls back to position
           this.scene.tweens.add({
             targets: sprite.container,
             y: sprite.originalY,
             x: sprite.originalX,
-            duration: rollDuration * 0.35,
-            ease: 'Bounce.easeOut',
+            duration: fallDuration,
+            ease: 'Back.easeOut',
           });
 
+          // Shadow grows back with slight overshoot
           this.scene.tweens.add({
             targets: sprite.shadow,
-            scaleX: 1.2,
-            scaleY: 1.3,
-            alpha: ALPHA.SHADOW_MEDIUM,
-            duration: rollDuration * 0.2,
-            ease: 'Quad.easeIn',
-            onComplete: () => {
-              this.scene.tweens.add({
-                targets: sprite.shadow,
-                scaleX: 1,
-                scaleY: 1,
-                alpha: ALPHA.SHADOW_LIGHT,
-                duration: TIMING.FAST,
-              });
-            },
+            scaleX: 1,
+            scaleY: 1,
+            alpha: ALPHA.SHADOW_LIGHT,
+            duration: fallDuration,
+            ease: 'Back.easeOut',
           });
+
+          // NOTE: Pips stay hidden (alpha 0) until animation callback fires
+          // The callback redraws pips with NEW values, then fades them in
+          // This prevents the visual "snap" of old values → new values
         });
 
         // Create trail particles
@@ -506,18 +519,23 @@ export class DiceRenderer {
       }
     }
 
-    // Set final values after animation
-    this.scene.time.delayedCall(rollDuration + 100, () => {
+    // Calculate when the last die finishes (account for stagger)
+    const lastDieDelay = (sprites.filter((_, i) => !locked[i] || initial).length - 1) * staggerDelay;
+    const totalAnimTime = riseDuration + fallDuration + lastDieDelay + 50;
+
+    // Complete after all dice have landed
+    this.scene.time.delayedCall(totalAnimTime, () => {
       for (let i = 0; i < sprites.length; i++) {
         if (!locked[i] || initial) {
           const sprite = sprites[i];
-          sprite.pipsGraphics.setVisible(true);
 
-          // Reset rotation
+          // Ensure clean state (rotation already at multiple of 360)
           sprite.bg.setAngle(0);
           sprite.innerBg.setAngle(0);
           sprite.shine.setAngle(0);
           sprite.pipsGraphics.setAngle(0);
+          // NOTE: Don't set pipsGraphics.alpha here - keep hidden
+          // onComplete() will redraw pips with new values, then fade them in
 
           // Landing impact effect
           this.createLandingImpact(sprite, finalValues[i]);

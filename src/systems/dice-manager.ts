@@ -150,6 +150,9 @@ export class DiceManager implements TutorialControllableDice {
 
     this.renderer.animateSingleDieRoll(sprite, this.state.values[index], () => {
       this.updateDieDisplay(index);
+      // Show pips AFTER redrawing with new value (prevents old value flash)
+      sprite.pipsGraphics.setVisible(true);
+      sprite.pipsGraphics.setAlpha(1);
       this.events.emit('dice:rolled', {
         values: this.getValues(),
         isInitial: false,
@@ -326,12 +329,8 @@ export class DiceManager implements TutorialControllableDice {
    * Returns 5 values normally, 6 values when Sixth Blessing is active
    */
   getValues(): number[] {
-    if (this.state.sixthDieActive) {
-      // Return all 6 dice values
-      return [...this.state.values].slice(0, 6);
-    }
-    // Return only the first 5 dice
-    return [...this.state.values].slice(0, GAME_RULES.DICE_COUNT);
+    const count = this.state.sixthDieActive ? 6 : GAME_RULES.DICE_COUNT;
+    return this.state.values.slice(0, count);
   }
 
   /**
@@ -540,8 +539,9 @@ export class DiceManager implements TutorialControllableDice {
    * Handle die hover event
    */
   private onDieHover(sprite: DiceSprite, isHovered: boolean): void {
-    const index = this.sprites.indexOf(sprite);
-    if (index === -1) return;
+    // Use sprite's stored index instead of O(n) indexOf lookup
+    const index = sprite.index;
+    if (index < 0 || index >= this.state.locked.length) return;
 
     const isLocked = this.state.locked[index];
     const isCursed = index === this.state.cursedIndex;
@@ -696,7 +696,9 @@ export class DiceManager implements TutorialControllableDice {
     }
 
     for (let i = 0; i < diceCount; i++) {
-      if (!this.state.locked[i] || initial) {
+      // Die is locked if: user locked it, OR it's the cursed die
+      const isLocked = this.state.locked[i] || i === this.state.cursedIndex;
+      if (!isLocked || initial) {
         if (useForcedValues && this.forcedRollValues![i] !== undefined) {
           finalValues[i] = this.forcedRollValues![i];
         } else {
@@ -724,12 +726,17 @@ export class DiceManager implements TutorialControllableDice {
 
     const diceCount = this.state.sixthDieActive ? 6 : GAME_RULES.DICE_COUNT;
     const spritesToAnimate = this.sprites.slice(0, diceCount);
-    const lockedState = initial ? Array(diceCount).fill(false) : this.state.locked.slice(0, diceCount);
+    // Build locked state accounting for both user locks and cursed die
+    const lockedState = initial
+      ? Array(diceCount).fill(false)
+      : this.state.locked.slice(0, diceCount).map((locked, i) => locked || i === this.state.cursedIndex);
 
     this.renderer.animateRoll(spritesToAnimate, lockedState, initial, finalValues, () => {
       // Update state after animation
       for (let i = 0; i < diceCount; i++) {
-        if (!this.state.locked[i] || initial) {
+        // Die is locked if: user locked it, OR it's the cursed die
+        const isLocked = this.state.locked[i] || i === this.state.cursedIndex;
+        if (!isLocked || initial) {
           this.state.values[i] = finalValues[i];
         }
       }
@@ -742,6 +749,17 @@ export class DiceManager implements TutorialControllableDice {
       this.updateRerollText();
       for (let i = 0; i < diceCount; i++) {
         this.updateDieDisplay(i);
+        // Fade in pips AFTER redrawing with new values (prevents old value flash)
+        const sprite = this.sprites[i];
+        const wasRolled = initial || !lockedState[i];
+        if (sprite && wasRolled) {
+          this.scene.tweens.add({
+            targets: sprite.pipsGraphics,
+            alpha: 1,
+            duration: 100,
+            ease: 'Sine.easeOut',
+          });
+        }
       }
 
       this.events.emit('dice:rolled', {

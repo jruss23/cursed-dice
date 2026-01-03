@@ -66,6 +66,10 @@ export abstract class BaseScene extends Phaser.Scene {
    * The overlay sits at highest depth and tweens from opaque to transparent.
    */
   protected fadeIn(duration: number = SIZES.FADE_DURATION_MS): void {
+    // Reset any lingering camera effects from previous scene
+    // This is important after scene.restart() where camera fade state may persist
+    this.cameras.main.resetFX();
+
     const { width, height } = this.cameras.main;
 
     // Create a black overlay at highest depth - starts fully opaque

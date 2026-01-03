@@ -372,8 +372,9 @@ export class EndScreenOverlay {
   private cornerData: { x: number; y: number; ax: number; ay: number }[] = [];
 
   private addCornerAccents(panelWidth: number, panelHeight: number): void {
-    const cornerSize = SIZES.PANEL_CORNER_SIZE;
-    const cornerInset = SIZES.PANEL_CORNER_INSET;
+    // Scale corner values to device pixels
+    const cornerSize = toDPR(SIZES.PANEL_CORNER_SIZE);
+    const cornerInset = toDPR(SIZES.PANEL_CORNER_INSET);
     this.cornerData = [
       { x: cornerInset, y: cornerInset, ax: 1, ay: 1 },
       { x: panelWidth - cornerInset, y: cornerInset, ax: -1, ay: 1 },
@@ -909,7 +910,7 @@ export class EndScreenOverlay {
     });
 
     // Corner accents - same timing
-    const cornerSize = SIZES.PANEL_CORNER_SIZE;
+    const cornerSize = toDPR(SIZES.PANEL_CORNER_SIZE);
     this.cornerAccents.forEach((accent, index) => {
       const cornerProxy = hexToRgb(PALETTE.purple[400]);
       const targetCorner = hexToRgb(PALETTE.victory.brightGold);

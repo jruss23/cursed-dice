@@ -63,8 +63,8 @@ export class DifficultyButton {
 
     // Layout values (scale to device pixels)
     const shadowOffset = toDPR(4);
-    const cornerInset = toDPR(5);
-    const cornerSize = toDPR(12);
+    const cornerInset = toDPR(SIZES.PANEL_CORNER_INSET);
+    const cornerSize = toDPR(SIZES.PANEL_CORNER_SIZE);
     const highlightInset = toDPR(20);
     const iconOffset = toDPR(30);
     const labelOffsetX = toDPR(10);
