@@ -404,6 +404,10 @@ export class DiceRenderer {
 
   /**
    * Animate a full dice roll
+   * OPTIMIZED: Reduced from ~70 tweens to ~15 for mobile performance
+   * - Rotates container instead of 4 children
+   * - Removed particles, glow, and shadow animations
+   * - Simplified landing impact (squash only, no ring/sparkles)
    */
   animateRoll(
     sprites: DiceSprite[],
@@ -414,75 +418,46 @@ export class DiceRenderer {
   ): void {
     const rollDuration = SIZES.ROLL_DURATION_MS;
     const scale = this.sizeConfig.size / 70;
-    const staggerDelay = Math.round(30 * scale); // Tighter stagger for snappier feel
-    const jumpMin = Math.round(50 * scale);
-    const jumpMax = Math.round(80 * scale);
-    const horizontalRange = Math.round(15 * scale);
+    const staggerDelay = Math.round(25 * scale);
+    const jumpMin = Math.round(45 * scale);
+    const jumpMax = Math.round(70 * scale);
+    const horizontalRange = Math.round(12 * scale);
 
-    // Timing breakdown (tighter, no gaps):
-    // - Rise: 0% to 35%
-    // - Fall: 35% to 75%
-    // - Settle: 75% to 100%
     const riseDuration = rollDuration * 0.35;
     const fallDuration = rollDuration * 0.4;
 
-    // Track which dice are animating to know when all are done
     const animatingDice = sprites.filter((_, i) => !locked[i] || initial);
     let completedCount = 0;
+
+    if (animatingDice.length === 0) {
+      onComplete();
+      return;
+    }
 
     for (let i = 0; i < sprites.length; i++) {
       if (!locked[i] || initial) {
         const sprite = sprites[i];
         const delay = i * staggerDelay;
+        const finalValue = finalValues[i];
 
-        // Fade out pips smoothly instead of hiding
-        this.scene.tweens.add({
-          targets: sprite.pipsGraphics,
-          alpha: 0,
-          duration: riseDuration * 0.5,
-          delay,
-        });
-
-        // Subtle glow during roll
-        sprite.glowGraphics.clear();
-        sprite.glowGraphics.fillStyle(PALETTE.purple[400], ALPHA.GLOW_SUBTLE);
-        sprite.glowGraphics.fillCircle(0, 0, this.sizeConfig.size * 0.7);
-        sprite.glowGraphics.setAlpha(1);
-
-        this.scene.tweens.add({
-          targets: sprite.glowGraphics,
-          alpha: 0,
-          duration: rollDuration * 0.8,
-          ease: 'Sine.easeIn',
-          delay,
-        });
+        // Hide pips immediately (no fade tween needed)
+        sprite.pipsGraphics.setAlpha(0);
 
         // Random trajectory
         const jumpHeight = Phaser.Math.Between(jumpMin, jumpMax);
         const horizontalOffset = Phaser.Math.Between(-horizontalRange, horizontalRange);
-
-        // Smooth rotation - always complete full rotations (no snap)
         const rotations = Phaser.Math.Between(1, 2) * 360;
+
+        // TWEEN 1: Container rotation (single target instead of 4)
         this.scene.tweens.add({
-          targets: [sprite.bg, sprite.innerBg, sprite.shine, sprite.pipsGraphics],
+          targets: sprite.container,
           angle: { from: 0, to: rotations },
           duration: riseDuration + fallDuration,
           ease: 'Cubic.easeOut',
           delay,
         });
 
-        // Shadow shrinks smoothly as die rises
-        this.scene.tweens.add({
-          targets: sprite.shadow,
-          scaleX: 0.6,
-          scaleY: 0.4,
-          alpha: ALPHA.GLOW_MEDIUM,
-          duration: riseDuration,
-          ease: 'Sine.easeOut',
-          delay,
-        });
-
-        // Phase 1: Launch up - then chain to Phase 2 via onComplete
+        // TWEEN 2: Rise phase
         this.scene.tweens.add({
           targets: sprite.container,
           y: sprite.originalY - jumpHeight,
@@ -491,150 +466,46 @@ export class DiceRenderer {
           ease: 'Sine.easeOut',
           delay,
           onComplete: () => {
-            // Phase 2: Fall and land (chained from rise, not delayedCall)
+            // TWEEN 3: Fall phase (chained)
             this.scene.tweens.add({
               targets: sprite.container,
               y: sprite.originalY,
               x: sprite.originalX,
+              angle: 0,
               duration: fallDuration,
-              ease: 'Quad.easeOut',
+              ease: 'Bounce.easeOut',
               onComplete: () => {
-                // This die has landed - clean up its state
-                sprite.bg.setAngle(0);
-                sprite.innerBg.setAngle(0);
-                sprite.shine.setAngle(0);
-                sprite.pipsGraphics.setAngle(0);
+                // Redraw pips with final value BEFORE showing them
+                this.drawPips(sprite.pipsGraphics, finalValue, COLORS.DICE_PIP);
+                sprite.pipsGraphics.setAlpha(1);
+                this.createLandingImpact(sprite, finalValue);
 
-                // Landing impact effect
-                this.createLandingImpact(sprite, finalValues[i]);
-
-                // Check if all dice have landed
                 completedCount++;
                 if (completedCount === animatingDice.length) {
                   onComplete();
                 }
               },
             });
-
-            // Shadow grows back smoothly (parallel with fall)
-            this.scene.tweens.add({
-              targets: sprite.shadow,
-              scaleX: 1,
-              scaleY: 1,
-              alpha: ALPHA.SHADOW_LIGHT,
-              duration: fallDuration,
-              ease: 'Quad.easeOut',
-            });
           },
         });
-
-        // Create trail particles
-        this.createRollParticles(sprite.container.x, sprite.originalY, delay);
       }
     }
-
-    // Edge case: if no dice are animating (all locked), complete immediately
-    if (animatingDice.length === 0) {
-      onComplete();
-    }
-  }
-
-  /**
-   * Create particle trail during roll
-   */
-  private createRollParticles(x: number, y: number, delay: number): void {
-    const scale = this.sizeConfig.size / 70;
-    const spreadX = Math.round(15 * scale);
-    const spreadYMin = Math.round(30 * scale);
-    const spreadYMax = Math.round(60 * scale);
-    const particleSizeMin = Math.max(2, Math.round(3 * scale));
-    const particleSizeMax = Math.max(4, Math.round(6 * scale));
-    const fallDistance = Math.round(40 * scale);
-
-    this.scene.time.delayedCall(delay, () => {
-      for (let p = 0; p < 5; p++) {
-        this.scene.time.delayedCall(p * 40, () => {
-          const particle = this.scene.add.circle(
-            x + Phaser.Math.Between(-spreadX, spreadX),
-            y + Phaser.Math.Between(-spreadYMax, -spreadYMin),
-            Phaser.Math.Between(particleSizeMin, particleSizeMax),
-            PALETTE.purple[400],
-            ALPHA.BORDER_MEDIUM
-          );
-
-          this.scene.tweens.add({
-            targets: particle,
-            y: particle.y + fallDistance,
-            alpha: 0,
-            scaleX: 0.2,
-            scaleY: 0.2,
-            duration: TIMING.ENTRANCE,
-            ease: 'Quad.easeOut',
-            onComplete: () => particle.destroy(),
-          });
-        });
-      }
-    });
   }
 
   /**
    * Create landing impact effect
+   * OPTIMIZED: Just squash/stretch, no particles or rings
    */
-  private createLandingImpact(sprite: DiceSprite, value: number): void {
-    const scale = this.sizeConfig.size / 70;
-    const ringRadius = Math.round(20 * scale);
-    const ringStroke = Math.max(1, Math.round(2 * scale));
-    const sparkleRadius = Math.max(2, Math.round(4 * scale));
-    const sparkleDistance = Math.round(30 * scale);
-    const sparkleTravel = Math.round(25 * scale);
-
-    // Scale pop
+  private createLandingImpact(sprite: DiceSprite, _value: number): void {
+    // TWEEN 4 (per die): Simple squash and stretch
     this.scene.tweens.add({
       targets: [sprite.bg, sprite.innerBg],
-      scaleX: 1.15,
-      scaleY: 0.9,
-      duration: TIMING.INSTANT + 30,
+      scaleX: 1.12,
+      scaleY: 0.92,
+      duration: TIMING.INSTANT,
       yoyo: true,
       ease: 'Quad.easeOut',
     });
-
-    // Impact ring
-    const ring = this.scene.add.circle(sprite.container.x, sprite.originalY, ringRadius, PALETTE.white, 0);
-    ring.setStrokeStyle(ringStroke, PALETTE.purple[400], ALPHA.BORDER_SOLID);
-
-    this.scene.tweens.add({
-      targets: ring,
-      scaleX: 2.5,
-      scaleY: 2.5,
-      alpha: 0,
-      duration: TIMING.ENTRANCE,
-      ease: 'Quad.easeOut',
-      onComplete: () => ring.destroy(),
-    });
-
-    // Extra effects for 6s
-    if (value === 6) {
-      for (let s = 0; s < 6; s++) {
-        const angle = (s / 6) * Math.PI * 2;
-        const sparkle = this.scene.add.circle(
-          sprite.container.x + Math.cos(angle) * sparkleDistance,
-          sprite.originalY + Math.sin(angle) * sparkleDistance,
-          sparkleRadius,
-          PALETTE.gold[400],
-          1
-        );
-
-        this.scene.tweens.add({
-          targets: sparkle,
-          x: sparkle.x + Math.cos(angle) * sparkleTravel,
-          y: sparkle.y + Math.sin(angle) * sparkleTravel,
-          alpha: 0,
-          duration: TIMING.SLOW,
-          ease: 'Quad.easeOut',
-          onComplete: () => sparkle.destroy(),
-        });
-      }
-    }
   }
 
   /**

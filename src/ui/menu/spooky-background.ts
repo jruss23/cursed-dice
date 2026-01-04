@@ -4,9 +4,8 @@
  */
 
 import Phaser from 'phaser';
-import { FONTS, SIZES, PALETTE } from '@/config';
-import { toDPR } from '@/systems/responsive';
-import { createText } from '@/ui/ui-utils';
+import { SIZES, PALETTE } from '@/config';
+import { toDPR, getGameplayLayout } from '@/systems/responsive';
 
 export class SpookyBackground {
   private scene: Phaser.Scene;
@@ -15,12 +14,23 @@ export class SpookyBackground {
   private tweens: Phaser.Tweens.Tween[] = [];
   private timerEvents: Phaser.Time.TimerEvent[] = [];
   private gameObjects: Phaser.GameObjects.GameObject[] = [];
+  private skullPositions: { x: number; y: number; size: number }[] = [];
+  /** Combined scale factor (0.75-1.4) from responsive system */
+  private combinedScale: number;
+
+  /** Scale CSS pixels to device pixels with combinedScale */
+  private scale(cssValue: number): number {
+    return Math.round(toDPR(cssValue) * this.combinedScale);
+  }
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
     const { width, height } = this.scene.cameras.main;
     this.width = width;
     this.height = height;
+
+    // Get combinedScale from responsive system (single source of truth)
+    this.combinedScale = getGameplayLayout(scene).viewport.combinedScale;
 
     this.createBackground();
     this.createFloatingCursedElements();
@@ -39,11 +49,11 @@ export class SpookyBackground {
     bg.fillRect(0, 0, width, height);
     this.gameObjects.push(bg);
 
-    // Eerie ambient glow spots
+    // Eerie ambient glow spots (sizes in CSS pixels)
     const glowSpots = [
-      { x: width * 0.2, y: height * 0.3, color: PALETTE.spooky.glowPurple, size: 350 },
-      { x: width * 0.8, y: height * 0.6, color: PALETTE.spooky.glowGreen, size: 300 },
-      { x: width * 0.5, y: height * 0.8, color: PALETTE.spooky.glowDeepPurple, size: 400 },
+      { x: width * 0.2, y: height * 0.3, color: PALETTE.spooky.glowPurple, size: this.scale(200) },
+      { x: width * 0.8, y: height * 0.6, color: PALETTE.spooky.glowGreen, size: this.scale(180) },
+      { x: width * 0.5, y: height * 0.8, color: PALETTE.spooky.glowDeepPurple, size: this.scale(220) },
     ];
 
     for (const spot of glowSpots) {
@@ -69,33 +79,35 @@ export class SpookyBackground {
     const { width, height } = this;
 
     // Floating skulls - larger and more visible with glow
-    const skullPositions = [
-      { x: 70, y: 160, size: 36 },
-      { x: width - 70, y: 190, size: 42 },
-      { x: 100, y: height - 140, size: 32 },
-      { x: width - 90, y: height - 170, size: 38 },
-      { x: width / 2 - 220, y: 110, size: 28 },
-      { x: width / 2 + 220, y: 125, size: 30 },
+    // All positions and sizes in CSS pixels, scaled
+    this.skullPositions = [
+      { x: this.scale(50), y: this.scale(100), size: this.scale(45) },
+      { x: width - this.scale(50), y: this.scale(120), size: this.scale(52) },
+      { x: this.scale(70), y: height - this.scale(90), size: this.scale(40) },
+      { x: width - this.scale(60), y: height - this.scale(110), size: this.scale(48) },
+      { x: width * 0.25, y: this.scale(70), size: this.scale(38) },
+      { x: width * 0.75, y: this.scale(80), size: this.scale(42) },
     ];
 
-    skullPositions.forEach((pos, i) => {
+    this.skullPositions.forEach((pos, i) => {
       // Glow behind skull - subtle
       const glow = this.scene.add.circle(pos.x, pos.y, pos.size * 0.6, PALETTE.spooky.skullGlow, 0.08);
       this.gameObjects.push(glow);
 
-      const skull = createText(this.scene, pos.x, pos.y, '💀', {
-        fontSize: `${pos.size}px`,
-        fontFamily: FONTS.FAMILY,
-      });
+      const skull = this.scene.add.image(pos.x, pos.y, 'skull');
       skull.setOrigin(0.5, 0.5);
+      // Scale image to match desired size (base image is 128px)
+      skull.setScale(pos.size / 128);
       skull.setAlpha(0.2);
       this.gameObjects.push(skull);
 
       // Float and rotate together
+      const floatY = this.scale(20);
+      const floatX = this.scale(15);
       this.tweens.push(this.scene.tweens.add({
         targets: [skull, glow],
-        y: pos.y + Phaser.Math.Between(-30, 30),
-        x: pos.x + Phaser.Math.Between(-20, 20),
+        y: pos.y + Phaser.Math.Between(-floatY, floatY),
+        x: pos.x + Phaser.Math.Between(-floatX, floatX),
         duration: Phaser.Math.Between(5000, 8000),
         yoyo: true,
         repeat: -1,
@@ -139,20 +151,23 @@ export class SpookyBackground {
     });
 
     // Floating cursed dice - larger and more visible
+    const diceMargin = this.scale(40);
+    const diceMarginY = this.scale(60);
     for (let i = 0; i < 10; i++) {
-      const x = Phaser.Math.Between(60, width - 60);
-      const y = Phaser.Math.Between(100, height - 100);
-      const size = Phaser.Math.Between(25, 45);
+      const x = Phaser.Math.Between(diceMargin, width - diceMargin);
+      const y = Phaser.Math.Between(diceMarginY, height - diceMarginY);
+      const size = this.scale(Phaser.Math.Between(18, 32));
+      const glowPadding = this.scale(6);
 
       const dice = this.scene.add.container(x, y);
       this.gameObjects.push(dice);
 
       // Outer glow
-      const outerGlow = this.scene.add.rectangle(0, 0, size + 16, size + 16, PALETTE.spooky.diceOuterGlow, 0.1);
+      const outerGlow = this.scene.add.rectangle(0, 0, size + glowPadding * 2, size + glowPadding * 2, PALETTE.spooky.diceOuterGlow, 0.1);
       dice.add(outerGlow);
 
       // Dice body with eerie glow
-      const diceGlow = this.scene.add.rectangle(0, 0, size + 8, size + 8, PALETTE.spooky.diceGlow, 0.25);
+      const diceGlow = this.scene.add.rectangle(0, 0, size + glowPadding, size + glowPadding, PALETTE.spooky.diceGlow, 0.25);
       dice.add(diceGlow);
 
       const diceBg = this.scene.add.rectangle(0, 0, size, size, PALETTE.spooky.diceBg, 0.7);
@@ -182,10 +197,12 @@ export class SpookyBackground {
       dice.setAngle(Phaser.Math.Between(-30, 30));
 
       // Floating animation
+      const diceFloatY = this.scale(25);
+      const diceFloatX = this.scale(20);
       this.tweens.push(this.scene.tweens.add({
         targets: dice,
-        y: y + Phaser.Math.Between(-40, 40),
-        x: x + Phaser.Math.Between(-30, 30),
+        y: y + Phaser.Math.Between(-diceFloatY, diceFloatY),
+        x: x + Phaser.Math.Between(-diceFloatX, diceFloatX),
         angle: dice.angle + Phaser.Math.Between(-20, 20),
         duration: Phaser.Math.Between(5000, 9000),
         yoyo: true,
@@ -214,7 +231,7 @@ export class SpookyBackground {
     // Create multiple fog layers that drift across
     for (let layer = 0; layer < 3; layer++) {
       const fogY = height * 0.3 + layer * height * 0.25;
-      const fogHeight = 150 + layer * 50;
+      const fogHeight = this.scale(90 + layer * 30);
 
       for (let i = 0; i < 4; i++) {
         const fog = this.scene.add.graphics();
@@ -252,16 +269,17 @@ export class SpookyBackground {
   }
 
   private createGlowingEyes(): void {
-    const { width } = this;
+    const { width, height } = this;
 
     // Pairs of eerie glowing eyes - some appear immediately, others delayed
+    // Positions use percentage-based placement to stay in corners/edges
     const eyePositions = [
-      { x: 45, y: 450, size: 8, initialDelay: 500 },
-      { x: width - 35, y: 400, size: 9, initialDelay: 2000 },
-      { x: 120, y: 600, size: 6, initialDelay: 4000 },
-      { x: width - 90, y: 550, size: 7, initialDelay: 1000 },
-      { x: width / 2 - 380, y: 350, size: 6, initialDelay: 3000 },
-      { x: width / 2 + 380, y: 380, size: 6, initialDelay: 5000 },
+      { x: this.scale(30), y: height * 0.5, size: this.scale(5), initialDelay: 500 },
+      { x: width - this.scale(25), y: height * 0.45, size: this.scale(6), initialDelay: 2000 },
+      { x: this.scale(80), y: height * 0.75, size: this.scale(4), initialDelay: 4000 },
+      { x: width - this.scale(60), y: height * 0.7, size: this.scale(5), initialDelay: 1000 },
+      { x: width * 0.15, y: height * 0.4, size: this.scale(4), initialDelay: 3000 },
+      { x: width * 0.85, y: height * 0.42, size: this.scale(4), initialDelay: 5000 },
     ];
 
     eyePositions.forEach((pos) => {
@@ -350,22 +368,23 @@ export class SpookyBackground {
   private createFlickeringCandles(): void {
     const { width, height } = this;
 
-    // Candle positions - corners and edges
+    // Candle positions - corners and edges (using percentage-based Y positions)
     const candlePositions = [
-      { x: 35, y: 280, size: 1 },
-      { x: width - 35, y: 300, size: 0.9 },
-      { x: 55, y: height - 200, size: 0.85 },
-      { x: width - 55, y: height - 180, size: 0.95 },
-      { x: 25, y: 520, size: 0.7 },
-      { x: width - 25, y: 500, size: 0.75 },
+      { x: this.scale(25), y: height * 0.32, size: 1 },
+      { x: width - this.scale(25), y: height * 0.35, size: 0.9 },
+      { x: this.scale(40), y: height * 0.78, size: 0.85 },
+      { x: width - this.scale(40), y: height * 0.75, size: 0.95 },
+      { x: this.scale(18), y: height * 0.58, size: 0.7 },
+      { x: width - this.scale(18), y: height * 0.55, size: 0.75 },
     ];
 
     candlePositions.forEach((pos) => {
-      const candleHeight = 20 * pos.size;
-      const flameSize = 12 * pos.size;
+      const candleHeight = this.scale(14) * pos.size;
+      const flameSize = this.scale(8) * pos.size;
 
       // Candle body (simple dark rectangle)
-      const candleBody = this.scene.add.rectangle(pos.x, pos.y, 8 * pos.size, candleHeight, PALETTE.spooky.candleBody, 0.6);
+      const candleWidth = this.scale(5) * pos.size;
+      const candleBody = this.scene.add.rectangle(pos.x, pos.y, candleWidth, candleHeight, PALETTE.spooky.candleBody, 0.6);
       this.gameObjects.push(candleBody);
 
       // Flame outer glow (largest, dimmest)
@@ -436,36 +455,81 @@ export class SpookyBackground {
   }
 
   private createGhostlyWisps(): void {
-    const { width, height } = this;
+    const { width, height, combinedScale } = this;
+
+    // Helper to scale CSS pixels to device pixels with combinedScale
+    const scaleSize = (cssValue: number): number => Math.round(toDPR(cssValue) * combinedScale);
 
     // Ghostly figures that float and fade
+    // Spawn in left or right third, float toward vertical center
+    const leftThird = width * 0.33;
+    const rightThird = width * 0.66;
+    const activeGhosts: Phaser.GameObjects.Container[] = [];
+    const MIN_GHOST_DISTANCE = scaleSize(100); // Minimum pixels between ghosts
+
     const spawnGhost = () => {
-      const startX = Phaser.Math.Between(50, width - 50);
-      const startY = Phaser.Math.Between(height * 0.5, height * 0.85);
-      const size = Phaser.Math.Between(24, 40);
+      // Margin to keep ghosts fully on screen (half of max ghost size + padding)
+      const margin = scaleSize(50);
+
+      // Spawn in left third or right third (not middle)
+      const onLeft = Math.random() < 0.5;
+      const startX = onLeft
+        ? Phaser.Math.Between(margin, leftThird - margin)
+        : Phaser.Math.Between(rightThird + margin, width - margin);
+
+      // Spawn anywhere vertically
+      const inTopHalf = Math.random() < 0.5;
+      const startY = inTopHalf
+        ? Phaser.Math.Between(margin, height * 0.4)
+        : Phaser.Math.Between(height * 0.6, height - margin);
+
+      // Check distance from existing ghosts
+      const tooCloseToGhost = activeGhosts.some((other) => {
+        if (!other.active) return false;
+        const dx = other.x - startX;
+        const dy = other.y - startY;
+        return Math.sqrt(dx * dx + dy * dy) < MIN_GHOST_DISTANCE;
+      });
+
+      // Check distance from skulls
+      const tooCloseToSkull = this.skullPositions.some((skull) => {
+        const dx = skull.x - startX;
+        const dy = skull.y - startY;
+        return Math.sqrt(dx * dx + dy * dy) < MIN_GHOST_DISTANCE;
+      });
+
+      if (tooCloseToGhost || tooCloseToSkull) return; // Skip this spawn
+
+      // Ghost size in CSS pixels (45-75), scaled to device pixels
+      const size = scaleSize(Phaser.Math.Between(45, 75));
 
       // Ghost container
       const ghost = this.scene.add.container(startX, startY);
+      activeGhosts.push(ghost);
       this.gameObjects.push(ghost);
 
       // Outer glow behind ghost
       const outerGlow = this.scene.add.circle(0, 0, size * 1.2, PALETTE.spooky.ghostGlow, 0.08);
       ghost.add(outerGlow);
 
-      // Ghost emoji with ethereal effect
-      const ghostEmoji = createText(this.scene, 0, 0, '👻', {
-        fontSize: `${size}px`,
-        fontFamily: FONTS.FAMILY,
-      });
-      ghostEmoji.setOrigin(0.5, 0.5);
-      ghost.add(ghostEmoji);
+      // Ghost image with ethereal effect
+      const ghostImage = this.scene.add.image(0, 0, 'ghost');
+      ghostImage.setOrigin(0.5, 0.5);
+      // Scale image to match desired size (base image is 128px)
+      const scale = size / 128;
+      ghostImage.setScale(scale);
+      ghost.add(ghostImage);
 
       ghost.setAlpha(0);
       ghost.setDepth(2);
 
-      // Random drift path - ghosts float upward
-      const endX = startX + Phaser.Math.Between(-100, 100);
-      const endY = startY + Phaser.Math.Between(-250, -100);
+      // Float toward vertical center (down if top, up if bottom)
+      const driftX = scaleSize(40);
+      const driftY = scaleSize(100);
+      const endX = startX + Phaser.Math.Between(-driftX, driftX);
+      const endY = inTopHalf
+        ? startY + Phaser.Math.Between(driftY * 0.8, driftY * 1.8)  // Float down
+        : startY - Phaser.Math.Between(driftY * 0.8, driftY * 1.8); // Float up
       const duration = Phaser.Math.Between(8000, 14000);
 
       // Fade in slowly
@@ -486,18 +550,19 @@ export class SpookyBackground {
       }));
 
       // Gentle horizontal wave motion
+      const waveAmount = scaleSize(25);
       this.tweens.push(this.scene.tweens.add({
         targets: ghost,
-        x: `+=${Phaser.Math.Between(-40, 40)}`,
+        x: `+=${Phaser.Math.Between(-waveAmount, waveAmount)}`,
         duration: 3000,
         yoyo: true,
         repeat: Math.floor(duration / 6000),
         ease: 'Sine.easeInOut',
       }));
 
-      // Subtle pulse/breathing effect
+      // Subtle pulse/breathing effect (scale the container)
       this.tweens.push(this.scene.tweens.add({
-        targets: [ghostEmoji, outerGlow],
+        targets: ghost,
         scaleX: 1.1,
         scaleY: 1.1,
         duration: Phaser.Math.Between(1500, 2500),
@@ -523,24 +588,29 @@ export class SpookyBackground {
           alpha: 0,
           duration: SIZES.ANIM_PULSE_SLOW,
           ease: 'Sine.easeOut',
-          onComplete: () => ghost.destroy(),
+          onComplete: () => {
+            const idx = activeGhosts.indexOf(ghost);
+            if (idx !== -1) activeGhosts.splice(idx, 1);
+            ghost.destroy();
+          },
         }));
       });
       this.timerEvents.push(fadeTimer);
     };
 
-    // Spawn ghosts periodically
+    // Spawn ghosts periodically (faster spawning)
     const spawnTimer = this.scene.time.addEvent({
-      delay: Phaser.Math.Between(6000, 12000),
+      delay: Phaser.Math.Between(3000, 5000),
       callback: spawnGhost,
       loop: true,
     });
     this.timerEvents.push(spawnTimer);
 
-    // Initial ghosts with staggered timing
-    const initial1 = this.scene.time.delayedCall(2000, spawnGhost);
-    const initial2 = this.scene.time.delayedCall(5000, spawnGhost);
-    this.timerEvents.push(initial1, initial2);
+    // Initial ghosts with staggered timing (spawn quickly)
+    const initial1 = this.scene.time.delayedCall(500, spawnGhost);
+    const initial2 = this.scene.time.delayedCall(1500, spawnGhost);
+    const initial3 = this.scene.time.delayedCall(2500, spawnGhost);
+    this.timerEvents.push(initial1, initial2, initial3);
   }
 
   /**

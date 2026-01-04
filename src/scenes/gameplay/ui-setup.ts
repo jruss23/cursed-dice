@@ -216,7 +216,7 @@ export function createControlButtons(config: ControlButtonsConfig): ControlButto
     quitText.setColor(COLORS.TEXT_DANGER);
   });
   quitBg.on('pointerdown', () => {
-    scene.cameras.main.flash(150, FLASH.RED.r, FLASH.RED.g, FLASH.RED.b);
+    scene.cameras.main.flash(TIMING.CAMERA_FLASH_NORMAL, FLASH.RED.r, FLASH.RED.g, FLASH.RED.b);
     config.onQuit();
   });
 

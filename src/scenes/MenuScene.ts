@@ -62,8 +62,10 @@ export class MenuScene extends BaseScene {
   }
 
   preload(): void {
-    this.log.log('Preloading menu music...');
+    this.log.log('Preloading menu assets...');
     this.load.audio('menu-music', ['sounds/menu.mp3', 'sounds/menu.ogg']);
+    this.load.image('ghost', 'images/ghost.png');
+    this.load.image('skull', 'images/skull.png');
 
     this.load.on('filecomplete-audio-menu-music', () => {
       this.log.log('Menu music loaded successfully');

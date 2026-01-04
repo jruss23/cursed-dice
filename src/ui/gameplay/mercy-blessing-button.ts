@@ -4,7 +4,7 @@
  */
 
 import Phaser from 'phaser';
-import { PALETTE, ALPHA } from '@/config';
+import { PALETTE, ALPHA, TIMING } from '@/config';
 import { GameEventEmitter } from '@/systems/game-events';
 import { createLogger } from '@/systems/logger';
 import { BlessingButtonBase, BlessingButtonBaseConfig } from './blessing-button-base';
@@ -44,7 +44,7 @@ export class MercyBlessingButton extends BlessingButtonBase<MercyBlessingButtonC
     this.buttonBg.on('pointerdown', () => {
       if (!this.config.canUse()) {
         // Already used - flash to indicate
-        this.scene.cameras.main.flash(100, 100, 100, 100);
+        this.scene.cameras.main.flash(TIMING.CAMERA_FLASH_SHORT, 100, 100, 100);
         return;
       }
 
@@ -52,7 +52,7 @@ export class MercyBlessingButton extends BlessingButtonBase<MercyBlessingButtonC
       if (success) {
         log.log('Mercy used!');
         // Divine flash
-        this.scene.cameras.main.flash(150, 200, 220, 255);
+        this.scene.cameras.main.flash(TIMING.CAMERA_FLASH_NORMAL, 200, 220, 255);
         this.updateDisplay();
       }
     });

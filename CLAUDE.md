@@ -131,6 +131,18 @@ When deleting or renaming helpers:
 | `getMenuSizing()` | `(scene) → ViewportSizing` | Menu button positions and sizes |
 | `scaleValue()` | `(value, min, max, factor) → number` | Scale a value within bounds |
 
+#### When to Use Each Scaling Approach
+
+| Scenario | Use | Why |
+|----------|-----|-----|
+| Stroke widths, borders | `toDPR()` | Visual weight should be consistent |
+| Fixed panel dimensions | `toDPR()` | Standard UI sizing |
+| Standard components | `toDPR()` | Most components don't need viewport scaling |
+| Content inside responsive panels | `this.scale()` | Must match panel's scaling factor |
+| Buttons in responsive panels | `this.scale()` | Should scale with surrounding content |
+
+**Rule of thumb**: Use `toDPR()` by default. Only use `this.scale()` inside components that already implement viewport-based scaling (blessing-choice-panel, spooky-background).
+
 ### Config Locations (NEVER HARDCODE)
 
 | What | Location | Constants |

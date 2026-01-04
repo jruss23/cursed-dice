@@ -491,7 +491,7 @@ export class EndScreenOverlay {
       }, 'danger');
       this.createButton(panelWidth / 2 + buttonOffset, buttonY, 'CONTINUE', () => {
         // Green flash for feedback
-        this.scene.cameras.main.flash(150, FLASH.GREEN.r, FLASH.GREEN.g, FLASH.GREEN.b);
+        this.scene.cameras.main.flash(TIMING.CAMERA_FLASH_NORMAL, FLASH.GREEN.r, FLASH.GREEN.g, FLASH.GREEN.b);
 
         if (showBlessingChoice) {
           // Fade out just the panel, keep dark overlay for blessing choice
@@ -648,7 +648,7 @@ export class EndScreenOverlay {
     // Flash effect for feedback (skip if flashColor is false)
     if (flashColor !== false) {
       const { r, g, b } = flashColor ?? FLASH.PURPLE;
-      this.scene.cameras.main.flash(150, r, g, b);
+      this.scene.cameras.main.flash(TIMING.CAMERA_FLASH_NORMAL, r, g, b);
     }
 
     // Fade camera to black

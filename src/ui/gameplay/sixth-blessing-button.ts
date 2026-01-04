@@ -5,7 +5,7 @@
  */
 
 import Phaser from 'phaser';
-import { FONTS, PALETTE, COLORS, ALPHA } from '@/config';
+import { FONTS, PALETTE, COLORS, ALPHA, TIMING } from '@/config';
 import { toDPR } from '@/systems/responsive';
 import { createText } from '@/ui/ui-utils';
 import { GameEventEmitter } from '@/systems/game-events';
@@ -78,13 +78,13 @@ export class SixthBlessingButton extends BlessingButtonBase<SixthBlessingButtonC
     this.buttonBg.on('pointerdown', () => {
       if (this.config.isActive()) {
         // Already active - flash to indicate
-        this.scene.cameras.main.flash(100, 255, 200, 50);
+        this.scene.cameras.main.flash(TIMING.CAMERA_FLASH_SHORT, 255, 200, 50);
         return;
       }
 
       if (this.config.getCharges() <= 0) {
         // No charges - flash red
-        this.scene.cameras.main.flash(100, 255, 50, 50);
+        this.scene.cameras.main.flash(TIMING.CAMERA_FLASH_SHORT, 255, 50, 50);
         return;
       }
 
@@ -94,7 +94,7 @@ export class SixthBlessingButton extends BlessingButtonBase<SixthBlessingButtonC
         this.updateDisplay();
 
         // Visual feedback
-        this.scene.cameras.main.flash(100, 255, 215, 50);
+        this.scene.cameras.main.flash(TIMING.CAMERA_FLASH_SHORT, 255, 215, 50);
       }
     });
 

@@ -1,19 +1,21 @@
 /**
  * Blessing Choice Panel
- * Displays 4 blessing options for player to choose after Mode 1
- * Mobile-only layout (game is always 430px width via CSS lock)
+ * Popup-style panel for blessing selection after Mode 1
+ * Similar to end-screen-overlay sizing approach
  */
 
 import Phaser from 'phaser';
-import { FONTS, PALETTE, COLORS, SIZES, FLASH, LAYOUT } from '@/config';
+import { FONTS, PALETTE, COLORS, SIZES, TIMING, FLASH, LAYOUT } from '@/config';
 import { createText } from '@/ui/ui-utils';
 import { BLESSING_CONFIGS, type BlessingId } from '@/systems/blessings';
 import { getImplementedBlessings } from '@/data/blessings';
-import { toDPR } from '@/systems/responsive';
+import { toDPR, getGameplayLayout } from '@/systems/responsive';
 
 interface BlessingPanelLayout {
   panelWidth: number;
   panelHeight: number;
+  panelX: number;
+  panelY: number;
   titleY: number;
   subtitleY: number;
   chooseLabelY: number;
@@ -22,61 +24,93 @@ interface BlessingPanelLayout {
   cardWidth: number;
   cardHeight: number;
   cardSpacing: number;
+  combinedScale: number;
 }
 
 /**
- * Calculate blessing panel layout
- * Uses LAYOUT.blessingPanel as source of truth
- * Note: screenWidth/screenHeight are already in device pixels from scene.cameras.main
- * All LAYOUT values are scaled to device pixels via toDPR()
+ * Calculate blessing panel layout - popup style with content-driven height
+ * Uses combinedScale from responsive system for viewport-based scaling
  */
 function getBlessingPanelLayout(
-  screenWidth: number,
-  screenHeight: number
+  scene: Phaser.Scene
 ): BlessingPanelLayout {
   const L = LAYOUT.blessingPanel;
+  const { width: screenWidth, height: screenHeight } = scene.cameras.main;
 
-  // Scale layout values to device pixels
-  const panelMargin = toDPR(L.PANEL_MARGIN);
-  const titlePadding = toDPR(L.TITLE_PADDING);
-  const gapTitleToSubtitle = toDPR(L.GAP_TITLE_TO_SUBTITLE);
-  const gapSubtitleToChoose = toDPR(L.GAP_SUBTITLE_TO_CHOOSE);
-  const gapChooseToCards = toDPR(L.GAP_CHOOSE_TO_CARDS);
-  const gapButtonFromBottom = toDPR(L.GAP_BUTTON_FROM_BOTTOM);
-  const continueButtonHeight = toDPR(L.CONTINUE_BUTTON_HEIGHT);
-  const cardWidthMargin = toDPR(L.CARD_WIDTH_MARGIN);
-  const cardHeight = toDPR(L.CARD_HEIGHT);
-  const cardSpacing = toDPR(L.CARD_SPACING);
+  // Get combinedScale from the responsive system (single source of truth)
+  const { combinedScale } = getGameplayLayout(scene).viewport;
 
-  // Panel dimensions (fills screen with margin)
-  const panelWidth = screenWidth - panelMargin;
-  const panelHeight = screenHeight - panelMargin;
+  // Helper to scale CSS pixels to device pixels with viewport scaling
+  const scale = (cssValue: number): number => Math.round(toDPR(cssValue) * combinedScale);
 
-  // Panel is centered on screen
-  const panelTop = (screenHeight - panelHeight) / 2;
-  const panelBottom = panelTop + panelHeight;
+  // Scale layout values
+  const panelWidth = scale(L.PANEL_WIDTH);
+  const panelPadding = scale(L.PANEL_PADDING);
+  const titleHeight = scale(L.TITLE_HEIGHT);
+  const subtitleHeight = scale(L.SUBTITLE_HEIGHT);
+  const gapTitleToSubtitle = scale(L.GAP_TITLE_TO_SUBTITLE);
+  const gapSubtitleToChoose = scale(L.GAP_SUBTITLE_TO_CHOOSE);
+  const gapChooseToCards = scale(L.GAP_CHOOSE_TO_CARDS);
+  const gapCardsToButton = scale(L.GAP_CARDS_TO_BUTTON);
+  const continueButtonHeight = scale(L.CONTINUE_BUTTON_HEIGHT);
+  const cardHeight = scale(L.CARD_HEIGHT);
+  const cardSpacing = scale(L.CARD_SPACING);
+  const cardPadding = scale(L.CARD_PADDING);
 
-  // Title at top of panel with padding
-  const titleY = panelTop + titlePadding;
+  // Calculate content height
+  let contentHeight = 0;
 
-  // Subtitle below title
-  const subtitleY = titleY + gapTitleToSubtitle;
+  // Title group
+  contentHeight += titleHeight;
+  contentHeight += gapTitleToSubtitle;
+  contentHeight += subtitleHeight;
+  contentHeight += gapSubtitleToChoose;
 
-  // "Choose Your Blessing" label
-  const chooseLabelY = subtitleY + gapSubtitleToChoose;
+  // "Choose Your Blessing" label (use body font height)
+  const chooseLabelHeight = scale(16);
+  contentHeight += chooseLabelHeight;
+  contentHeight += gapChooseToCards;
 
-  // Cards area starts after choose label
-  const cardsAreaY = chooseLabelY + gapChooseToCards;
+  // 4 cards with spacing
+  const totalCardsHeight = 4 * cardHeight + 3 * cardSpacing;
+  contentHeight += totalCardsHeight;
+  contentHeight += gapCardsToButton;
 
-  // Continue button near bottom of panel
-  const buttonY = panelBottom - gapButtonFromBottom - continueButtonHeight / 2;
+  // Button
+  contentHeight += continueButtonHeight;
 
-  // Card dimensions
-  const cardWidth = panelWidth - cardWidthMargin;
+  // Panel dimensions
+  const panelHeight = contentHeight + panelPadding * 2;
+
+  // Center panel on screen
+  const panelX = (screenWidth - panelWidth) / 2;
+  const panelY = (screenHeight - panelHeight) / 2;
+
+  // Calculate Y positions (relative to screen, not panel)
+  let y = panelY + panelPadding;
+
+  const titleY = y + titleHeight / 2;
+  y += titleHeight + gapTitleToSubtitle;
+
+  const subtitleY = y + subtitleHeight / 2;
+  y += subtitleHeight + gapSubtitleToChoose;
+
+  const chooseLabelY = y + chooseLabelHeight / 2;
+  y += chooseLabelHeight + gapChooseToCards;
+
+  const cardsAreaY = y;
+  y += totalCardsHeight + gapCardsToButton;
+
+  const buttonY = y + continueButtonHeight / 2;
+
+  // Card dimensions (full width minus padding)
+  const cardWidth = panelWidth - cardPadding * 2;
 
   return {
     panelWidth,
     panelHeight,
+    panelX,
+    panelY,
     titleY,
     subtitleY,
     chooseLabelY,
@@ -85,6 +119,7 @@ function getBlessingPanelLayout(
     cardWidth,
     cardHeight,
     cardSpacing,
+    combinedScale,
   };
 }
 
@@ -115,18 +150,22 @@ export class BlessingChoicePanel {
     this.container = this.scene.add.container(0, 0);
     this.container.setDepth(200);
 
-    // Calculate layout
-    const { width, height } = this.scene.cameras.main;
-    this.layout = getBlessingPanelLayout(width, height);
+    // Calculate layout using responsive system
+    this.layout = getBlessingPanelLayout(this.scene);
 
     this.create();
+  }
+
+  /** Scale CSS pixels to device pixels with viewport scaling */
+  private scale(cssValue: number): number {
+    return Math.round(toDPR(cssValue) * this.layout.combinedScale);
   }
 
   private create(): void {
     const { width, height } = this.scene.cameras.main;
     const L = this.layout;
 
-    // Dark overlay
+    // Dark overlay (full screen)
     const overlay = this.scene.add.rectangle(
       width / 2, height / 2,
       width, height,
@@ -135,29 +174,31 @@ export class BlessingChoicePanel {
     overlay.setInteractive(); // Block clicks behind
     this.container.add(overlay);
 
+    // Panel center position
+    const panelCenterX = L.panelX + L.panelWidth / 2;
+    const panelCenterY = L.panelY + L.panelHeight / 2;
+
     // Main panel background
     const panelBg = this.scene.add.rectangle(
-      width / 2, height / 2,
+      panelCenterX, panelCenterY,
       L.panelWidth, L.panelHeight,
       PALETTE.purple[900], 0.98
     );
-    panelBg.setStrokeStyle(toDPR(SIZES.PANEL_BORDER_WIDTH), PALETTE.purple[500], 0.8);
+    panelBg.setStrokeStyle(this.scale(SIZES.PANEL_BORDER_WIDTH), PALETTE.purple[500], 0.8);
     this.container.add(panelBg);
 
     // Corner accents
-    const cornerSize = toDPR(SIZES.PANEL_CORNER_SIZE);
-    const cornerInset = toDPR(SIZES.PANEL_CORNER_INSET);
-    const panelLeft = (width - L.panelWidth) / 2;
-    const panelTop = (height - L.panelHeight) / 2;
+    const cornerSize = this.scale(SIZES.PANEL_CORNER_SIZE);
+    const cornerInset = this.scale(SIZES.PANEL_CORNER_INSET);
     const corners = [
-      { x: panelLeft + cornerInset, y: panelTop + cornerInset, ax: 1, ay: 1 },
-      { x: panelLeft + L.panelWidth - cornerInset, y: panelTop + cornerInset, ax: -1, ay: 1 },
-      { x: panelLeft + L.panelWidth - cornerInset, y: panelTop + L.panelHeight - cornerInset, ax: -1, ay: -1 },
-      { x: panelLeft + cornerInset, y: panelTop + L.panelHeight - cornerInset, ax: 1, ay: -1 },
+      { x: L.panelX + cornerInset, y: L.panelY + cornerInset, ax: 1, ay: 1 },
+      { x: L.panelX + L.panelWidth - cornerInset, y: L.panelY + cornerInset, ax: -1, ay: 1 },
+      { x: L.panelX + L.panelWidth - cornerInset, y: L.panelY + L.panelHeight - cornerInset, ax: -1, ay: -1 },
+      { x: L.panelX + cornerInset, y: L.panelY + L.panelHeight - cornerInset, ax: 1, ay: -1 },
     ];
     corners.forEach(corner => {
       const accent = this.scene.add.graphics();
-      accent.lineStyle(toDPR(2), PALETTE.purple[400], 0.6);
+      accent.lineStyle(this.scale(2), PALETTE.purple[400], 0.6);
       accent.beginPath();
       accent.moveTo(corner.x, corner.y + cornerSize * corner.ay);
       accent.lineTo(corner.x, corner.y);
@@ -167,8 +208,8 @@ export class BlessingChoicePanel {
     });
 
     // Title
-    const title = createText(this.scene, width / 2, L.titleY, 'The Curse Weakens...', {
-      fontSize: FONTS.SIZE_LARGE,
+    const title = createText(this.scene, panelCenterX, L.titleY, 'The Curse Weakens...', {
+      fontSize: FONTS.SIZE_SUBHEADING,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_WARNING,
       fontStyle: 'bold',
@@ -177,18 +218,18 @@ export class BlessingChoicePanel {
     this.container.add(title);
 
     // Narrative subtitle
-    const subtitle = createText(this.scene, width / 2, L.subtitleY,
-      'The first seal is broken. Darker trials await.', {
+    const subtitle = createText(this.scene, panelCenterX, L.subtitleY,
+      'Choose a blessing for the trials ahead.', {
         fontSize: FONTS.SIZE_SMALL,
         fontFamily: FONTS.FAMILY,
-        color: COLORS.TEXT_PRIMARY,
+        color: COLORS.TEXT_SECONDARY,
       });
     subtitle.setOrigin(0.5, 0.5);
     this.container.add(subtitle);
 
     // "Choose Your Blessing" label above cards
-    const chooseLabel = createText(this.scene, width / 2, L.chooseLabelY, 'Choose Your Blessing', {
-      fontSize: FONTS.SIZE_BODY,
+    const chooseLabel = createText(this.scene, panelCenterX, L.chooseLabelY, 'Choose Your Blessing', {
+      fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_ACCENT,
       fontStyle: 'bold',
@@ -198,15 +239,15 @@ export class BlessingChoicePanel {
 
     // Cards - 4 compact rows
     const blessingIds: BlessingId[] = ['abundance', 'mercy', 'sanctuary', 'sixth'];
+    const cardStartX = L.panelX + (L.panelWidth - L.cardWidth) / 2;
     blessingIds.forEach((id, index) => {
-      const cardX = (width - L.cardWidth) / 2;
       const cardY = L.cardsAreaY + index * (L.cardHeight + L.cardSpacing);
       const isImplemented = IMPLEMENTED_BLESSINGS.has(id);
-      this.createBlessingCard(cardX, cardY, L.cardWidth, L.cardHeight, id, isImplemented);
+      this.createBlessingCard(cardStartX, cardY, L.cardWidth, L.cardHeight, id, isImplemented);
     });
 
     // Continue button (disabled until blessing selected)
-    this.createContinueButton(width / 2, L.buttonY);
+    this.createContinueButton(panelCenterX, L.buttonY);
 
     // Entrance animation
     this.container.setAlpha(0);
@@ -218,7 +259,7 @@ export class BlessingChoicePanel {
     });
   }
 
-  /** Compact card layout for blessing selection */
+  /** Card layout for blessing selection with full descriptions */
   private createBlessingCard(
     x: number,
     y: number,
@@ -232,7 +273,7 @@ export class BlessingChoicePanel {
     this.container.add(card);
 
     // Outer glow (gold for implemented, muted for unimplemented)
-    const glowPadding = toDPR(6);
+    const glowPadding = this.scale(6);
     const outerGlow = this.scene.add.rectangle(
       cardWidth / 2, cardHeight / 2,
       cardWidth + glowPadding, cardHeight + glowPadding,
@@ -248,13 +289,13 @@ export class BlessingChoicePanel {
       isImplemented ? PALETTE.purple[800] : PALETTE.neutral[800],
       isImplemented ? 0.95 : 0.7
     );
-    cardBg.setStrokeStyle(toDPR(2), isImplemented ? PALETTE.gold[600] : PALETTE.neutral[600], isImplemented ? 0.5 : 0.3);
+    cardBg.setStrokeStyle(this.scale(2), isImplemented ? PALETTE.gold[600] : PALETTE.neutral[600], isImplemented ? 0.5 : 0.3);
     card.add(cardBg);
 
     // Corner accents (gold for implemented cards)
     if (isImplemented) {
-      const cornerSize = toDPR(SIZES.PANEL_CORNER_SIZE);
-      const cornerInset = toDPR(SIZES.PANEL_CORNER_INSET);
+      const cornerSize = this.scale(SIZES.PANEL_CORNER_SIZE);
+      const cornerInset = this.scale(SIZES.PANEL_CORNER_INSET);
       const corners = [
         { cx: cornerInset, cy: cornerInset, ax: 1, ay: 1 },
         { cx: cardWidth - cornerInset, cy: cornerInset, ax: -1, ay: 1 },
@@ -263,7 +304,7 @@ export class BlessingChoicePanel {
       ];
       corners.forEach(corner => {
         const accent = this.scene.add.graphics();
-        accent.lineStyle(toDPR(2), PALETTE.gold[500], 0.6);
+        accent.lineStyle(this.scale(2), PALETTE.gold[500], 0.6);
         accent.beginPath();
         accent.moveTo(corner.cx, corner.cy + cornerSize * corner.ay);
         accent.lineTo(corner.cx, corner.cy);
@@ -283,10 +324,9 @@ export class BlessingChoicePanel {
     card.sendToBack(cardGlow);
     card.sendToBack(outerGlow);
 
-    // Compact layout: Icon | "Name: Subtitle" + Description
-    // Scale positions to device pixels
-    const iconX = toDPR(28);
-    const textStartX = toDPR(54);
+    // Layout: Icon | "Name: Subtitle" on first line, Description on second
+    const iconX = this.scale(26);
+    const textStartX = this.scale(50);
 
     // Icon (centered vertically)
     const icon = createText(this.scene, iconX, cardHeight / 2, config.icon, {
@@ -297,11 +337,11 @@ export class BlessingChoicePanel {
     if (!isImplemented) icon.setAlpha(0.5);
     card.add(icon);
 
-    // Name (purple) + Subtitle (white) on same line
+    // Name (purple/accent) + Subtitle (white) on same line
     const blessingName = config.name.replace('Blessing of ', '');
-    const nameY = toDPR(18);
+    const nameY = this.scale(18);
     const nameText = createText(this.scene, textStartX, nameY, `${blessingName}: `, {
-      fontSize: FONTS.SIZE_BODY,
+      fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: isImplemented ? COLORS.TEXT_ACCENT : COLORS.TEXT_MUTED,
       fontStyle: 'bold',
@@ -310,7 +350,7 @@ export class BlessingChoicePanel {
     card.add(nameText);
 
     const subtitleText = createText(this.scene, textStartX + nameText.width, nameY, config.subtitle, {
-      fontSize: FONTS.SIZE_BODY,
+      fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: isImplemented ? COLORS.TEXT_PRIMARY : COLORS.TEXT_MUTED,
       fontStyle: 'bold',
@@ -318,10 +358,10 @@ export class BlessingChoicePanel {
     subtitleText.setOrigin(0, 0.5);
     card.add(subtitleText);
 
-    // Description (directly below title, no gap)
-    const descY = toDPR(34);
+    // Full description below (for implemented blessings)
+    const descY = this.scale(34);
+    const descWidth = cardWidth - textStartX - this.scale(10);
     if (isImplemented) {
-      const descWidth = cardWidth - textStartX - toDPR(10);
       const desc = createText(this.scene, textStartX, descY, config.description, {
         fontSize: FONTS.SIZE_SMALL,
         fontFamily: FONTS.FAMILY,
@@ -331,7 +371,7 @@ export class BlessingChoicePanel {
       desc.setOrigin(0, 0);
       card.add(desc);
     } else {
-      // Show just subtitle for unimplemented
+      // Just show subtitle for unimplemented
       const desc = createText(this.scene, textStartX, descY, config.subtitle, {
         fontSize: FONTS.SIZE_SMALL,
         fontFamily: FONTS.FAMILY,
@@ -343,14 +383,14 @@ export class BlessingChoicePanel {
 
     // "Coming Soon" badge on right for unimplemented
     if (!isImplemented) {
-      const badgeX = cardWidth - toDPR(35);
+      const badgeX = cardWidth - this.scale(32);
       const badgeY = cardHeight / 2;
       const comingSoonBg = this.scene.add.rectangle(
         badgeX, badgeY,
-        toDPR(50), toDPR(20),
+        this.scale(48), this.scale(18),
         PALETTE.neutral[700], 0.9
       );
-      comingSoonBg.setStrokeStyle(toDPR(1), PALETTE.neutral[500], 0.5);
+      comingSoonBg.setStrokeStyle(this.scale(1), PALETTE.neutral[500], 0.5);
       card.add(comingSoonBg);
 
       const comingSoon = createText(this.scene, badgeX, badgeY, 'SOON', {
@@ -368,7 +408,7 @@ export class BlessingChoicePanel {
       cardBg.on('pointerover', () => {
         if (this.selectedCard !== card) {
           cardBg.setFillStyle(PALETTE.purple[700], 1);
-          cardBg.setStrokeStyle(toDPR(2), PALETTE.gold[500], 0.8);
+          cardBg.setStrokeStyle(this.scale(2), PALETTE.gold[500], 0.8);
           outerGlow.setAlpha(0.15);
         }
       });
@@ -376,7 +416,7 @@ export class BlessingChoicePanel {
       cardBg.on('pointerout', () => {
         if (this.selectedCard !== card) {
           cardBg.setFillStyle(PALETTE.purple[800], 0.95);
-          cardBg.setStrokeStyle(toDPR(2), PALETTE.gold[600], 0.5);
+          cardBg.setStrokeStyle(this.scale(2), PALETTE.gold[600], 0.5);
           outerGlow.setAlpha(0.08);
         }
       });
@@ -412,7 +452,7 @@ export class BlessingChoicePanel {
       };
       if (prevData) {
         prevData.bg.setFillStyle(PALETTE.purple[800], 0.95);
-        prevData.bg.setStrokeStyle(toDPR(2), PALETTE.gold[600], 0.5);
+        prevData.bg.setStrokeStyle(this.scale(2), PALETTE.gold[600], 0.5);
         prevData.outerGlow.setAlpha(0.08);
         this.scene.tweens.add({
           targets: prevData.glow,
@@ -429,7 +469,7 @@ export class BlessingChoicePanel {
 
     // Use gold/yellow for selection to match card theme
     cardBg.setFillStyle(PALETTE.gold[800], 1);
-    cardBg.setStrokeStyle(toDPR(3), PALETTE.gold[400], 1);
+    cardBg.setStrokeStyle(this.scale(2), PALETTE.gold[400], 1);
     outerGlow.setFillStyle(PALETTE.gold[400]);
     outerGlow.setAlpha(0.2);
 
@@ -456,7 +496,7 @@ export class BlessingChoicePanel {
     };
     if (prevData) {
       prevData.bg.setFillStyle(PALETTE.purple[800], 0.95);
-      prevData.bg.setStrokeStyle(toDPR(2), PALETTE.gold[600], 0.5);
+      prevData.bg.setStrokeStyle(this.scale(2), PALETTE.gold[600], 0.5);
       prevData.outerGlow.setFillStyle(PALETTE.gold[500]);
       prevData.outerGlow.setAlpha(0.08);
       this.scene.tweens.add({
@@ -479,7 +519,7 @@ export class BlessingChoicePanel {
 
     // Update styling to disabled state
     this.continueButton.setFillStyle(PALETTE.neutral[700], 0.6);
-    this.continueButton.setStrokeStyle(toDPR(2), PALETTE.neutral[500], 0.4);
+    this.continueButton.setStrokeStyle(this.scale(2), PALETTE.neutral[500], 0.4);
     this.continueButtonText.setColor(COLORS.TEXT_DISABLED);
 
     // Fade out glow
@@ -491,21 +531,21 @@ export class BlessingChoicePanel {
   }
 
   private createContinueButton(x: number, y: number): void {
-    const btnWidth = toDPR(LAYOUT.blessingPanel.CONTINUE_BUTTON_WIDTH);
-    const btnHeight = toDPR(LAYOUT.blessingPanel.CONTINUE_BUTTON_HEIGHT);
+    const btnWidth = this.scale(LAYOUT.blessingPanel.CONTINUE_BUTTON_WIDTH);
+    const btnHeight = this.scale(LAYOUT.blessingPanel.CONTINUE_BUTTON_HEIGHT);
 
     // Button glow (hidden until enabled)
-    this.continueButtonGlow = this.scene.add.rectangle(x, y, btnWidth + toDPR(10), btnHeight + toDPR(10), PALETTE.green[500], 0);
+    this.continueButtonGlow = this.scene.add.rectangle(x, y, btnWidth + this.scale(8), btnHeight + this.scale(8), PALETTE.green[500], 0);
     this.container.add(this.continueButtonGlow);
 
     // Button background (disabled state)
     this.continueButton = this.scene.add.rectangle(x, y, btnWidth, btnHeight, PALETTE.neutral[700], 0.6);
-    this.continueButton.setStrokeStyle(toDPR(2), PALETTE.neutral[500], 0.4);
+    this.continueButton.setStrokeStyle(this.scale(2), PALETTE.neutral[500], 0.4);
     this.container.add(this.continueButton);
 
     // Button text
     this.continueButtonText = createText(this.scene, x, y, 'CONTINUE', {
-      fontSize: FONTS.SIZE_BODY,
+      fontSize: FONTS.SIZE_SMALL,
       fontFamily: FONTS.FAMILY,
       color: COLORS.TEXT_DISABLED,
       fontStyle: 'bold',
@@ -519,7 +559,7 @@ export class BlessingChoicePanel {
 
     // Update styling to enabled state
     this.continueButton.setFillStyle(PALETTE.green[700], 0.95);
-    this.continueButton.setStrokeStyle(toDPR(2), PALETTE.green[500], 0.8);
+    this.continueButton.setStrokeStyle(this.scale(2), PALETTE.green[500], 0.8);
     this.continueButtonText.setColor(COLORS.TEXT_SUCCESS);
 
     // Add glow
@@ -535,13 +575,13 @@ export class BlessingChoicePanel {
     // Hover effects
     this.continueButton.on('pointerover', () => {
       this.continueButton?.setFillStyle(PALETTE.green[600], 1);
-      this.continueButton?.setStrokeStyle(toDPR(2), PALETTE.green[400], 1);
+      this.continueButton?.setStrokeStyle(this.scale(2), PALETTE.green[400], 1);
       this.continueButtonGlow?.setAlpha(0.25);
     });
 
     this.continueButton.on('pointerout', () => {
       this.continueButton?.setFillStyle(PALETTE.green[700], 0.95);
-      this.continueButton?.setStrokeStyle(toDPR(2), PALETTE.green[500], 0.8);
+      this.continueButton?.setStrokeStyle(this.scale(2), PALETTE.green[500], 0.8);
       this.continueButtonGlow?.setAlpha(0.15);
     });
 
@@ -561,10 +601,10 @@ export class BlessingChoicePanel {
     });
 
     // Quick flash effect then fade to black (green to match button)
-    this.scene.cameras.main.flash(150, FLASH.GREEN.r, FLASH.GREEN.g, FLASH.GREEN.b);
+    this.scene.cameras.main.flash(TIMING.CAMERA_FLASH_NORMAL, FLASH.GREEN.r, FLASH.GREEN.g, FLASH.GREEN.b);
 
     // Fade camera directly to black (keeps dark overlay intact)
-    this.scene.cameras.main.fadeOut(300, 0, 0, 0);
+    this.scene.cameras.main.fadeOut(TIMING.ENTRANCE, 0, 0, 0);
     this.scene.cameras.main.once('camerafadeoutcomplete', () => {
       // Call onSelect which triggers scene.restart()
       // Don't call this.destroy() - scene restart handles cleanup

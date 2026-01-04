@@ -5,7 +5,7 @@
  */
 
 import Phaser from 'phaser';
-import { FONTS, PALETTE, COLORS, ALPHA } from '@/config';
+import { FONTS, PALETTE, COLORS, ALPHA, TIMING } from '@/config';
 import { toDPR } from '@/systems/responsive';
 import { createText } from '@/ui/ui-utils';
 import { GameEventEmitter } from '@/systems/game-events';
@@ -64,7 +64,7 @@ export class SanctuaryBlessingButton extends BlessingButtonBase<SanctuaryBlessin
           log.log('Sanctuary restored!');
           this.updateDisplay();
           // Green flash for restore
-          this.scene.cameras.main.flash(100, 50, 255, 100);
+          this.scene.cameras.main.flash(TIMING.CAMERA_FLASH_SHORT, 50, 255, 100);
         }
       } else if (this.config.canBank()) {
         const success = this.config.onBank();
@@ -72,11 +72,11 @@ export class SanctuaryBlessingButton extends BlessingButtonBase<SanctuaryBlessin
           log.log('Dice banked!');
           this.updateDisplay();
           // Cyan flash for bank
-          this.scene.cameras.main.flash(100, 50, 200, 255);
+          this.scene.cameras.main.flash(TIMING.CAMERA_FLASH_SHORT, 50, 200, 255);
         }
       } else {
         // Already used - flash to indicate
-        this.scene.cameras.main.flash(100, 100, 100, 100);
+        this.scene.cameras.main.flash(TIMING.CAMERA_FLASH_SHORT, 100, 100, 100);
       }
     });
 

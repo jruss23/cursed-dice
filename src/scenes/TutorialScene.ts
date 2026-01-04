@@ -9,6 +9,7 @@ import {
   PALETTE,
   COLORS,
   FLASH,
+  TIMING,
   DEV,
   getViewportMetrics,
   getGameplayLayout,
@@ -294,7 +295,7 @@ export class TutorialScene extends Phaser.Scene {
     this.backButton.add(text);
 
     bg.on('pointerdown', () => {
-      this.cameras.main.flash(150, FLASH.PURPLE.r, FLASH.PURPLE.g, FLASH.PURPLE.b);
+      this.cameras.main.flash(TIMING.CAMERA_FLASH_NORMAL, FLASH.PURPLE.r, FLASH.PURPLE.g, FLASH.PURPLE.b);
       this.onBackPressed();
     });
     bg.on('pointerover', () => bg.setFillStyle(PALETTE.purple[700], 1));

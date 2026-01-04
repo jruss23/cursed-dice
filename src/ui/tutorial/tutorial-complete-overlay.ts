@@ -5,7 +5,7 @@
  */
 
 import Phaser from 'phaser';
-import { FONTS, PALETTE, COLORS, SIZES, DEPTH, FLASH, END_SCREEN } from '@/config';
+import { FONTS, PALETTE, COLORS, SIZES, TIMING, DEPTH, FLASH, END_SCREEN } from '@/config';
 import { toDPR } from '@/systems/responsive';
 import { createText, createPanelFrame, addPanelFrameToContainer, PANEL_PRESETS } from '@/ui/ui-utils';
 
@@ -371,7 +371,7 @@ export class TutorialCompleteOverlay {
     });
 
     // Flash effect
-    this.scene.cameras.main.flash(150, flashColor.r, flashColor.g, flashColor.b);
+    this.scene.cameras.main.flash(TIMING.CAMERA_FLASH_NORMAL, flashColor.r, flashColor.g, flashColor.b);
 
     // Fade camera to black
     this.scene.cameras.main.fadeOut(SIZES.ANIM_NORMAL, 0, 0, 0);

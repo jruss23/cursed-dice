@@ -4,7 +4,7 @@
  */
 
 import Phaser from 'phaser';
-import { FONTS, COLORS, SIZES, getViewportMetrics, type Difficulty } from '@/config';
+import { FONTS, COLORS, SIZES, TIMING, getViewportMetrics, type Difficulty } from '@/config';
 import type { Scorecard } from '@/systems/scorecard';
 import { CATEGORY_ID, type CategoryId } from '@/data/categories';
 import { type GameMode, resetGameProgression, debugSetMode } from '@/systems/game-progression';
@@ -51,7 +51,7 @@ export class DebugController {
     log.debug(`Skipped 10s, time remaining: ${this.formatTime(newTime)}`);
 
     // Visual feedback
-    this.deps.scene.cameras.main.flash(100, 255, 200, 100);
+    this.deps.scene.cameras.main.flash(TIMING.CAMERA_FLASH_SHORT, 255, 200, 100);
   }
 
   /**
@@ -98,7 +98,7 @@ export class DebugController {
       },
     });
 
-    this.deps.scene.cameras.main.flash(200, 100, 255, 200);
+    this.deps.scene.cameras.main.flash(TIMING.CAMERA_FLASH_LONG, 100, 255, 200);
 
     // End game successfully
     this.deps.scene.time.delayedCall(SIZES.ANIM_ENTRANCE, () => {
@@ -115,7 +115,7 @@ export class DebugController {
     log.debug('Save data cleared');
 
     // Visual feedback
-    this.deps.scene.cameras.main.flash(200, 255, 50, 50);
+    this.deps.scene.cameras.main.flash(TIMING.CAMERA_FLASH_LONG, 255, 50, 50);
 
     const { width } = this.deps.scene.cameras.main;
     const clearText = createText(this.deps.scene, width / 2, 200, 'Data Cleared!', {
@@ -162,7 +162,7 @@ export class DebugController {
     this.deps.updateScorecardDisplay();
 
     // Visual feedback
-    this.deps.scene.cameras.main.flash(200, 50, 255, 50);
+    this.deps.scene.cameras.main.flash(TIMING.CAMERA_FLASH_LONG, 50, 255, 50);
 
     const metrics = getViewportMetrics(this.deps.scene);
     const feedbackY = metrics.isMobile ? 120 : 200;

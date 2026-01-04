@@ -129,6 +129,11 @@ export const TIMING = {
   VICTORY_FLASH: 300,               // Screen flash duration
   VICTORY_TRANSITION_START: 0.25,   // Start panel transition at 25% of wipe
   VICTORY_TRANSITION_DURATION: 0.5, // Panel transition takes 50% of total
+
+  // Camera flash effects (use with scene.cameras.main.flash())
+  CAMERA_FLASH_SHORT: 100,          // Quick feedback flash (blessing use, debug)
+  CAMERA_FLASH_NORMAL: 150,         // Standard UI feedback flash
+  CAMERA_FLASH_LONG: 200,           // Emphasized flash (errors, debug mode)
 } as const;
 
 // =============================================================================
@@ -373,25 +378,27 @@ export const LAYOUT = {
 
   // =========================================================================
   // BLESSING CHOICE PANEL
-  // Game is always mobile-sized (430px width locked via CSS)
+  // Popup-style panel, similar to end-screen-overlay
   // =========================================================================
   blessingPanel: {
-    // Panel sizing
-    PANEL_MARGIN: 20,
-    // Title padding from panel top
-    TITLE_PADDING: 22,
+    // Panel sizing (fixed width popup, not full-screen)
+    PANEL_WIDTH: 380,
+    PANEL_PADDING: 16,
+    // Title
+    TITLE_HEIGHT: 22,
+    SUBTITLE_HEIGHT: 14,
     // Button
-    CONTINUE_BUTTON_HEIGHT: 50,
-    CONTINUE_BUTTON_WIDTH: 200,
-    GAP_BUTTON_FROM_BOTTOM: 25,
+    CONTINUE_BUTTON_HEIGHT: 44,
+    CONTINUE_BUTTON_WIDTH: 180,
     // Gaps
-    GAP_TITLE_TO_SUBTITLE: 22,
-    GAP_SUBTITLE_TO_CHOOSE: 28,
-    GAP_CHOOSE_TO_CARDS: 18,
-    // Card dimensions
-    CARD_WIDTH_MARGIN: 20,
-    CARD_HEIGHT: 88,
-    CARD_SPACING: 3,
+    GAP_TITLE_TO_SUBTITLE: 4,
+    GAP_SUBTITLE_TO_CHOOSE: 12,
+    GAP_CHOOSE_TO_CARDS: 8,
+    GAP_CARDS_TO_BUTTON: 12,
+    // Card dimensions (with room for description)
+    CARD_HEIGHT: 80,
+    CARD_SPACING: 6,
+    CARD_PADDING: 8,
   },
 } as const;
 

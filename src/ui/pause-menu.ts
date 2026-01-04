@@ -210,7 +210,7 @@ export class PauseMenu {
       label: 'QUIT',
       style: 'danger',
       onClick: () => {
-        this.scene.cameras.main.flash(150, FLASH.RED.r, FLASH.RED.g, FLASH.RED.b);
+        this.scene.cameras.main.flash(TIMING.CAMERA_FLASH_NORMAL, FLASH.RED.r, FLASH.RED.g, FLASH.RED.b);
         this.callbacks.onQuit();
       },
     });

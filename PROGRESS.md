@@ -1,6 +1,6 @@
 # Cursed Dice - Development Progress & Architecture Review
 
-## Last Updated: January 2, 2026
+## Last Updated: January 4, 2026
 
 ---
 
@@ -907,6 +907,90 @@ cd "$(dirname "$0")"
 - `src/ui/tutorial/tutorial-overlay.ts` - Dynamic corner accent repositioning
 - `capacitor.config.ts` - Fixed duplicate plugins object
 - `android/gradle.properties` - Performance optimizations
+
+---
+
+## Recent Session Work (Jan 4, 2026)
+
+### Menu Background Assets - COMPLETE
+- [x] **Added ghost.png** - Custom AI-generated ghost image replacing emoji
+- [x] **Added skull.png** - Custom AI-generated skull image replacing emoji
+- [x] **Optimized for mobile** - Resized from 1024px to 128px (ghost: 18KB, skull: 22KB)
+- [x] **Transparent backgrounds** - Manual cleanup using Preview's Instant Alpha
+- [x] **Updated spooky-background.ts** - Uses image sprites instead of text emojis
+- [x] **Updated MenuScene.ts** - Preloads ghost and skull images
+- [x] **Proportional sizing** - Increased skull sizes from 28-42px to 50-68px to match ghost scale
+- [x] **Ghost spawn improvements**:
+  - Spawns in left/right thirds only (avoids center UI)
+  - Floats toward vertical center
+  - Overlap prevention (150px minimum distance between ghosts)
+  - Guard to prevent ghosts spawning near skulls
+  - Faster spawn rate (3-5s instead of 6-12s)
+
+### Spooky Background Responsive Audit - COMPLETE
+- [x] **Full audit of spooky-background.ts** - Converted ALL hardcoded pixel values to use `scale()` helper
+- [x] **Methods updated**:
+  - `createBackground()` - glow spot sizes
+  - `createFloatingCursedElements()` - skull positions, float distances, dice margins/sizes/glow
+  - `createFogLayers()` - fog height
+  - `createGlowingEyes()` - positions and sizes (now percentage-based)
+  - `createFlickeringCandles()` - positions and sizes
+  - `createGhostlyWisps()` - margins, drift distances, wave motion
+
+### Dice Animation Optimization - COMPLETE
+- [x] **Reduced tweens from ~70 to ~15** for mobile performance
+- [x] **Optimizations**:
+  - Rotates container instead of 4 children individually
+  - Removed particle effects during roll
+  - Removed glow and shadow animations
+  - Simplified landing impact (squash only, no ring/sparkles)
+- [x] **Tighter timing** - 25ms stagger (was 30ms), reduced jump heights
+- [x] **File**: `src/systems/dice/dice-renderer.ts` (-163 lines)
+
+### Camera Flash Duration Constants - COMPLETE
+- [x] **Centralized flash durations** - Added to `TIMING` in `src/config/sizes.ts`:
+  - `CAMERA_FLASH_SHORT: 100` - Quick feedback (blessing use, debug)
+  - `CAMERA_FLASH_NORMAL: 150` - Standard UI feedback
+  - `CAMERA_FLASH_LONG: 200` - Emphasized flash (errors, debug mode)
+- [x] **Updated 12 files** to use constants instead of hardcoded values:
+  - ui-setup.ts, TutorialScene.ts, debug-controller.ts
+  - blessing-choice-panel.ts, end-screen-overlay.ts, pause-menu.ts
+  - mercy-blessing-button.ts, sixth-blessing-button.ts, sanctuary-blessing-button.ts
+  - tutorial-complete-overlay.ts
+
+### Blessing Choice Panel Redesign - COMPLETE
+- [x] **Converted to popup style** - Was full-screen, now fixed 380px width centered popup
+- [x] **Content-driven height** - Panel height calculated from content, not screen fill
+- [x] **Updated LAYOUT.blessingPanel** in sizes.ts:
+  - `PANEL_WIDTH: 380` (new - was margin-based full screen)
+  - `CARD_HEIGHT: 80` (was 88)
+  - `CONTINUE_BUTTON: 180x44` (was 200x50)
+  - Added `GAP_CARDS_TO_BUTTON`, `CARD_PADDING`, `TITLE_HEIGHT`, `SUBTITLE_HEIGHT`
+- [x] **Preserved card styling** - Corner accents, full descriptions, proper stroke widths
+
+### Responsive Scaling Consolidation - COMPLETE
+- [x] **Removed duplicate scale logic** from two files that were calculating `combinedScale` locally
+- [x] **spooky-background.ts** - Now uses `getGameplayLayout(scene).viewport.combinedScale`
+- [x] **blessing-choice-panel.ts** - Now uses `getGameplayLayout(scene).viewport.combinedScale`
+- [x] **Deleted duplicate constants** - `REFERENCE_WIDTH_CSS`, `REFERENCE_HEIGHT_CSS` now only exist in `responsive.ts`
+- [x] **Single source of truth** - All scaling now flows through the responsive system
+
+### Files Changed (15+ files)
+| File | Change Type |
+|------|-------------|
+| assets/images/ghost.png | New asset - 128x128, 18KB |
+| assets/images/skull.png | New asset - 128x128, 22KB |
+| src/scenes/MenuScene.ts | Preloads ghost/skull images |
+| src/ui/menu/spooky-background.ts | Image sprites, spawn logic, full responsive audit |
+| src/systems/dice/dice-renderer.ts | Animation optimization (-163 lines) |
+| src/config/sizes.ts | TIMING flash constants, blessingPanel layout |
+| src/ui/blessing-choice-panel.ts | Popup style refactor + responsive scaling |
+| src/systems/debug-controller.ts | Flash duration constants |
+| src/ui/gameplay/*.ts (4 files) | Flash duration constants |
+| src/scenes/TutorialScene.ts | Flash duration constants |
+| src/ui/pause-menu.ts | Flash duration constants |
+| src/ui/tutorial/tutorial-complete-overlay.ts | Flash duration constants |
+| .claude/plans/corner-accent-consistency.md | Deleted (completed plan) |
 
 ---
 
